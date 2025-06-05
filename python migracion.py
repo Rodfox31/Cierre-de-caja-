@@ -1,8 +1,8 @@
 import sqlite3
 import os
 
-# Usando una cadena raw para el path de Windows
-db_path = r"C:\Users\Mil\Desktop\Cierre de caja App 2.0\client\db.js.db"
+# Construye la ruta a la base de datos de forma relativa al directorio del script
+db_path = os.path.join(os.path.dirname(__file__), "db.js.db")
 
 # Verifica que el archivo de la base de datos exista
 if not os.path.exists(db_path):
