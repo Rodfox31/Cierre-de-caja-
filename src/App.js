@@ -2,19 +2,22 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
+import { API_BASE_URL } from './config';
 
 const colors = {
   mainBg: "#1E1E1E",
   textPrimary: "#FFFFFF"
 };
 
+
 function App() {
   const [activePage, setActivePage] = useState('Home');
   const [cierres, setCierres] = useState([]); // Estado para guardar datos de la DB
 
   // Llamada al backend para obtener los cierres (DB)
+
   useEffect(() => {
-    fetch('/api/cierres')
+    fetch(`${API_BASE_URL}/api/cierres`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Error al cargar datos de cierres");

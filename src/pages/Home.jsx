@@ -34,6 +34,7 @@ import {
   Warning as WarningIcon,
   TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
+import { API_BASE_URL } from '../config';
 
 const HomePage = () => {
   const theme = useTheme();
@@ -46,7 +47,7 @@ const HomePage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get('http://localhost:3001/api/cierres-completo');
+        const response = await axios.get(`${API_BASE_URL}/api/cierres-completo`);
         const data = response.data;
         setCierres(data);
         procesarDatos(data);
