@@ -9,8 +9,10 @@ Este proyecto es una aplicación React con un servidor Express que gestiona cier
 ## Instalación
 
 1. Clona el repositorio.
-2. Ejecuta `npm install` en la raíz para descargar las dependencias.
+2. Ejecuta `npm install --include=dev` en la raíz para descargar todas las dependencias, incluidas las de desarrollo.
+   Si encuentras problemas de dependencias, puedes usar `npm install --legacy-peer-deps`.
 3. Inicia el frontend con `npm start`.
+   Si las dependencias de desarrollo faltan, este comando fallará con "webpack: not found".
 4. En otra terminal puedes iniciar el servidor backend con `npm run server`.
 
 El servidor responde en `http://localhost:3001` y el frontend se sirve en `http://localhost:3000` por defecto.
