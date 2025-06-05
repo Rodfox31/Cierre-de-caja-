@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
-import { API_BASE_URL } from './config';
 
 const colors = {
   mainBg: "#1E1E1E",
   textPrimary: "#FFFFFF"
 };
+
+const API_BASE_URL = 'http://localhost:3001';
 
 function App() {
   const [activePage, setActivePage] = useState('Home');

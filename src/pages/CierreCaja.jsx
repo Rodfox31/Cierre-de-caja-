@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Imprimir from "./imprimir";
 import { useTheme } from "@mui/material/styles";
-import { API_BASE_URL } from '../config';
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1127,7 +1126,7 @@ function CierreCaja() {
   const togglePanelCierre = async () => {
     const fechaStr = fecha.toLocaleDateString("es-CL");
     try {
-      const queryUrl = `${API_BASE_URL}/api/cierres/existe?fecha=${encodeURIComponent(
+      const queryUrl = `http://localhost:3001/api/cierres/existe?fecha=${encodeURIComponent(
         fechaStr
       )}&tienda=${encodeURIComponent(selectedTienda)}&usuario=${encodeURIComponent(
         selectedUsuario
@@ -1171,7 +1170,7 @@ function CierreCaja() {
     };
   
     try {
-      const response = await fetch(`${API_BASE_URL}/api/cierres`, {
+      const response = await fetch("http://localhost:3001/api/cierres", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(exportData)
@@ -1284,7 +1283,7 @@ function CierreCaja() {
 //
 async function loadAjustesFromBackend() {
   try {
-    const response = await fetch(`${API_BASE_URL}/localStorage`);
+    const response = await fetch("http://localhost:3001/localStorage");
     if (!response.ok) {
       throw new Error(`HTTP error: ${response.status}`);
     }
