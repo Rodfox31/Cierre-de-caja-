@@ -8,13 +8,16 @@ const colors = {
   textPrimary: "#FFFFFF"
 };
 
+const API_BASE_URL = 'http://localhost:3001';
+
 function App() {
   const [activePage, setActivePage] = useState('Home');
   const [cierres, setCierres] = useState([]); // Estado para guardar datos de la DB
 
   // Llamada al backend para obtener los cierres (DB)
+
   useEffect(() => {
-    fetch('/api/cierres')
+    fetch(`${API_BASE_URL}/api/cierres`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Error al cargar datos de cierres");
