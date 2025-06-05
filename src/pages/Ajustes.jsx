@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios'; // Importa Axios para realizar peticiones HTTP
+import { API_BASE_URL } from '../config';
 import { keyframes } from '@emotion/react';
 
 // Datos iniciales de configuración
@@ -36,7 +37,7 @@ function AjustesTab() {
   // Al montar el componente, se obtienen los datos desde el backend
   useEffect(() => {
     // Realiza una petición GET con Axios para obtener los datos
-    axios.get("http://localhost:3001/localStorage") // Ajusta la URL según corresponda
+    axios.get(`${API_BASE_URL}/localStorage`) // Ajusta la URL según corresponda
       .then(response => {
         const jsonData = response.data;
         console.log("JSON recibido desde backend:", jsonData);
@@ -68,7 +69,7 @@ function AjustesTab() {
   // Función para guardar los datos en el backend
   const saveData = () => {
     // Realiza una petición POST con Axios para enviar los datos
-    axios.post("http://localhost:3001/localStorage", data, {
+    axios.post(`${API_BASE_URL}/localStorage`, data, {
       headers: { "Content-Type": "application/json" }
     })
       .then(response => {
