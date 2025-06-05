@@ -1,0 +1,113 @@
+{
+  "tiendas": [
+    "Recoleta",
+    "Alto Palermo",
+    "Unicenter",
+    "Solar",
+    "Cordoba",
+    "Rosario"
+  ],
+  "motivos_error_pago": [
+    "Cobro doble ",
+    "Cobro de Mas",
+    "Cobro de Menos",
+    "Inversion de medio de pago",
+    "Diferencia Generada por Anulación",
+    "Diferencia por cambio chico"
+  ],
+  "medios_pago": [
+    "Efectivo",
+    "MPoint",
+    "Mp - Qr",
+    "MPoint - Contingencia",
+    "Payway ",
+    "AppaGift"
+  ],
+  "asignaciones": {
+    "Recoleta": [
+      {
+        "usuario": "NNmirami",
+        "nombre": "Milton Mira"
+      },
+      {
+        "usuario": "NNdeviaslu",
+        "nombre": "Luciana Devias"
+      },
+      {
+        "usuario": "NNALEGREWA",
+        "nombre": "Walter Alegre"
+      },
+      {
+        "usuario": "NNCASTELLU",
+        "nombre": "Lucas Castells"
+      },
+      {
+        "usuario": "NNDEIBELA",
+        "nombre": "Laura Deibe"
+      },
+      {
+        "usuario": "NNBOCAPA",
+        "nombre": "Paula Boca"
+      },
+      {
+        "usuario": "NNROSLERDE",
+        "nombre": "Denise Rosler"
+      },
+      {
+        "usuario": "NNARANDAAL",
+        "nombre": "Alejandra Aranda"
+      },
+      {
+        "usuario": "NNSANTOSMA",
+        "nombre": "Anabel Santos"
+      },
+      {
+        "usuario": "NNZARACHRO",
+        "nombre": "Rocio Zaracho"
+      },
+      {
+        "usuario": "NNBAZANBI",
+        "nombre": "Bianca Bazan"
+      },
+      {
+        "usuario": "NNROBLEDDA",
+        "nombre": "Shania Silba"
+      },
+      {
+        "usuario": "NNLEONFL",
+        "nombre": "Flor leon"
+      },
+      {
+        "usuario": "NNKUSTERMA",
+        "nombre": "Magda Kuster"
+      },
+      {
+        "usuario": "NNSOSATA",
+        "nombre": "Catalina Sosa"
+      },
+      {
+        "usuario": "nnsosame",
+        "nombre": "Florencia Sosa"
+      }
+    ],
+    "Alto Palermo": [
+      {
+        "usuario": "NNOttavianoca",
+        "nombre": "Carla Ottaviano"
+      },
+      {
+        "usuario": "Test",
+        "nombre": "Test"
+      }
+    ],
+    "Unicenter": [],
+    "Solar": [],
+    "Cordoba": [],
+    "Rosario": []
+  },
+  "config_font_size": 14,
+  "config_theme": "Claro",
+  "config_language": "Español",
+  "config_debug": false,
+  "config_logging": false
+}
