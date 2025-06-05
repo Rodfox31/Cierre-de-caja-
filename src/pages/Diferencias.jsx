@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import moment from 'moment';
+import { API_BASE_URL } from '../config';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { DateRangePicker } from '@mui/x-date-pickers-pro';
 import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
@@ -487,7 +488,7 @@ function ControlCajas() {
       if (tiendaSeleccionada) params.tienda = tiendaSeleccionada;
       if (usuarioSeleccionado) params.usuario = usuarioSeleccionado;
 
-      const response = await axios.get('http://localhost:3001/api/cierres-completo', { params });
+      const response = await axios.get(`${API_BASE_URL}/api/cierres-completo`, { params });
       const cierresData = response.data.map((cierre) => {
         let mediosPago = [];
         try {
@@ -517,7 +518,7 @@ function ControlCajas() {
   useEffect(() => {
     async function loadConfig() {
       try {
-        const response = await axios.get('http://localhost:3001/localStorage');
+        const response = await axios.get(`${API_BASE_URL}/localStorage`);
         setMotivos(response.data.motivos_error_pago || []);
         setTiendas(response.data.tiendas || []);
         setMediosPagoColumns(response.data.medios_pago || []);
