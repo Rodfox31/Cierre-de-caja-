@@ -13,7 +13,7 @@ const db = new Database(dbPath);
 // Serve built frontend if available
 const clientBuildPath = path.join(__dirname, '..', 'dist');
 if (fs.existsSync(clientBuildPath)) {
-  app.use(express.static(clientBuildPath));
+  app.use(express.static(clientBuildPath, { fallthrough: true }));
 }
 
 app.use(express.json());
