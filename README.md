@@ -13,6 +13,6 @@ Este proyecto es una aplicación React con un servidor Express que gestiona cier
 3. Inicia el frontend con `npm start`.
 4. En otra terminal puedes iniciar el servidor backend con `npm run server`.
 
-El servidor responde en `http://localhost:4000` y el frontend se sirve en `http://localhost:3000` por defecto.
+El servidor responde en `http://localhost:3001` y el frontend se sirve en `http://localhost:3000` por defecto.
 
 Los datos se almacenan en `db.js.db` mediante SQLite. Existen scripts adicionales como `python migracion.py` para modificar la base de datos si es necesario.
