@@ -10,6 +10,12 @@ const PORT = process.env.PORT || 3001;
 const dbPath = path.join(__dirname, '..', 'db.js.db');
 const db = new Database(dbPath);
 
+// Serve built frontend if available
+const clientBuildPath = path.join(__dirname, '..', 'dist');
+if (fs.existsSync(clientBuildPath)) {
+  app.use(express.static(clientBuildPath));
+}
+
 app.use(express.json());
 app.use(cors());
 
@@ -166,6 +172,16 @@ app.post('/api/cierres', (req, res) => {
   } catch (err) {
     console.error('DB error', err);
     res.status(500).json({ error: 'DB error' });
+  }
+});
+
+// Root route - useful for simple health checks
+app.get('/', (req, res) => {
+  const indexPath = path.join(clientBuildPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.send('Cierre de Caja API');
   }
 });
 
