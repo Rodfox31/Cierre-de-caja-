@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { API_BASE_URL } from '../config';
 import {
   Box,
   Card,
@@ -95,7 +96,7 @@ const ExportarPage = () => {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get('http://localhost:3001/api/cierres-completo');
+      const response = await axios.get(`${API_BASE_URL}/api/cierres-completo`);
       
       if (!response.data || response.data.length === 0) {
         setError('No se encontraron datos en la base de datos');

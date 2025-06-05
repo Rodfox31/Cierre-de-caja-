@@ -15,6 +15,10 @@ Este proyecto es una aplicación React con un servidor Express que gestiona cier
    Si las dependencias de desarrollo faltan, este comando fallará con "webpack: not found".
 4. En otra terminal puedes iniciar el servidor backend con `npm run server`.
 
+El código fuente usa una constante `API_BASE_URL` (definida en `src/config.js`) para
+apuntar al backend. Ajusta esa constante si tu servidor Express corre en una URL
+distinta.
+
 El servidor responde en `http://localhost:3001` y el frontend se sirve en `http://localhost:3000` por defecto.
 
 Los datos se almacenan en `db.js.db` mediante SQLite. Existen scripts adicionales como `python migracion.py` para modificar la base de datos si es necesario.
