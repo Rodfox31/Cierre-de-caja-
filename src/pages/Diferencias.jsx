@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import moment from 'moment';
-import { DateRangePicker } from 'react-dates';
-import 'react-dates/initialize';
-import 'react-dates/lib/css/_datepicker.css';
-import './react-dates-dark.css'; // Este debe ser el último
+import { LocalizationProvider } from '@mui/x-date-pickers';
+import { DateRangePicker } from '@mui/x-date-pickers-pro';
+import { AdapterMoment } from '@mui/x-date-pickers/AdapterMoment';
 import axios from 'axios';
 import { 
   CheckCircle as CheckCircleIcon, 
@@ -292,36 +291,29 @@ const HeaderControls = React.memo(function HeaderControls({
   conDiferencias,
   setConDiferencias
 }) {
-  const [focusedInput, setFocusedInput] = useState(null);
-
   return (
     <Box mb={3}>
       <Grid container spacing={2} alignItems="center" wrap="nowrap">
         {/* PICKER DE FECHAS */}
         <Grid item>
-          <Paper elevation={0} sx={{ position: 'relative', zIndex: focusedInput ? 10 : 1 }}>
+          <LocalizationProvider dateAdapter={AdapterMoment}>
             <DateRangePicker
-              startDate={fechaDesde}
-              startDateId="start_date_id"
-              endDate={fechaHasta}
-              endDateId="end_date_id"
-              onDatesChange={({ startDate, endDate }) => {
-                setFechaDesde(startDate);
-                setFechaHasta(endDate);
+              calendars={1}
+              value={[fechaDesde, fechaHasta]}
+              onChange={(newValue) => {
+                const [start, end] = newValue;
+                setFechaDesde(start);
+                setFechaHasta(end);
               }}
-              focusedInput={focusedInput}
-              onFocusChange={setFocusedInput}
-              numberOfMonths={1}
-              isOutsideRange={() => false}
-              displayFormat="DD/MM/YYYY"
-              showClearDates
-              placeholder="Rango de fechas"
-              customArrowIcon={<span>→</span>}
-              noBorder
-              hideKeyboardShortcutsPanel
-              small
+              renderInput={(startProps, endProps) => (
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <TextField size="small" {...startProps} />
+                  <Box sx={{ mx: 1 }}>→</Box>
+                  <TextField size="small" {...endProps} />
+                </Box>
+              )}
             />
-          </Paper>
+          </LocalizationProvider>
         </Grid>
 
         {/* SELECT DE TIENDA */}
