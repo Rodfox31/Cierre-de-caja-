@@ -1,0 +1,320 @@
+/* ======================================================
+    Ultimate Dark DateRangePicker - REPARACIÓN FINAL (Alineación Días de la Semana y Cuadrícula)
+    Objetivo: Que los días de la semana se alineen correctamente sobre las columnas de los números.
+====================================================== */
+
+/* 0. Reset de estilos nativos */
+.DateRangePicker *,
+.DateRangePicker *:before,
+.DateRangePicker *:after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+/* 1. Variables del tema oscuro */
+:root {
+  --ultra-dark: #0a0a0a;
+  --dark-bg: #1a1a1a;
+  --dark-surface: #2d2d2d;
+  --dark-accent: #ffffff;
+  --dark-text: #ffffff;
+  --dark-border: #3d3d3d;
+  --dark-hover-bg: rgba(255,255,255,0.08);
+  --dark-disabled-text: #555555;
+  --dark-empty-cell-bg: #121212;
+
+  --border-radius: 8px;
+  --transition-speed: 0.2s;
+  --cell-size: 38px;           /* Tamaño base para la celda de día (altura y ancho) */
+  --cell-spacing: 2px;         /* Espacio entre celdas */
+  --mobile-cell: 34px;         /* Tamaño móvil */
+}
+
+/* 2. Contenedor principal */
+.DateRangePicker {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  width: 100%;
+  max-width: 420px;
+  background: var(--ultra-dark);
+  color: var(--dark-text);
+  position: relative;
+}
+
+/* 3. Input cerrado - Diseño equilibrado */
+.DateRangePickerInput {
+  background: var(--dark-bg);
+  border: 1px solid var(--dark-border);
+  border-radius: var(--border-radius);
+  padding: 11px 15px;
+  transition: all var(--transition-speed);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.DateRangePickerInput:hover {
+  border-color: var(--dark-accent);
+}
+
+.DateRangePickerInput:focus-within {
+  border-color: var(--dark-accent);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.12);
+}
+
+/* 4. Campos de fecha */
+.DateInput {
+  flex: 1;
+  background: transparent !important;
+}
+
+.DateInput_input {
+  color: var(--dark-text) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  text-align: center;
+  background: transparent !important;
+  padding: 4px 6px !important;
+}
+
+/* 5. Panel del calendario */
+.DateRangePicker_picker {
+  background: var(--dark-bg) !important;
+  border: 1px solid var(--dark-border) !important;
+  border-radius: var(--border-radius) !important;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25) !important;
+  margin-top: 10px !important;
+  padding: 14px 16px !important; 
+  animation: panelSlide 0.25s ease-out;
+  position: relative !important; 
+  overflow: hidden; 
+}
+
+/* 6. Encabezado del mes (ej. "April 2025") */
+.CalendarMonth_caption {
+  color: var(--dark-text) !important;
+  font-size: 15px !important;
+  font-weight: 600;
+  text-align: center; 
+  width: 100%; 
+  padding-bottom: 8px !important;
+  margin-bottom: 6px !important;
+  border-bottom: 1px solid var(--dark-border) !important;
+  position: static !important; 
+}
+
+/* 7. Días de la semana (Su, Mo, Tu, etc.) */
+.DayPicker_weekHeader {
+  margin-bottom: 4px !important;
+  /* El ancho de la cuadrícula de días + espaciado entre ellas */
+  width: calc(7 * var(--cell-size) + 6 * var(--cell-spacing)) !important;
+  margin-left: auto !important; /* Centrar horizontalmente */
+  margin-right: auto !important; /* Centrar horizontalmente */
+  
+  display: flex !important; 
+  justify-content: space-between !important; /* Distribuye los LI uniformemente */
+  align-items: center !important;
+  padding: 0 !important; 
+}
+
+.DayPicker_weekHeader_li {
+  color: var(--dark-accent) !important;
+  font-size: 13px !important;
+  width: var(--cell-size) !important; /* Cada LI toma el ancho de una celda de día */
+  text-align: center !important;
+  letter-spacing: -0.3px;
+  height: 20px; 
+  line-height: 20px; 
+  vertical-align: middle; 
+}
+
+/* 8. Cuadrícula del calendario (la tabla que contiene los días) */
+.CalendarMonth_table {
+  /* Ancho total de la cuadrícula: 7 celdas + 6 espacios */
+  width: calc(7 * var(--cell-size) + 6 * var(--cell-spacing)) !important;
+  border-collapse: separate; 
+  border-spacing: var(--cell-spacing); 
+  margin-left: auto !important; /* Centrar */
+  margin-right: auto !important; /* Centrar */
+
+  /* POSIBLE REPARACIÓN: Ajustar el margen izquierdo para compensar si hay un desfase */
+  /* Si los días están desplazados a la derecha, reduce este valor */
+  /* margin-left: calc(auto - Xpx) !important; */
+  /* Este tipo de ajuste es más un "hack" si los cálculos de ancho no son suficientes. */
+}
+
+/* 9. Celdas de días (los números 1, 2, 3...) */
+.CalendarDay {
+  background: var(--dark-surface) !important;
+  color: var(--dark-text) !important;
+  border: 1px solid var(--dark-border) !important;
+  border-radius: 4px !important;
+  transition: all var(--transition-speed) !important;
+  
+  width: var(--cell-size) !important; 
+  height: var(--cell-size) !important;
+  
+  text-align: center !important; 
+  line-height: var(--cell-size) !important; 
+  
+  /* CRUCIAL: Asegurar que las celdas de día se comporten como celdas de tabla */
+  /* La desalineación podría venir de aquí. Forzamos a ser `table-cell`. */
+  display: table-cell !important; 
+  vertical-align: middle !important; 
+
+  /* REPARACIÓN CLAVE para los días flotantes y desalineados: */
+  /* Asegurarse de que no tengan ningún posicionamiento absoluto o transformaciones */
+  position: static !important; 
+  transform: none !important; 
+  left: auto !important; 
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+
+  /* Asegurar que no hay márgenes inesperados en las celdas */
+  margin: 0 !important;
+
+  font-size: 14px !important;
+}
+
+/* 10. Estados interactivos */
+.CalendarDay__default:hover {
+  background: var(--dark-hover-bg) !important;
+}
+
+.CalendarDay__selected_span {
+  background: var(--dark-hover-bg) !important;
+  border-color: var(--dark-accent) !important;
+}
+
+.CalendarDay__selected_start,
+.CalendarDay__selected_end {
+  background: var(--dark-accent) !important;
+  color: #000 !important;
+  font-weight: bold !important;
+}
+
+.CalendarDay__today {
+  box-shadow: inset 0 0 0 2px var(--dark-accent) !important;
+}
+
+/* 11. Navegación (botones de flecha) */
+.DayPickerNavigation_button {
+  background: var(--dark-surface) !important;
+  border: 1px solid var(--dark-accent) !important;
+  border-radius: 4px !important;
+  padding: 6px !important;
+  height: 32px !important;
+  width: 32px !important;
+  
+  position: absolute !important;
+  top: 10px !important; 
+  z-index: 10; 
+}
+
+.DayPickerNavigation_button__horizontal-prev {
+  left: 12px !important; 
+}
+
+.DayPickerNavigation_button__horizontal-next {
+  right: 12px !important; 
+}
+
+.DayPickerNavigation_svg__horizontal {
+  fill: var(--dark-accent) !important;
+  transform: scale(0.85);
+}
+
+/* 12. Elementos especiales (días inactivos/fuera de rango/vacíos) */
+/* Clases de react-dates para días que no son seleccionables o del mes actual */
+.CalendarDay__blocked_out_of_range,
+.CalendarDay__outside, 
+.CalendarDay__blocked_calendar { 
+  background: var(--dark-empty-cell-bg) !important; 
+  color: var(--dark-disabled-text) !important; 
+  opacity: 0.8 !important; 
+  pointer-events: none !important; 
+  width: var(--cell-size) !important; 
+  height: var(--cell-size) !important;
+  line-height: var(--cell-size) !important; 
+  border: 1px solid var(--dark-border) !important; 
+
+  /* REPARACIÓN CLAVE: Forzar que no floten y que respeten la cuadrícula */
+  position: static !important; 
+  transform: none !important; 
+  left: auto !important;
+  top: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  margin: 0 !important; /* Asegurar que no hay márgenes extra */
+}
+
+/* Para celdas vacías que la librería oculta por accesibilidad pero que deben mantener el layout */
+.CalendarDay__hidden_for_accessibility {
+    visibility: hidden; /* Ocultar el contenido visualmente */
+    pointer-events: none;
+    background: transparent !important; 
+    border: none !important; 
+    width: var(--cell-size) !important; 
+    height: var(--cell-size) !important;
+    line-height: var(--cell-size) !important; 
+}
+
+
+/* 13. Animaciones */
+@keyframes panelSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 14. Versión móvil */
+@media (max-width: 480px) {
+  :root {
+    --cell-size: var(--mobile-cell); 
+    --cell-spacing: 1px; 
+  }
+  
+  .CalendarDay {
+    font-size: 13px !important;
+    height: var(--mobile-cell) !important; 
+    width: var(--mobile-cell) !important; 
+    line-height: var(--mobile-cell) !important; 
+  }
+  
+  .DayPicker_weekHeader_li {
+    font-size: 12px !important;
+    height: 18px; 
+    line-height: 18px; 
+    width: var(--mobile-cell) !important; 
+  }
+
+  .DayPicker_weekHeader,
+  .CalendarMonth_table {
+    width: calc(7 * var(--mobile-cell) + 6 * var(--cell-spacing)) !important; 
+  }
+  
+  .DateRangePickerInput {
+    padding: 8px 12px !important;
+  }
+  
+  .DateRangePicker_picker {
+    padding: 10px 12px !important;
+  }
+
+  .DayPickerNavigation_button {
+    top: 6px !important; 
+  }
+
+  .CalendarMonth_caption {
+    font-size: 14px !important;
+    top: 8px; 
+  }
+}
