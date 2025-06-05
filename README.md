@@ -15,4 +15,4 @@ Este proyecto es una aplicación React con un servidor Express que gestiona cier
 
 El servidor responde en `http://localhost:4000` y el frontend se sirve en `http://localhost:3000` por defecto.
 
-Los datos se almacenan en `db.js.db` mediante SQLite. Existen scripts adicionales como `python migracion.py` para modificar la base de datos si es necesario.
+Los datos se almacenan en `db.js.db`, una base de datos SQLite incluida como ejemplo.
