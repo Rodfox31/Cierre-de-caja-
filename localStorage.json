@@ -8,12 +8,16 @@
     "Rosario"
   ],
   "motivos_error_pago": [
-    "Cobro doble ",
-    "Cobro de Mas",
-    "Cobro de Menos",
-    "Inversion de medio de pago",
-    "Diferencia Generada por Anulación",
-    "Diferencia por cambio chico"
+    "Dif. por cambio chico - Monto menor a 1 CAPSULA ESPRESSO (solo efectivo)",
+    "Pago Mixto autorizado por SL-TL-BM",
+    "Error de cobro - Se cobró de menos / mas",
+    "NESSOFT: Anulación no impactada",
+    "NESSOFT: Venta no impactada",
+    "NC: Diferencia Generada por Anulación",
+    "NC: Refacturación Mayor/Menor",
+    "BRINKS: Deposite de Más/Menos",
+    "OTROS: Cambio de artículo en Promoción",
+    "Orden cubieta con contingencia"
   ],
   "medios_pago": [
     "Efectivo",
@@ -98,10 +102,55 @@
       {
         "usuario": "Test",
         "nombre": "Test"
+      },
+      {
+        "usuario": "nnaquinoel",
+        "nombre": "Aquino Eliana"
       }
     ],
     "Unicenter": [],
-    "Solar": [],
+    "Solar": [
+      {
+        "usuario": "NNLARROSEM",
+        "nombre": "Emmanuel Larrosa"
+      },
+      {
+        "usuario": "NNPOOSJE",
+        "nombre": "Jesus Poos"
+      },
+      {
+        "usuario": "NNNEMESU",
+        "nombre": "Sumaia Neme"
+      },
+      {
+        "usuario": "NNZAVALALO",
+        "nombre": "Lourdes Zavala"
+      },
+      {
+        "usuario": "NNSILVASA",
+        "nombre": "Sarahy Silva"
+      },
+      {
+        "usuario": "NNRUIZVI",
+        "nombre": "Victoria Ruiz"
+      },
+      {
+        "usuario": "NNSANCHEPA",
+        "nombre": "Paula Sanchez"
+      },
+      {
+        "usuario": "NNANGANULI",
+        "nombre": "Lisandro Anganuzzi"
+      },
+      {
+        "usuario": "NNBACIGALU",
+        "nombre": "Lucia Bacigalupe"
+      },
+      {
+        "usuario": "NNQUIROZCR",
+        "nombre": "Cristian Quiroz"
+      }
+    ],
     "Cordoba": [],
     "Rosario": []
   },

@@ -17,6 +17,11 @@ import {
   Chip,
   Fade,
   Paper,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  OutlinedInput,
 } from '@mui/material';
 import {
   Storefront,
@@ -99,11 +104,9 @@ const CriticalAnomalies = ({ anomalies }) => (
           <ListItem key={cierre.id}>
             <ListItemText
               primary={`Diferencia de $${parseFloat(cierre.grand_difference_total).toFixed(2)}`}
-              secondary={`En ${cierre.tienda} por ${cierre.usuario} el ${
-                cierre.fechaObj && !isNaN(cierre.fechaObj.getTime())
-                  ? cierre.fechaObj.toLocaleDateString('es-CL')
-                  : `Invalid date (${cierre.fecha})`
-              }`}
+              secondary={`En ${cierre.tienda} por ${cierre.usuario} el ${parseFecha(cierre.fecha).toLocaleDateString(
+                'es-CL'
+              )}`}
             />
           </ListItem>
         ))}
@@ -117,162 +120,113 @@ const CriticalAnomalies = ({ anomalies }) => (
   </Card>
 );
 
-const RecentClosures = ({ closures }) => {
-  const sorted = [...closures].sort((a, b) => b.fechaObj - a.fechaObj);
-  return (
-    <Card sx={{ p: 3, height: '100%' }}>
-      <Typography variant="h6" gutterBottom fontWeight="bold">
-        <Timeline sx={{ verticalAlign: 'middle', mr: 1 }} />
-        Actividad Reciente
-      </Typography>
-      <List dense sx={{ maxHeight: 300, overflow: 'auto' }}>
-        {sorted.slice(0, 10).map((cierre) => {
-          const isNegative = cierre.grand_difference_total < 0;
-          const difference = Math.abs(parseFloat(cierre.grand_difference_total) || 0);
-          const parsed = cierre.fechaObj;
-          const isInvalid = isNaN(parsed.getTime());
-          return (
-            <ListItem key={cierre.id} sx={{ my: 1 }}>
-              <ListItemText
-                primary={`${cierre.tienda} - ${cierre.usuario}`}
-                secondary={
-                  isInvalid
-                    ? `Cierre del Invalid date (${cierre.fecha})`
-                    : `Cierre del ${parsed.toLocaleDateString('es-CL')}`
-                }
-              />
-              <Chip
-                label={`${isNegative ? '-' : ''}$${difference.toFixed(2)}`}
-                color={difference > 0 ? (isNegative ? 'error' : 'warning') : 'success'}
-                size="small"
-                variant="outlined"
-              />
-            </ListItem>
-          );
-        })}
-      </List>
-    </Card>
-  );
-};
+const RecentClosures = ({ closures }) => (
+  <Card sx={{ p: 3, height: '100%' }}>
+    <Typography variant="h6" gutterBottom fontWeight="bold">
+      <Timeline sx={{ verticalAlign: 'middle', mr: 1 }} />
+      Actividad Reciente
+    </Typography>
+    <List dense sx={{ maxHeight: 300, overflow: 'auto' }}>
+      {closures.slice(0, 10).map((cierre) => {
+        const isNegative = cierre.grand_difference_total < 0;
+        const difference = Math.abs(parseFloat(cierre.grand_difference_total) || 0);
+        const parsed = parseFecha(cierre.fecha);
+        const isInvalid = isNaN(parsed.getTime());
+        return (
+          <ListItem key={cierre.id} sx={{ my: 1 }}>
+            <ListItemText
+              primary={`${cierre.tienda} - ${cierre.usuario}`}
+              secondary={
+                isInvalid
+                  ? `Cierre del Invalid date (${cierre.fecha})`
+                  : `Cierre del ${parsed.toLocaleDateString('es-CL')}`
+              }
+            />
+            <Chip
+              label={`${isNegative ? '-' : ''}$${difference.toFixed(2)}`}
+              color={difference > 0 ? (isNegative ? 'error' : 'warning') : 'success'}
+              size="small"
+              variant="outlined"
+            />
+          </ListItem>
+        );
+      })}
+    </List>
+  </Card>
+);
 
 // --- COMPONENTE PRINCIPAL ---
 
-function parseMediosPago(medios_pago) {
-  try {
-    if (typeof medios_pago === 'string') {
-      const mp = JSON.parse(medios_pago);
-      return Array.isArray(mp)
-        ? mp
-        : Object.keys(mp).map((key) => ({
-            medio: key,
-            facturado: mp[key].facturado,
-            cobrado: mp[key].cobrado,
-            differenceVal: mp[key].differenceVal,
-          }));
-    }
-    if (Array.isArray(medios_pago)) return medios_pago;
-    if (typeof medios_pago === 'object' && medios_pago !== null) {
-      return Object.keys(medios_pago).map((key) => ({
-        medio: key,
-        facturado: medios_pago[key].facturado,
-        cobrado: medios_pago[key].cobrado,
-        differenceVal: medios_pago[key].differenceVal,
-      }));
-    }
-    return [];
-  } catch {
-    return [];
-  }
-}
-
-function mapCierre(cierre) {
-  return {
-    ...cierre,
-    fecha: cierre.fecha,
-    fechaObj: parseFecha(cierre.fecha), // Siempre un Date
-    medios_pago: parseMediosPago(cierre.medios_pago),
-    justificaciones: cierre.justificaciones || [],
-  };
-}
-
-const HomePage = ({ allClosures, setAllClosures }) => {
+const HomePage = () => {
   const theme = useTheme();
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalDiferencias: 0,
-    totalTiendas: 0,
-    promedioDiferencias: 0,
-    totalCierres: 0,
-    totalCorrectos: 0,
-    totalAdvertencias: 0,
-    totalGraves: 0,
-  });
+  const [allClosures, setAllClosures] = useState([]);
+  const [stats, setStats] = useState({ totalDiferencias: 0, totalTiendas: 0, promedioDiferencias: 0 });
   const [podiumUsers, setPodiumUsers] = useState([]);
   const [criticalAnomalies, setCriticalAnomalies] = useState([]);
   const [recentClosures, setRecentClosures] = useState([]);
 
-  // Limpiar datos al cargar para evitar mostrar datos viejos
-  useEffect(() => {
-    setStats({
-      totalDiferencias: 0,
-      totalTiendas: 0,
-      promedioDiferencias: 0,
-      totalCierres: 0,
-      totalCorrectos: 0,
-      totalAdvertencias: 0,
-      totalGraves: 0,
-    });
-    setPodiumUsers([]);
-    setCriticalAnomalies([]);
-    setRecentClosures([]);
-  }, []);
+  // Estados para los filtros
+  const [availableStores, setAvailableStores] = useState([]);
+  const [availableYears, setAvailableYears] = useState([]);
+  const [selectedStores, setSelectedStores] = useState([]);
+  const [selectedYear, setSelectedYear] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
 
-  // Fetch sin filtros, siempre toda la base
+  const meses = [
+    'Enero','Febrero','Marzo','Abril','Mayo','Junio',
+    'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'
+  ];
+
+  // Función de fetch con filtros como params
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/cierres-completo`);
-      const data = response.data.map(mapCierre);
+      const params = {};
+      if (selectedYear) params.year = selectedYear;
+      if (selectedMonth) params.month = selectedMonth;
+      if (selectedStores.length > 0) params.stores = selectedStores.join(',');
+      const response = await axios.get(`${API_BASE_URL}/api/cierres-completo`, { params });
+      const data = response.data.map(cierre => ({
+        ...cierre,
+        fecha: cierre.fecha,
+      }));
       setAllClosures(data);
+
+      // Si es la primera vez, llenamos availableStores/Years
+      if (availableStores.length === 0) {
+        const stores = [...new Set(data.map(c => c.tienda))].sort();
+        const years = [...new Set(data.map(c => parseFecha(c.fecha).getFullYear()))]
+          .sort((a, b) => b - a);
+        setAvailableStores(stores);
+        setAvailableYears(years);
+        setSelectedStores(stores);
+        if (years.length > 0) {
+          setSelectedYear(years[0]);
+          const mostRecent = parseFecha(data[0].fecha);
+          setSelectedMonth(mostRecent.getMonth() + 1);
+        }
+      }
+
       procesarDatos(data);
     } catch (error) {
       console.error('Error al cargar datos:', error);
-      setStats({
-        totalDiferencias: 0,
-        totalTiendas: 0,
-        promedioDiferencias: 0,
-        totalCierres: 0,
-        totalCorrectos: 0,
-        totalAdvertencias: 0,
-        totalGraves: 0,
-      });
-      setPodiumUsers([]);
-      setCriticalAnomalies([]);
-      setRecentClosures([]);
-      setAllClosures([]);
     } finally {
       setLoading(false);
     }
   };
 
+  // Cada vez que cambian los filtros, volvemos a llamar a la API
   useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [selectedStores, selectedYear, selectedMonth]);
 
   // Lógica de procesamiento
   const procesarDatos = (data) => {
     const totalCierres = data.length;
     if (totalCierres === 0) {
-      setStats({
-        totalDiferencias: 0,
-        totalTiendas: 0,
-        promedioDiferencias: 0,
-        totalCierres: 0,
-        totalCorrectos: 0,
-        totalAdvertencias: 0,
-        totalGraves: 0,
-      });
+      setStats({ totalDiferencias: 0, totalTiendas: 0, promedioDiferencias: 0 });
       setPodiumUsers([]);
       setCriticalAnomalies([]);
       setRecentClosures([]);
@@ -284,25 +238,7 @@ const HomePage = ({ allClosures, setAllClosures }) => {
     );
     const totalTiendas = new Set(data.map(c => c.tienda)).size;
     const promedioDiferencias = totalDiferencias / totalCierres;
-
-    // Nuevas métricas: correctos, advertencias, graves
-    let totalCorrectos = 0, totalAdvertencias = 0, totalGraves = 0;
-    data.forEach(c => {
-      const diffVal = Number(c.grand_difference_total) || 0;
-      if (diffVal === 0) totalCorrectos++;
-      else if (diffVal > 10000 || diffVal < -10000) totalGraves++;
-      else totalAdvertencias++;
-    });
-
-    setStats({
-      totalDiferencias,
-      totalTiendas,
-      promedioDiferencias,
-      totalCierres,
-      totalCorrectos,
-      totalAdvertencias,
-      totalGraves,
-    });
+    setStats({ totalDiferencias, totalTiendas, promedioDiferencias });
 
     const ANOMALY_THRESHOLD = 500;
     setCriticalAnomalies(
@@ -324,9 +260,7 @@ const HomePage = ({ allClosures, setAllClosures }) => {
       .sort((a, b) => a.promedioDiferencia - b.promedioDiferencia);
     setPodiumUsers(usersForPodium);
 
-    // Ordenar por fecha descendente para Actividad Reciente usando fechaObj
-    const recentSorted = [...data].sort((a, b) => b.fechaObj - a.fechaObj);
-    setRecentClosures(recentSorted);
+    setRecentClosures(data);
   };
 
   // DEBUG: Mostrar datos crudos y procesados
@@ -357,6 +291,104 @@ const HomePage = ({ allClosures, setAllClosures }) => {
           </Typography>
         </Box>
 
+        {/* Barra de filtros */}
+        <Paper sx={{ p:1.5, mb:3, display:'flex', gap:2, alignItems:'center', flexWrap:'wrap', background: theme.palette.background.paper, borderRadius:2, boxShadow:1 }}>
+          <FilterList color="action" fontSize="small" />
+          <Typography variant="subtitle1" sx={{ mr:1, fontSize:'0.95rem', fontWeight:500 }}>
+            Filtros
+          </Typography>
+          <Box sx={{ mr:2 }}>
+            <button
+              style={{
+                background: theme.palette.primary.main,
+                color: '#fff',
+                border: 'none',
+                borderRadius: 6,
+                padding: '6px 18px',
+                fontWeight: 600,
+                fontSize: '1rem',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(33,150,243,0.10)'
+              }}
+              onClick={fetchData}
+              title="Actualizar datos"
+            >
+              Actualizar
+            </button>
+          </Box>
+
+          {/* Año */}
+          <FormControl size="small" sx={{ minWidth:120 }}>
+            <InputLabel sx={{ fontSize:'0.85rem' }}>Año</InputLabel>
+            <Select
+              value={selectedYear}
+              label="Año"
+              onChange={e => setSelectedYear(Number(e.target.value))}
+              MenuProps={{ PaperProps:{ sx:{ maxHeight:200 } } }}
+              sx={{ fontSize:'0.95rem', height:36 }}
+            >
+              {availableYears.map(y => (
+                <MenuItem key={y} value={y} sx={{ fontSize:'0.95rem' }}>
+                  {y}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Mes */}
+          <FormControl size="small" sx={{ minWidth:150 }}>
+            <InputLabel sx={{ fontSize:'0.85rem' }}>Mes</InputLabel>
+            <Select
+              value={selectedMonth || ''}
+              label="Mes"
+              onChange={e => setSelectedMonth(e.target.value === '' ? '' : Number(e.target.value))}
+              displayEmpty
+              MenuProps={{ PaperProps:{ sx:{ maxHeight:200 } } }}
+              sx={{ fontSize:'0.95rem', height:36 }}
+              renderValue={sel =>
+                sel
+                  ? meses[sel - 1]
+                  : <span style={{ color:'#aaa', fontSize:'0.95rem' }}>Todos</span>
+              }
+            >
+              <MenuItem value="">
+                <em>Todos</em>
+              </MenuItem>
+              {meses.map((mes, i) => (
+                <MenuItem key={mes} value={i+1} sx={{ fontSize:'0.95rem' }}>
+                  {mes}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* Tiendas */}
+          <FormControl size="small" sx={{ minWidth:200, maxWidth:300 }}>
+            <InputLabel sx={{ fontSize:'0.85rem' }}>Tiendas</InputLabel>
+            <Select
+              multiple
+              value={selectedStores}
+              onChange={e => setSelectedStores(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+              input={<OutlinedInput label="Tiendas" sx={{ fontSize:'0.95rem', height:36 }} />}
+              renderValue={selected => (
+                <Box sx={{ display:'flex', flexWrap:'wrap', gap:0.5 }}>
+                  {selected.map(val => (
+                    <Chip key={val} label={val} size="small" sx={{ fontSize:'0.85rem', height:22 }} />
+                  ))}
+                </Box>
+              )}
+              MenuProps={{ PaperProps:{ sx:{ maxHeight:200 } } }}
+              sx={{ fontSize:'0.95rem', height:36 }}
+            >
+              {availableStores.map(store => (
+                <MenuItem key={store} value={store} sx={{ fontSize:'0.95rem' }}>
+                  {store}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Paper>
+
         {/* Contenido */}
         {allClosures.length > 0 ? (
           <Grid container spacing={3}>
@@ -364,42 +396,18 @@ const HomePage = ({ allClosures, setAllClosures }) => {
               <Grid container spacing={3}>
                 <Grid item xs={12} sm={6}>
                   <StatCard
-                    title="Diferencia Total"
+                    title="Diferencia Total (Filtrada)"
                     value={`$${stats.totalDiferencias.toFixed(2)}`}
                     icon={<WarningAmber />}
-                    subtitle="Suma de diferencias en la base."
+                    subtitle="Suma de diferencias en el período."
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <StatCard
-                    title="Tiendas"
+                    title="Tiendas (Filtradas)"
                     value={stats.totalTiendas}
                     icon={<Storefront />}
-                    subtitle="Tiendas con cierres en la base."
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <StatCard
-                    title="Cierres Correctos"
-                    value={stats.totalCorrectos}
-                    icon={<CheckCircleOutline />}
-                    subtitle="Cierres sin diferencias."
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <StatCard
-                    title="Diferencias Menores"
-                    value={stats.totalAdvertencias}
-                    icon={<WarningAmber color='warning' />}
-                    subtitle="Diferencias entre -10.000 y 10.000."
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <StatCard
-                    title="Diferencias Graves"
-                    value={stats.totalGraves}
-                    icon={<WarningAmber color='error' />}
-                    subtitle="Diferencias >10.000 o <-10.000."
+                    subtitle="Tiendas con cierres en el período."
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -414,18 +422,10 @@ const HomePage = ({ allClosures, setAllClosures }) => {
               <Grid container spacing={3}>
                 <Grid item xs={12}>
                   <StatCard
-                    title="Diferencia Promedio"
+                    title="Diferencia Promedio (Filtrada)"
                     value={`$${stats.promedioDiferencias.toFixed(2)}`}
                     icon={<TrendingDown />}
-                    subtitle="Promedio por cierre en la base."
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <StatCard
-                    title="Total de Cierres"
-                    value={stats.totalCierres}
-                    icon={<Timeline />}
-                    subtitle="Cantidad total de cierres."
+                    subtitle="Promedio por cierre en el período."
                   />
                 </Grid>
                 <Grid item xs={12}>
@@ -439,7 +439,7 @@ const HomePage = ({ allClosures, setAllClosures }) => {
             <InfoOutlined sx={{ fontSize:60, color:'text.secondary' }} />
             <Typography variant="h6" sx={{ mt:2 }}>No se encontraron datos</Typography>
             <Typography color="text.secondary">
-              No hay datos disponibles en la base.
+              Prueba a cambiar los filtros o selecciona un período de tiempo diferente.
             </Typography>
           </Box>
         )}
@@ -448,31 +448,17 @@ const HomePage = ({ allClosures, setAllClosures }) => {
   );
 };
 
-// --- EXPORTACIÓN DEL COMPONENTE PRINCIPAL SIN DATOS CRUDOS ---
-
-export default function HomePageWithRaw() {
-  const [allClosures, setAllClosures] = useState([]);
-  return (
-    <HomePage allClosures={allClosures} setAllClosures={setAllClosures} />
-  );
-}
-
 // --- HELPER PARA PARSEAR FECHAS ---
 
 function parseFecha(fechaStr) {
   if (!fechaStr) return new Date('');
   if (fechaStr instanceof Date) return fechaStr;
-  const str = fechaStr.trim();
   // DD/MM/YYYY
-  if (/^\d{2}\/\d{2}\/\d{4}$/.test(str)) {
-    const [day, month, year] = str.split('/');
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaStr.trim())) {
+    const [day, month, year] = fechaStr.trim().split('/');
     return new Date(`${year}-${month}-${day}T00:00:00`);
   }
-  // DD-MM-YYYY
-  if (/^\d{2}-\d{2}-\d{4}$/.test(str)) {
-    const [day, month, year] = str.split('-');
-    return new Date(`${year}-${month}-${day}T00:00:00`);
-  }
+  let str = fechaStr.trim();
   // YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
     return new Date(str + 'T00:00:00');
@@ -480,3 +466,5 @@ function parseFecha(fechaStr) {
   // Otros ISO
   return new Date(str);
 }
+
+export default HomePage;

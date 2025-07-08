@@ -44,7 +44,7 @@ function Header({ onMenuToggle }) {
                 ml: '2px',
               }}
             >
-              Online v2.4
+              Online v3.0
             </Typography>
           </Box>
         </Box>
