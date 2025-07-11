@@ -25,7 +25,8 @@
     "Mp - Qr",
     "MPoint - Contingencia",
     "Payway ",
-    "AppaGift"
+    "AppaGift",
+    "Payway USD"
   ],
   "asignaciones": {
     "Recoleta": [
@@ -106,6 +107,10 @@
       {
         "usuario": "nnaquinoel",
         "nombre": "Aquino Eliana"
+      },
+      {
+        "usuario": "nnnaricemi",
+        "nombre": "micaela narice"
       }
     ],
     "Unicenter": [],

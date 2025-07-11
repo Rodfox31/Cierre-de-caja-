@@ -331,11 +331,11 @@ const HomePage = ({ allClosures, setAllClosures }) => {
 
   // DEBUG: Mostrar datos crudos y procesados
   useEffect(() => {
-    console.log('API cierres-completo (allClosures):', allClosures);
-    console.log('Panel: StatCard', stats);
-    console.log('Panel: CriticalAnomalies', criticalAnomalies);
-    console.log('Panel: RecentClosures', recentClosures);
-    console.log('Panel: PrecisionPodium', podiumUsers);
+    // console.log('API cierres-completo (allClosures):', allClosures);
+    // console.log('Panel: StatCard', stats);
+    // console.log('Panel: CriticalAnomalies', criticalAnomalies);
+    // console.log('Panel: RecentClosures', recentClosures);
+    // console.log('Panel: PrecisionPodium', podiumUsers);
   }, [allClosures, stats, criticalAnomalies, recentClosures, podiumUsers]);
 
   if (loading) {

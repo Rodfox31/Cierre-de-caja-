@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Imprimir from "./imprimir"; // Asumo que este componente existe
 import { API_BASE_URL } from '../config'; // Asumo que este archivo de config existe
+import moment from 'moment';
 
 // --- MUI Imports ---
 import {
@@ -566,6 +567,12 @@ async function loadAjustesFromBackend() {
     }
 }
 
+function formatFecha(fecha) {
+  // Intenta formatear como YYYY-MM-DD, si no es válido, muestra 'Fecha inválida'
+  const m = typeof fecha === 'string' ? moment(fecha, 'YYYY-MM-DD', true) : moment(fecha);
+  return m.isValid() ? m.format('DD/MM/YYYY') : 'Fecha inválida';
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // COMPONENTE PRINCIPAL: CierreCaja
 ////////////////////////////////////////////////////////////////////////////////////////////////
@@ -675,7 +682,7 @@ function CierreCaja() {
             comentarios: comentarios
         };
         try {
-            const response = await fetch(`${API_BASE_URL}/api/cierres`, {
+            const response = await fetch(`${API_BASE_URL}/api/cierres-completo`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(exportData)

@@ -3,6 +3,7 @@ const app = express();
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
+const moment = require('moment'); // Importar moment
 
 app.use(express.json());
 
@@ -211,6 +212,9 @@ app.post('/api/cierres', (req, res) => {
     comentarios              // NUEVO CAMPO
   } = req.body;
 
+  // Formatear la fecha a YYYY-MM-DD antes de guardarla
+  const fechaFormateada = moment(fecha).format('YYYY-MM-DD');
+
   // Consulta para insertar en la tabla 'cierres' con las nuevas columnas
   const insertCierreSql = `
     INSERT INTO cierres (
@@ -232,7 +236,7 @@ app.post('/api/cierres', (req, res) => {
   db.run(
     insertCierreSql,
     [
-      fecha,
+      fechaFormateada, // Usar la fecha formateada
       tienda,
       usuario,
       total_billetes,
@@ -327,6 +331,9 @@ app.post('/api/cierres-completo', (req, res) => {
     comentarios
   } = req.body;
 
+  // Formatear la fecha a YYYY-MM-DD antes de guardarla
+  const fechaFormateada = moment(fecha).format('YYYY-MM-DD');
+
   const insertCierre = `
     INSERT INTO cierres (
       fecha, tienda, usuario, total_billetes, final_balance, brinks_total, medios_pago, grand_difference_total, balance_sin_justificar, responsable, comentarios
@@ -334,7 +341,7 @@ app.post('/api/cierres-completo', (req, res) => {
   `;
 
   db.run(insertCierre, [
-    fecha,
+    fechaFormateada, // Usar la fecha formateada
     tienda,
     usuario,
     total_billetes,
@@ -415,6 +422,9 @@ app.put('/api/cierres/:id', (req, res) => {
     comentarios
   } = req.body;
 
+  // Formatear la fecha a YYYY-MM-DD antes de guardarla
+  const fechaFormateada = moment(fecha).format('YYYY-MM-DD');
+
   const updateSql = `
     UPDATE cierres SET
       fecha = ?,
@@ -432,7 +442,7 @@ app.put('/api/cierres/:id', (req, res) => {
   `;
 
   db.run(updateSql, [
-    fecha,
+    fechaFormateada, // Usar la fecha formateada
     tienda,
     usuario,
     total_billetes,
@@ -500,7 +510,10 @@ app.put('/api/cierres-completo/:id', (req, res) => {
     comentarios
   } = req.body;
 
-  const updateSql = `
+  // Formatear la fecha a YYYY-MM-DD antes de guardarla
+  const fechaFormateada = moment(fecha).format('YYYY-MM-DD');
+
+  const updateCierre = `
     UPDATE cierres SET
       fecha = ?,
       tienda = ?,
@@ -516,8 +529,8 @@ app.put('/api/cierres-completo/:id', (req, res) => {
     WHERE id = ?
   `;
 
-  db.run(updateSql, [
-    fecha,
+  db.run(updateCierre, [
+    fechaFormateada, // Usar la fecha formateada
     tienda,
     usuario,
     total_billetes,

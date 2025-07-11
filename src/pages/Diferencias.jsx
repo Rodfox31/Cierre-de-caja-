@@ -1013,6 +1013,12 @@ export default function Diferencias() {
     showSnackbar('Datos exportados exitosamente.', 'success');
   }, [sortedCierres, allPossibleColumns, visibleColumns, showSnackbar]);
 
+  function formatFecha(fecha) {
+    // Intenta formatear como YYYY-MM-DD, si no es válido, muestra 'Fecha inválida'
+    const m = moment(fecha, 'YYYY-MM-DD', true);
+    return m.isValid() ? m.format('DD/MM/YYYY') : 'Fecha inválida';
+  }
+
   return (
     <Box
       p={3}
@@ -1409,7 +1415,10 @@ export default function Diferencias() {
               top: '50%',
               left: '50%',
               transform: 'translate(-50%, -50%)',
-              width: { xs: '95%', sm: 600 },
+              // El modal de edición ahora deja que el propio contenido (Modificar.jsx) defina el ancho
+              width: 'auto',
+              minWidth: { xs: '95vw', sm: 500 },
+              maxWidth: 'none',
               bgcolor: 'background.paper',
               boxShadow: 24,
               p: 3,
@@ -1417,6 +1426,9 @@ export default function Diferencias() {
               outline: 'none',
               maxHeight: '90vh',
               overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
             }}
           >
             {editCierre && (

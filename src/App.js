@@ -16,7 +16,7 @@ function App() {
   // Llamada al backend para obtener los cierres (DB)
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/cierres`)
+    fetch(`${API_BASE_URL}/api/cierres-completo`)
       .then((response) => {
         if (!response.ok) {
           throw new Error("Error al cargar datos de cierres");
