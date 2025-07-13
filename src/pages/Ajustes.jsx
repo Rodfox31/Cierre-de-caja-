@@ -87,72 +87,129 @@ function AjustesTab() {
     padding: "24px",
     minHeight: "100vh",
     fontFamily: "'Inter', sans-serif",
-    transition: "all 0.4s ease",
-    animation: `${fadeIn} 0.5s ease-out`,
+    transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+    animation: `${fadeIn} 0.6s ease-out`,
     width: "100%",
+    background: "linear-gradient(135deg, #1F1F1F 0%, #252528 100%)",
   };
 
   // Estilos para la tarjeta principal con bordes suaves y sombra sutil
   const cardStyle = {
     backgroundColor: "#2D2D2D",
-    border: "1px solid #3A3A3A",
-    borderRadius: "12px",
-    padding: "24px",
+    border: "1px solid rgba(74, 144, 226, 0.1)",
+    borderRadius: "16px",
+    padding: "28px",
     marginBottom: "24px",
-    boxShadow: "0 6px 14px rgba(0,0,0,0.35)",
+    boxShadow: "0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(74, 144, 226, 0.05)",
     transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
-    animation: `${fadeIn} 0.5s ease-out`
+    animation: `${fadeIn} 0.7s ease-out`,
+    backdropFilter: "blur(8px)",
+    position: "relative",
+    overflow: "hidden",
+    "&::before": {
+      content: '""',
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: "1px",
+      background: "linear-gradient(90deg, transparent, rgba(74, 144, 226, 0.3), transparent)",
+    }
   };
 
   // Función que genera los estilos para los botones según su estado activo
   const buttonStyle = (active) => ({
     padding: "10px 20px",
-    fontSize: "14px",
-    border: "none",
-    borderRadius: "6px",
+    fontSize: "13px",
+    fontWeight: active ? "600" : "500",
+    letterSpacing: "0.3px",
+    border: active ? "1px solid rgba(74, 144, 226, 0.3)" : "1px solid rgba(255, 255, 255, 0.08)",
+    borderRadius: "8px",
     cursor: "pointer",
     background: active
-      ? "linear-gradient(135deg, #4A90E2, #357ABD)"
-      : "linear-gradient(135deg, #5A5A7A, #46466A)",
-    color: "#FFFFFF",
-    transition: "transform 0.2s ease, box-shadow 0.2s ease",
-    fontWeight: active ? "600" : "500",
-    transform: "scale(1)",
-    boxShadow: active ? "0 3px 8px rgba(0,0,0,0.45)" : "0 2px 6px rgba(0,0,0,0.35)",
-    backdropFilter: "blur(2px)",
+      ? "linear-gradient(135deg, #4A90E2 0%, #357ABD 100%)"
+      : "linear-gradient(135deg, rgba(45, 45, 45, 0.8) 0%, rgba(35, 35, 35, 0.9) 100%)",
+    color: active ? "#FFFFFF" : "#E0E0E0",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+    transform: active ? "translateY(-1px)" : "translateY(0)",
+    boxShadow: active 
+      ? "0 4px 16px rgba(74, 144, 226, 0.25), 0 2px 8px rgba(0,0,0,0.3)" 
+      : "0 2px 8px rgba(0,0,0,0.2)",
+    backdropFilter: "blur(4px)",
+    position: "relative",
+    overflow: "hidden",
+    "&:hover": {
+      transform: active ? "translateY(-2px)" : "translateY(-1px)",
+      boxShadow: active 
+        ? "0 6px 20px rgba(74, 144, 226, 0.3), 0 4px 12px rgba(0,0,0,0.4)"
+        : "0 4px 12px rgba(0,0,0,0.3)",
+    }
   });
 
   // Estilos para los inputs con mayor padding y bordes sutiles
   const inputStyle = {
     padding: "12px 16px",
-    borderRadius: "6px",
-    border: "1px solid #4A4A4A",
-    backgroundColor: "#2D2D2D",
+    borderRadius: "8px",
+    border: "1px solid rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(45, 45, 45, 0.6)",
     color: "#E0E0E0",
-    transition: "all 0.3s ease",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     width: "100%",
-    marginBottom: "12px",
-    fontSize: "14px"
+    marginBottom: "10px",
+    fontSize: "13px",
+    fontWeight: "400",
+    letterSpacing: "0.2px",
+    backdropFilter: "blur(4px)",
+    outline: "none",
+    "&:focus": {
+      border: "1px solid rgba(74, 144, 226, 0.4)",
+      backgroundColor: "rgba(45, 45, 45, 0.8)",
+      boxShadow: "0 0 0 3px rgba(74, 144, 226, 0.1)",
+      transform: "translateY(-1px)"
+    },
+    "&:hover": {
+      border: "1px solid rgba(255, 255, 255, 0.12)",
+      backgroundColor: "rgba(45, 45, 45, 0.7)"
+    }
   };
 
   // Estilos para los elementos de lista con fondo semitransparente y sombra sutil
   const listItemStyle = {
     padding: "14px 18px",
-    margin: "10px 0",
+    margin: "6px 0",
     borderRadius: "8px",
-    backgroundColor: "rgba(45, 45, 45, 0.5)",
-    transition: "all 0.3s ease",
+    backgroundColor: "rgba(45, 45, 45, 0.4)",
+    border: "1px solid rgba(255, 255, 255, 0.06)",
+    transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    boxShadow: "0 2px 6px rgba(0,0,0,0.3)"
+    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+    backdropFilter: "blur(4px)",
+    position: "relative",
+    fontSize: "13px",
+    "&:hover": {
+      backgroundColor: "rgba(45, 45, 45, 0.6)",
+      border: "1px solid rgba(255, 255, 255, 0.1)",
+      transform: "translateY(-1px)",
+      boxShadow: "0 4px 16px rgba(0,0,0,0.25)"
+    }
   };
 
   // Renderizado principal del componente con la barra de navegación y contenido según la pestaña activa
   return (
     <div style={containerStyle}>
       {/* Barra de navegación para seleccionar el modo */}
-      <div style={{ display: "flex", marginBottom: "24px", gap: "12px" }}>
+      <div style={{ 
+        display: "flex", 
+        marginBottom: "28px", 
+        gap: "6px",
+        padding: "4px",
+        backgroundColor: "rgba(45, 45, 45, 0.3)",
+        borderRadius: "10px",
+        border: "1px solid rgba(255, 255, 255, 0.05)",
+        backdropFilter: "blur(8px)"
+      }}>
         <button onClick={() => setMode("Gestion")} style={buttonStyle(mode === "Gestion")}>
           Gestión
         </button>
@@ -247,7 +304,24 @@ function GestionFrame({ data, setData, saveData, styles }) {
     <div style={{ display: "flex", gap: "20px" }}>
       {/* Sección de Tiendas */}
       <div style={{ flex: 1 }}>
-        <h3 style={{ color: "#4A90E2", marginBottom: "15px", fontSize: "1.1rem" }}>Tiendas</h3>
+        <h3 style={{ 
+          color: "#4A90E2", 
+          marginBottom: "16px", 
+          fontSize: "1.05rem",
+          fontWeight: "600",
+          letterSpacing: "0.3px",
+          position: "relative",
+          "&::after": {
+            content: '""',
+            position: "absolute",
+            bottom: "-4px",
+            left: "0",
+            width: "40px",
+            height: "2px",
+            background: "linear-gradient(90deg, #4A90E2, rgba(74, 144, 226, 0.3))",
+            borderRadius: "2px"
+          }
+        }}>Tiendas</h3>
         <ul style={{ listStyleType: "none", padding: 0 }}>
           {data.tiendas.map((tienda) => (
             <li
@@ -255,9 +329,23 @@ function GestionFrame({ data, setData, saveData, styles }) {
               onClick={() => handleSelectTienda(tienda)}
               style={{
                 ...styles.listItemStyle,
-                backgroundColor: selectedTienda === tienda ? "rgba(74, 144, 226, 0.2)" : "rgba(45, 45, 45, 0.5)",
-                border: selectedTienda === tienda ? "1px solid #4A90E2" : "1px solid #3A3F63",
-                cursor: "pointer"
+                backgroundColor: selectedTienda === tienda 
+                  ? "rgba(74, 144, 226, 0.15)" 
+                  : "rgba(45, 45, 45, 0.4)",
+                border: selectedTienda === tienda 
+                  ? "1px solid rgba(74, 144, 226, 0.3)" 
+                  : "1px solid rgba(255, 255, 255, 0.06)",
+                cursor: "pointer",
+                fontWeight: selectedTienda === tienda ? "500" : "400",
+                color: selectedTienda === tienda ? "#FFFFFF" : "#E0E0E0",
+                boxShadow: selectedTienda === tienda 
+                  ? "0 4px 16px rgba(74, 144, 226, 0.15), 0 2px 8px rgba(0,0,0,0.3)"
+                  : "0 2px 8px rgba(0,0,0,0.2)",
+                "&:hover": {
+                  backgroundColor: selectedTienda === tienda 
+                    ? "rgba(74, 144, 226, 0.2)" 
+                    : "rgba(45, 45, 45, 0.6)",
+                }
               }}
             >
               {tienda}
@@ -277,8 +365,11 @@ function GestionFrame({ data, setData, saveData, styles }) {
             onClick={agregarTienda} 
             style={{ 
               ...styles.buttonStyle(false),
-              background: "linear-gradient(135deg, #2ECC71, #27AE60)",
-              flex: 1
+              background: "linear-gradient(135deg, #4A90E2 0%, #357ABD 100%)",
+              border: "1px solid rgba(74, 144, 226, 0.2)",
+              flex: 1,
+              fontWeight: "500",
+              letterSpacing: "0.3px"
             }}>
             ➕ Agregar Tienda
           </button>
@@ -286,8 +377,11 @@ function GestionFrame({ data, setData, saveData, styles }) {
             onClick={eliminarTienda} 
             style={{ 
               ...styles.buttonStyle(false),
-              background: "linear-gradient(135deg, #E74C3C, #C0392B)",
-              flex: 1
+              background: "linear-gradient(135deg, #C85A5A 0%, #B04747 100%)",
+              border: "1px solid rgba(200, 90, 90, 0.2)",
+              flex: 1,
+              fontWeight: "500",
+              letterSpacing: "0.3px"
             }}>
             🗑️ Eliminar Tienda
           </button>
@@ -296,7 +390,13 @@ function GestionFrame({ data, setData, saveData, styles }) {
 
       {/* Sección de Usuarios */}
       <div style={{ flex: 2 }}>
-        <h3 style={{ color: "#4A90E2", marginBottom: "15px", fontSize: "1.1rem" }}>
+        <h3 style={{ 
+          color: "#4A90E2", 
+          marginBottom: "16px", 
+          fontSize: "1.05rem",
+          fontWeight: "600",
+          letterSpacing: "0.3px"
+        }}>
           {selectedTienda ? `Usuarios en ${selectedTienda}` : "Seleccione una tienda"}
         </h3>
         {selectedTienda && (
@@ -313,20 +413,26 @@ function GestionFrame({ data, setData, saveData, styles }) {
               {filteredUsuarios.map((usr, idx) => (
                 <li key={idx} style={styles.listItemStyle}>
                   <div>
-                    <div style={{ fontWeight: "500", color: "#4A90E2" }}>{usr.usuario}</div>
-                    <div style={{ fontSize: "0.85rem", color: "rgba(224,224,224,0.7)" }}>{usr.nombre}</div>
+                    <div style={{ fontWeight: "500", color: "#4A90E2", fontSize: "13px" }}>{usr.usuario}</div>
+                    <div style={{ fontSize: "12px", color: "rgba(224,224,224,0.7)" }}>{usr.nombre}</div>
                   </div>
                   <button 
                     onClick={() => removerUsuario(idx)} 
                     style={{ 
                       padding: "6px 12px",
-                      borderRadius: "4px",
-                      background: "linear-gradient(135deg, #E74C3C, #C0392B)",
-                      border: "none",
+                      borderRadius: "6px",
+                      background: "linear-gradient(135deg, #C85A5A 0%, #B04747 100%)",
+                      border: "1px solid rgba(200, 90, 90, 0.2)",
                       color: "#FFFFFF",
                       cursor: "pointer",
-                      fontSize: "12px",
-                      transition: "all 0.2s ease"
+                      fontSize: "11px",
+                      fontWeight: "500",
+                      letterSpacing: "0.2px",
+                      transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                      "&:hover": {
+                        transform: "translateY(-1px)",
+                        boxShadow: "0 4px 12px rgba(200, 90, 90, 0.3)"
+                      }
                     }}>
                     Eliminar
                   </button>
@@ -354,9 +460,12 @@ function GestionFrame({ data, setData, saveData, styles }) {
               onClick={asignarUsuario} 
               style={{ 
                 ...styles.buttonStyle(false),
-                background: "linear-gradient(135deg, #2ECC71, #27AE60)",
+                background: "linear-gradient(135deg, #4A90E2 0%, #357ABD 100%)",
+                border: "1px solid rgba(74, 144, 226, 0.2)",
                 width: "100%",
-                marginTop: "10px"
+                marginTop: "10px",
+                fontWeight: "500",
+                letterSpacing: "0.3px"
               }}>
               👤 Asignar Usuario
             </button>
@@ -412,7 +521,13 @@ function CierreFrame({ data, setData, saveData, styles }) {
     <div style={{ display: "flex", gap: "20px" }}>
       {/* Sección de Motivos de Error de Pago */}
       <div style={{ flex: 1 }}>
-        <h3 style={{ color: "#4A90E2", marginBottom: "15px", fontSize: "1.1rem" }}>Motivos de Error de Pago</h3>
+        <h3 style={{ 
+          color: "#4A90E2", 
+          marginBottom: "16px", 
+          fontSize: "1.05rem",
+          fontWeight: "600",
+          letterSpacing: "0.3px"
+        }}>Motivos de Error de Pago</h3>
         <input
           type="text"
           placeholder="Ingrese motivo"
@@ -424,9 +539,12 @@ function CierreFrame({ data, setData, saveData, styles }) {
           onClick={agregarMotivo} 
           style={{ 
             ...styles.buttonStyle(false),
-            background: "linear-gradient(135deg, #2ECC71, #27AE60)",
+            background: "linear-gradient(135deg, #4A90E2 0%, #357ABD 100%)",
+            border: "1px solid rgba(74, 144, 226, 0.2)",
             width: "100%",
-            marginBottom: "10px"
+            marginBottom: "12px",
+            fontWeight: "500",
+            letterSpacing: "0.2px"
           }}>
           ➕ Agregar Motivo
         </button>
@@ -438,13 +556,15 @@ function CierreFrame({ data, setData, saveData, styles }) {
                 onClick={() => eliminarMotivo(idx)} 
                 style={{ 
                   padding: "6px 12px",
-                  borderRadius: "4px",
-                  background: "linear-gradient(135deg, #E74C3C, #C0392B)",
-                  border: "none",
+                  borderRadius: "6px",
+                  background: "linear-gradient(135deg, #C85A5A 0%, #B04747 100%)",
+                  border: "1px solid rgba(200, 90, 90, 0.2)",
                   color: "#FFFFFF",
                   cursor: "pointer",
-                  fontSize: "12px",
-                  transition: "all 0.2s ease"
+                  fontSize: "11px",
+                  fontWeight: "500",
+                  letterSpacing: "0.2px",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}>
                 Eliminar
               </button>
@@ -455,7 +575,13 @@ function CierreFrame({ data, setData, saveData, styles }) {
 
       {/* Sección de Medios de Pago */}
       <div style={{ flex: 1 }}>
-        <h3 style={{ color: "#4A90E2", marginBottom: "15px", fontSize: "1.1rem" }}>Medios de Pago</h3>
+        <h3 style={{ 
+          color: "#4A90E2", 
+          marginBottom: "16px", 
+          fontSize: "1.05rem",
+          fontWeight: "600",
+          letterSpacing: "0.3px"
+        }}>Medios de Pago</h3>
         <input
           type="text"
           placeholder="Ingrese medio"
@@ -467,9 +593,12 @@ function CierreFrame({ data, setData, saveData, styles }) {
           onClick={agregarMedio} 
           style={{ 
             ...styles.buttonStyle(false),
-            background: "linear-gradient(135deg, #2ECC71, #27AE60)",
+            background: "linear-gradient(135deg, #4A90E2 0%, #357ABD 100%)",
+            border: "1px solid rgba(74, 144, 226, 0.2)",
             width: "100%",
-            marginBottom: "10px"
+            marginBottom: "12px",
+            fontWeight: "500",
+            letterSpacing: "0.2px"
           }}>
           ➕ Agregar Medio
         </button>
@@ -481,13 +610,15 @@ function CierreFrame({ data, setData, saveData, styles }) {
                 onClick={() => eliminarMedio(idx)} 
                 style={{ 
                   padding: "6px 12px",
-                  borderRadius: "4px",
-                  background: "linear-gradient(135deg, #E74C3C, #C0392B)",
-                  border: "none",
+                  borderRadius: "6px",
+                  background: "linear-gradient(135deg, #C85A5A 0%, #B04747 100%)",
+                  border: "1px solid rgba(200, 90, 90, 0.2)",
                   color: "#FFFFFF",
                   cursor: "pointer",
-                  fontSize: "12px",
-                  transition: "all 0.2s ease"
+                  fontSize: "11px",
+                  fontWeight: "500",
+                  letterSpacing: "0.2px",
+                  transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
                 }}>
                 Eliminar
               </button>
@@ -536,32 +667,73 @@ function ConfiguracionesFrame({ data, setData, saveData, styles }) {
   // Renderiza la sección de configuraciones adicionales
   return (
     <div>
-      <h3 style={{ color: "#4A90E2", marginBottom: "20px", fontSize: "1.1rem" }}>Configuraciones adicionales</h3>
+      <h3 style={{ 
+        color: "#4A90E2", 
+        marginBottom: "20px", 
+        fontSize: "1.05rem",
+        fontWeight: "600",
+        letterSpacing: "0.3px"
+      }}>Configuraciones adicionales</h3>
       
       {/* Configuración del tamaño de fuente */}
-      <div style={{ display: "flex", alignItems: "center", marginBottom: "15px", gap: "10px" }}>
-        <label style={{ flex: "0 0 150px", fontSize: "0.9rem" }}>Tamaño de fuente:</label>
+      <div style={{ 
+        display: "flex", 
+        alignItems: "center", 
+        marginBottom: "16px", 
+        gap: "14px",
+        padding: "14px",
+        backgroundColor: "rgba(45, 45, 45, 0.3)",
+        borderRadius: "8px",
+        border: "1px solid rgba(255, 255, 255, 0.05)"
+      }}>
+        <label style={{ 
+          flex: "0 0 160px", 
+          fontSize: "13px",
+          fontWeight: "500",
+          letterSpacing: "0.2px",
+          color: "#E0E0E0"
+        }}>Tamaño de fuente:</label>
         <input
           type="number"
           min="8"
           max="32"
           value={fontSize}
           onChange={(e) => setFontSize(parseInt(e.target.value))}
-          style={styles.inputStyle}
+          style={{
+            ...styles.inputStyle,
+            maxWidth: "100px",
+            margin: "0"
+          }}
         />
       </div>
       
       {/* Configuración del tema */}
-      <div style={{ display: "flex", alignItems: "center", marginBottom: "15px", gap: "10px" }}>
-        <label style={{ flex: "0 0 150px", fontSize: "0.9rem" }}>Tema:</label>
+      <div style={{ 
+        display: "flex", 
+        alignItems: "center", 
+        marginBottom: "16px", 
+        gap: "14px",
+        padding: "14px",
+        backgroundColor: "rgba(45, 45, 45, 0.3)",
+        borderRadius: "8px",
+        border: "1px solid rgba(255, 255, 255, 0.05)"
+      }}>
+        <label style={{ 
+          flex: "0 0 160px", 
+          fontSize: "13px",
+          fontWeight: "500",
+          letterSpacing: "0.2px",
+          color: "#E0E0E0"
+        }}>Tema:</label>
         <select 
           value={theme} 
           onChange={(e) => setTheme(e.target.value)} 
           style={{ 
             ...styles.inputStyle,
             cursor: "pointer",
-            padding: "12px 16px",
-            fontSize: "0.9rem"
+            padding: "10px 14px",
+            fontSize: "13px",
+            margin: "0"
           }}>
           <option value="Oscuro">Oscuro</option>
           <option value="Claro">Claro</option>
@@ -570,16 +742,32 @@ function ConfiguracionesFrame({ data, setData, saveData, styles }) {
       </div>
       
       {/* Configuración del idioma */}
-      <div style={{ display: "flex", alignItems: "center", marginBottom: "15px", gap: "10px" }}>
-        <label style={{ flex: "0 0 150px", fontSize: "0.9rem" }}>Idioma:</label>
+      <div style={{ 
+        display: "flex", 
+        alignItems: "center", 
+        marginBottom: "16px", 
+        gap: "14px",
+        padding: "14px",
+        backgroundColor: "rgba(45, 45, 45, 0.3)",
+        borderRadius: "8px",
+        border: "1px solid rgba(255, 255, 255, 0.05)"
+      }}>
+        <label style={{ 
+          flex: "0 0 160px", 
+          fontSize: "13px",
+          fontWeight: "500",
+          letterSpacing: "0.2px",
+          color: "#E0E0E0"
+        }}>Idioma:</label>
         <select 
           value={language} 
           onChange={(e) => setLanguage(e.target.value)} 
           style={{ 
             ...styles.inputStyle,
             cursor: "pointer",
-            padding: "12px 16px",
-            fontSize: "0.9rem"
+            padding: "10px 14px",
+            fontSize: "13px",
+            margin: "0"
           }}>
           <option value="Español">Español</option>
           <option value="Inglés">Inglés</option>
@@ -588,14 +776,29 @@ function ConfiguracionesFrame({ data, setData, saveData, styles }) {
       </div>
       
       {/* Configuración del modo de depuración */}
-      <div style={{ display: "flex", alignItems: "center", marginBottom: "15px", gap: "10px" }}>
-        <label style={{ flex: "0 0 150px", fontSize: "0.9rem" }}>Modo de depuración:</label>
+      <div style={{ 
+        display: "flex", 
+        alignItems: "center", 
+        marginBottom: "16px", 
+        gap: "14px",
+        padding: "14px",
+        backgroundColor: "rgba(45, 45, 45, 0.3)",
+        borderRadius: "8px",
+        border: "1px solid rgba(255, 255, 255, 0.05)"
+      }}>
+        <label style={{ 
+          flex: "0 0 160px", 
+          fontSize: "13px",
+          fontWeight: "500",
+          letterSpacing: "0.2px",
+          color: "#E0E0E0"
+        }}>Modo de depuración:</label>
         <input
           type="checkbox"
           checked={debug}
           onChange={(e) => setDebug(e.target.checked)}
           style={{ 
-            transform: "scale(1.3)",
+            transform: "scale(1.2)",
             accentColor: "#4A90E2",
             cursor: "pointer"
           }}
@@ -603,14 +806,29 @@ function ConfiguracionesFrame({ data, setData, saveData, styles }) {
       </div>
       
       {/* Configuración del registro de eventos */}
-      <div style={{ display: "flex", alignItems: "center", marginBottom: "20px", gap: "10px" }}>
-        <label style={{ flex: "0 0 150px", fontSize: "0.9rem" }}>Registro de eventos:</label>
+      <div style={{ 
+        display: "flex", 
+        alignItems: "center", 
+        marginBottom: "22px", 
+        gap: "14px",
+        padding: "14px",
+        backgroundColor: "rgba(45, 45, 45, 0.3)",
+        borderRadius: "8px",
+        border: "1px solid rgba(255, 255, 255, 0.05)"
+      }}>
+        <label style={{ 
+          flex: "0 0 160px", 
+          fontSize: "13px",
+          fontWeight: "500",
+          letterSpacing: "0.2px",
+          color: "#E0E0E0"
+        }}>Registro de eventos:</label>
         <input
           type="checkbox"
           checked={logging}
           onChange={(e) => setLogging(e.target.checked)}
           style={{ 
-            transform: "scale(1.3)",
+            transform: "scale(1.2)",
             accentColor: "#4A90E2",
             cursor: "pointer"
           }}
@@ -623,8 +841,11 @@ function ConfiguracionesFrame({ data, setData, saveData, styles }) {
           onClick={restoreDefaults} 
           style={{ 
             ...styles.buttonStyle(false),
-            background: "linear-gradient(135deg, #F39C12, #D68910)",
-            flex: 1
+            background: "linear-gradient(135deg, #D4A574 0%, #C19660 100%)",
+            border: "1px solid rgba(212, 165, 116, 0.2)",
+            flex: 1,
+            fontWeight: "500",
+            letterSpacing: "0.2px"
           }}>
           🔄 Restaurar valores por defecto
         </button>
@@ -632,8 +853,11 @@ function ConfiguracionesFrame({ data, setData, saveData, styles }) {
           onClick={saveConfigurations} 
           style={{ 
             ...styles.buttonStyle(false),
-            background: "linear-gradient(135deg, #27AE60, #229954)",
-            flex: 1
+            background: "linear-gradient(135deg, #4A90E2 0%, #357ABD 100%)",
+            border: "1px solid rgba(74, 144, 226, 0.2)",
+            flex: 1,
+            fontWeight: "500",
+            letterSpacing: "0.2px"
           }}>
           💾 Guardar Configuraciones
         </button>

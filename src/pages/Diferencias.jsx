@@ -199,28 +199,29 @@ const StatsCard = React.memo(function StatsCard({ title, value, color, tooltip }
   return (
     <Tooltip title={tooltip} arrow>
       <Paper
-        elevation={2}
+        elevation={1}
         sx={{
-          borderBottom: `2px solid ${color}`,
-          py: 2,
+          borderLeft: `3px solid ${color}`,
+          py: 1.5,
           px: 2,
           display: 'flex',
-          flexDirection: 'column',
+          alignItems: 'center',
           justifyContent: 'space-between',
-          alignItems: 'flex-start',
           transition: 'background-color 0.2s, box-shadow 0.2s',
-          '&:hover': { backgroundColor: 'action.hover', boxShadow: 4 },
-          borderRadius: 2,
-          backgroundColor: 'background.paper',
-          height: '100%',
+          '&:hover': { backgroundColor: '#2a2a2a', boxShadow: 2 },
+          borderRadius: 1,
+          backgroundColor: '#1e1e1e',
+          height: '60px',
         }}
       >
-        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
-          {title}
-        </Typography>
-        <Typography variant="h6" sx={{ fontWeight: 'bold', color: color }}>
-          {value}
-        </Typography>
+        <Box>
+          <Typography variant="caption" sx={{ color: '#b0b0b0', fontSize: '0.75rem' }}>
+            {title}
+          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: color, lineHeight: 1.2 }}>
+            {value}
+          </Typography>
+        </Box>
       </Paper>
     </Tooltip>
   );
@@ -253,11 +254,11 @@ function LoadingSkeleton({ columns }) {
 function EmptyState() {
   return (
     <Box sx={{ py: 8, textAlign: 'center' }}>
-      <InfoIcon color="disabled" sx={{ fontSize: 60, mb: 2 }} />
-      <Typography variant="h6" color="text.secondary" gutterBottom>
+      <InfoIcon sx={{ fontSize: 60, mb: 2, color: '#666' }} />
+      <Typography variant="h6" sx={{ color: '#b0b0b0' }} gutterBottom>
         No se encontraron resultados
       </Typography>
-      <Typography variant="body2" color="text.secondary">
+      <Typography variant="body2" sx={{ color: '#888' }}>
         Intenta ajustar los filtros o actualizar los datos
       </Typography>
     </Box>
@@ -288,6 +289,12 @@ const HeaderControls = React.memo(function HeaderControls({
   setSelectedDatePreset,
   selectedId,
   onDeleteSelected,
+  showCorrectos,
+  setShowCorrectos,
+  showDiferenciasMenores,
+  setShowDiferenciasMenores,
+  showDiferenciasGraves,
+  setShowDiferenciasGraves,
 }) {
   const theme = useTheme();
 
@@ -344,19 +351,25 @@ const HeaderControls = React.memo(function HeaderControls({
 
   return (
     <Box mb={3}>
-      <Grid container spacing={2} alignItems="center" wrap="wrap">
+      {/* Filtros principales en una sola fila */}
+      <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
         {/* SELECTOR DE PRESETS */}
-        <Grid item xs={12} sm={6} md={2} lg={1.5}>
+        <Grid item xs={12} sm={6} md={2}>
           <FormControl fullWidth size="small">
-            <InputLabel>Rango</InputLabel>
+            <InputLabel sx={{ color: '#ffffff' }}>Período</InputLabel>
             <Select
-              label="Rango"
+              label="Período"
               value={selectedDatePreset}
               onChange={handleDatePresetChange}
               variant="outlined"
-              sx={{ borderRadius: 1 }}
+              sx={{ 
+                color: '#ffffff', 
+                '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, 
+                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, 
+                '.MuiSvgIcon-root': { color: '#ffffff' } 
+              }}
             >
-              <MenuItem value="custom">Todo</MenuItem>
+              <MenuItem value="custom">Personalizado</MenuItem>
               <MenuItem value="last7days">Últimos 7 días</MenuItem>
               <MenuItem value="last30days">Últimos 30 días</MenuItem>
               <MenuItem value="thisMonth">Este mes</MenuItem>
@@ -366,48 +379,67 @@ const HeaderControls = React.memo(function HeaderControls({
         </Grid>
 
         {/* FECHA DESDE */}
-        <Grid item xs={12} sm={6} md={2.5} lg={2.5}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <TextField
             fullWidth
             size="small"
-            label="Fecha Desde"
+            label="Desde"
             type="date"
             variant="outlined"
             value={fechaDesde ? fechaDesde.format('YYYY-MM-DD') : ''}
             onChange={handleFechaDesdeChange}
-            InputLabelProps={{ shrink: true }}
+            InputLabelProps={{ shrink: true, sx: { color: '#ffffff' } }}
             disabled={selectedDatePreset !== 'custom'}
-            sx={{ borderRadius: 1 }}
+            sx={{ 
+              '& .MuiOutlinedInput-root': { 
+                color: '#ffffff',
+                '& fieldset': { borderColor: '#444' },
+                '&:hover fieldset': { borderColor: '#888' }
+              },
+              '& .MuiInputLabel-root': { color: '#ffffff' }
+            }}
           />
         </Grid>
 
         {/* FECHA HASTA */}
-        <Grid item xs={12} sm={6} md={2.5} lg={2.5}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <TextField
             fullWidth
             size="small"
-            label="Fecha Hasta"
+            label="Hasta"
             type="date"
             variant="outlined"
             value={fechaHasta ? fechaHasta.format('YYYY-MM-DD') : ''}
             onChange={handleFechaHastaChange}
-            InputLabelProps={{ shrink: true }}
+            InputLabelProps={{ shrink: true, sx: { color: '#ffffff' } }}
             disabled={selectedDatePreset !== 'custom'}
-            sx={{ borderRadius: 1 }}
+            sx={{ 
+              '& .MuiOutlinedInput-root': { 
+                color: '#ffffff',
+                '& fieldset': { borderColor: '#444' },
+                '&:hover fieldset': { borderColor: '#888' }
+              },
+              '& .MuiInputLabel-root': { color: '#ffffff' }
+            }}
           />
         </Grid>
 
         {/* SELECT TIENDA */}
-        <Grid item xs={12} sm={6} md={3} lg={2}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <FormControl fullWidth size="small">
-            <InputLabel>Tienda</InputLabel>
+            <InputLabel sx={{ color: '#ffffff' }}>Tienda</InputLabel>
             <Select
               label="Tienda"
               value={tiendaSeleccionada}
               onChange={(e) => setTiendaSeleccionada(e.target.value)}
               MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
               variant="outlined"
-              sx={{ borderRadius: 1 }}
+              sx={{ 
+                color: '#ffffff', 
+                '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, 
+                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, 
+                '.MuiSvgIcon-root': { color: '#ffffff' } 
+              }}
             >
               <MenuItem value="">Todas</MenuItem>
               {tiendas.map((t) => (
@@ -420,9 +452,9 @@ const HeaderControls = React.memo(function HeaderControls({
         </Grid>
 
         {/* SELECT USUARIO */}
-        <Grid item xs={12} sm={6} md={3} lg={2}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <FormControl fullWidth size="small">
-            <InputLabel>Usuario</InputLabel>
+            <InputLabel sx={{ color: '#ffffff' }}>Usuario</InputLabel>
             <Select
               label="Usuario"
               value={usuarioSeleccionado}
@@ -430,7 +462,12 @@ const HeaderControls = React.memo(function HeaderControls({
               disabled={!tiendaSeleccionada}
               MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
               variant="outlined"
-              sx={{ borderRadius: 1 }}
+              sx={{ 
+                color: '#ffffff', 
+                '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, 
+                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, 
+                '.MuiSvgIcon-root': { color: '#ffffff' } 
+              }}
             >
               <MenuItem value="">Todos</MenuItem>
               {usuarios.map((u) => (
@@ -443,16 +480,21 @@ const HeaderControls = React.memo(function HeaderControls({
         </Grid>
 
         {/* SELECT MOTIVO */}
-        <Grid item xs={12} sm={6} md={3} lg={1.5}>
+        <Grid item xs={12} sm={6} md={1.5}>
           <FormControl fullWidth size="small">
-            <InputLabel>Motivo</InputLabel>
+            <InputLabel sx={{ color: '#ffffff' }}>Motivo</InputLabel>
             <Select
               label="Motivo"
               value={motivoSeleccionado}
               onChange={(e) => setMotivoSeleccionado(e.target.value)}
               MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
               variant="outlined"
-              sx={{ borderRadius: 1 }}
+              sx={{ 
+                color: '#ffffff', 
+                '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, 
+                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, 
+                '.MuiSvgIcon-root': { color: '#ffffff' } 
+              }}
             >
               <MenuItem value="">Todos</MenuItem>
               {motivos.map((m) => (
@@ -464,70 +506,137 @@ const HeaderControls = React.memo(function HeaderControls({
           </FormControl>
         </Grid>
 
-        {/* BUSCADOR */}
-        <Grid item xs={12} sm={6} md={4} lg={3}>
-          <TextField
-            fullWidth
-            size="small"
-            label="Buscar..."
-            variant="outlined"
-            value={buscador}
-            onChange={(e) => setBuscador(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <SearchIcon fontSize="small" color="action" sx={{ mr: 1 }} />
-              ),
-            }}
-            sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-          />
+        {/* BUSCADOR COMPACTO */}
+        <Grid item xs={12} sm={6} md={2}>
+          <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#242424', borderRadius: 1, px: 2, height: '40px' }}>
+            <SearchIcon sx={{ color: '#888', mr: 1 }} />
+            <input
+              type="text"
+              placeholder="Buscar..."
+              value={buscador}
+              onChange={(e) => setBuscador(e.target.value)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                outline: 'none',
+                color: '#fff',
+                width: '100%',
+                fontSize: '0.9rem',
+              }}
+            />
+          </Box>
+        </Grid>
+      </Grid>
+
+      {/* Segunda fila: Filtros por tipo y botones de acción */}
+      <Grid container spacing={2} alignItems="center">
+        {/* FILTROS POR TIPO DE DIFERENCIA */}
+        <Grid item xs={12} md={7}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography variant="body2" sx={{ color: '#b0b0b0', fontWeight: 'medium' }}>
+              Mostrar:
+            </Typography>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={showCorrectos} 
+                  onChange={e => setShowCorrectos(e.target.checked)}
+                  sx={{ color: '#4caf50', '&.Mui-checked': { color: '#4caf50' }, p: 0.5 }}
+                  size="small"
+                />
+              }
+              label={<Typography variant="body2" sx={{ color: '#ffffff' }}>Correctos</Typography>}
+              sx={{ mr: 1 }}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={showDiferenciasMenores} 
+                  onChange={e => setShowDiferenciasMenores(e.target.checked)}
+                  sx={{ color: '#ff9800', '&.Mui-checked': { color: '#ff9800' }, p: 0.5 }}
+                  size="small"
+                />
+              }
+              label={<Typography variant="body2" sx={{ color: '#ffffff' }}>Menores</Typography>}
+              sx={{ mr: 1 }}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={showDiferenciasGraves} 
+                  onChange={e => setShowDiferenciasGraves(e.target.checked)}
+                  sx={{ color: '#f44336', '&.Mui-checked': { color: '#f44336' }, p: 0.5 }}
+                  size="small"
+                />
+              }
+              label={<Typography variant="body2" sx={{ color: '#ffffff' }}>Graves</Typography>}
+              sx={{ mr: 1 }}
+            />
+          </Box>
         </Grid>
 
-        {/* BOTONES */}
-        <Grid item xs={12} sm={6} md={1}>
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={fetchData}
-            disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : <RefreshIcon />}
-            sx={{ height: '40px', borderRadius: 1 }}
-          >
-            {loading ? 'Cargando...' : 'Actualizar'}
-          </Button>
-        </Grid>
-        <Grid item xs={12} sm={6} md={1}>
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={handleDownloadCSV}
-            startIcon={<DownloadIcon />}
-            sx={{ height: '40px', borderRadius: 1 }}
-          >
-            CSV
-          </Button>
-        </Grid>
-        <Grid item xs={12} sm={6} md={1}>
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={handleOpenColumnModal}
-            startIcon={<TuneIcon />}
-            sx={{ height: '40px', borderRadius: 1 }}
-          >
-            Columnas
-          </Button>
-        </Grid>
-        <Grid item xs={12} sm={6} md={1}>
-          <Button
-            fullWidth
-            variant="outlined"
-            onClick={onDeleteSelected}
-            disabled={!selectedId}
-            startIcon={<DeleteIcon />}
-            sx={{ height: '40px', borderRadius: 1 }}
-          >
-            Eliminar
-          </Button>
+        {/* BOTONES DE ACCIÓN */}
+        <Grid item xs={12} md={5}>
+          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+            <Button
+              variant="outlined"
+              onClick={fetchData}
+              disabled={loading}
+              startIcon={loading ? <CircularProgress size={16} /> : <RefreshIcon />}
+              size="small"
+              sx={{ 
+                minWidth: 100,
+                color: '#ffffff',
+                borderColor: '#444',
+                '&:hover': { borderColor: '#888' }
+              }}
+            >
+              {loading ? 'Cargando...' : 'Actualizar'}
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleDownloadCSV}
+              startIcon={<DownloadIcon />}
+              size="small"
+              sx={{ 
+                minWidth: 100,
+                color: '#ffffff',
+                borderColor: '#444',
+                '&:hover': { borderColor: '#888' }
+              }}
+            >
+              CSV
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={handleOpenColumnModal}
+              startIcon={<TuneIcon />}
+              size="small"
+              sx={{ 
+                minWidth: 100,
+                color: '#ffffff',
+                borderColor: '#444',
+                '&:hover': { borderColor: '#888' }
+              }}
+            >
+              Columnas
+            </Button>
+            <Button
+              variant="outlined"
+              onClick={onDeleteSelected}
+              disabled={!selectedId}
+              startIcon={<DeleteIcon />}
+              size="small"
+              sx={{ 
+                minWidth: 100,
+                color: !selectedId ? '#666' : '#ff6b6b',
+                borderColor: !selectedId ? '#333' : '#ff6b6b',
+                '&:hover': { borderColor: !selectedId ? '#333' : '#ff5252' }
+              }}
+            >
+              Eliminar
+            </Button>
+          </Box>
         </Grid>
       </Grid>
     </Box>
@@ -589,9 +698,13 @@ export default function Diferencias() {
     setLoading(true);
     setError('');
     try {
+      // Enviar fechas en formato DD/MM/YYYY
+      const pad = (n) => n.toString().padStart(2, '0');
+      const fechaDesdeStr = fechaDesde ? `${pad(fechaDesde.date())}/${pad(fechaDesde.month() + 1)}/${fechaDesde.year()}` : '';
+      const fechaHastaStr = fechaHasta ? `${pad(fechaHasta.date())}/${pad(fechaHasta.month() + 1)}/${fechaHasta.year()}` : '';
       const params = {
-        fechaDesde: fechaDesde ? fechaDesde.format('DD-MM-YYYY') : '',
-        fechaHasta: fechaHasta ? fechaHasta.format('DD-MM-YYYY') : '',
+        fechaDesde: fechaDesdeStr,
+        fechaHasta: fechaHastaStr,
       };
       if (tiendaSeleccionada) params.tienda = tiendaSeleccionada;
       if (usuarioSeleccionado) params.usuario = usuarioSeleccionado;
@@ -603,20 +716,49 @@ export default function Diferencias() {
           const mp = typeof cierre.medios_pago === 'string'
             ? JSON.parse(cierre.medios_pago)
             : cierre.medios_pago || {};
+          
+          // Función para procesar valores numéricos con comas
+          const processNumericValue = (value) => {
+            if (typeof value === 'number') return value;
+            if (typeof value === 'string') {
+              // Convertir comas a puntos decimales y eliminar espacios
+              const cleaned = value.replace(/,/g, '.').trim();
+              const parsed = parseFloat(cleaned);
+              return isNaN(parsed) ? 0 : parsed;
+            }
+            return 0;
+          };
+          
           mediosPago = Array.isArray(mp)
-            ? mp
+            ? mp.map(item => ({
+                medio: item.medio,
+                facturado: processNumericValue(item.facturado),
+                cobrado: processNumericValue(item.cobrado),
+                differenceVal: processNumericValue(item.differenceVal),
+              }))
             : Object.keys(mp).map((key) => ({
                 medio: key,
-                facturado: mp[key].facturado,
-                cobrado: mp[key].cobrado,
-                differenceVal: mp[key].differenceVal,
+                facturado: processNumericValue(mp[key].facturado),
+                cobrado: processNumericValue(mp[key].cobrado),
+                differenceVal: processNumericValue(mp[key].differenceVal),
               }));
         } catch {
           mediosPago = [];
         }
+        // Asegurar que la fecha recibida esté en formato DD/MM/YYYY
+        let fechaFormateada = cierre.fecha;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(fechaFormateada)) {
+          // Si viene en formato YYYY-MM-DD, convertir
+          const [y, m, d] = fechaFormateada.split('-');
+          fechaFormateada = `${pad(d)}/${pad(m)}/${y}`;
+        } else if (/^\d{2}-\d{2}-\d{4}$/.test(fechaFormateada)) {
+          // Si viene en formato DD-MM-YYYY, convertir a DD/MM/YYYY
+          const [d, m, y] = fechaFormateada.split('-');
+          fechaFormateada = `${pad(d)}/${pad(m)}/${y}`;
+        }
         return {
           ...cierre,
-          fecha: moment(cierre.fecha, 'DD-MM-YYYY'),
+          fecha: moment(fechaFormateada, 'DD/MM/YYYY'),
           medios_pago: mediosPago,
           justificaciones: cierre.justificaciones || [],
         };
@@ -674,21 +816,24 @@ export default function Diferencias() {
   }, [showSnackbar]);
 
   useEffect(() => {
-    if (mediosPagoConfig.length) {
-      setVisibleColumns([
-        'fecha',
-        'tienda',
-        'usuario',
-        ...mediosPagoConfig.map((m) => `medio_${m}`),
-        'gran_total',
-        'total_ajustado',
-        'balance_sin_justificar',
-        'motivos',
-        'estado',
-        'acciones',
-      ]);
-    }
-  }, [mediosPagoConfig]);
+    // Actualizar las columnas visibles por defecto con las nuevas columnas sintetizadas
+    setVisibleColumns([
+      'resumen',
+      'fecha',
+      'tienda',
+      'usuario',
+      'efectivo_facturado',
+      'efectivo_cobrado',
+      'tarjetas_facturado',
+      'tarjetas_cobrado',
+      'gran_total',
+      'total_ajustado',
+      'balance_sin_justificar',
+      'motivos',
+      'estado',
+      'acciones',
+    ]);
+  }, []);
 
   useEffect(() => {
     if (tiendaSeleccionada) {
@@ -762,30 +907,68 @@ export default function Diferencias() {
       {
         id: 'fecha',
         label: 'Fecha',
-        width: 100,
+        width: 85,
         sortable: true,
-        format: (v) => moment(v).format('DD-MM-YYYY'),
+        format: (v) => moment(v).format('DD/MM/YYYY'),
       },
-      { id: 'tienda', label: 'Tienda', width: 80, sortable: true },
-      { id: 'usuario', label: 'Usuario', width: 80, sortable: true },
+      { id: 'tienda', label: 'Tienda', width: 70, sortable: true },
+      { id: 'usuario', label: 'Usuario', width: 70, sortable: true },
     ];
 
-    const mediosColumns = mediosPagoConfig.map((medio) => ({
-      id: `medio_${medio}`,
-      label: medio,
-      width: 80,
-      align: 'right',
-      format: (_, row) => {
-        const m = row.medios_pago.find((x) => x.medio === medio);
-        return m ? <ExactValue value={m.differenceVal} /> : '-';
+    // Columnas sintetizadas para medios de pago
+    const mediosSintetizadosColumns = [
+      {
+        id: 'efectivo_facturado',
+        label: 'Efectivo Fact.',
+        width: 85,
+        align: 'right',
+        format: (_, row) => {
+          const efectivo = row.medios_pago.find((x) => x.medio.toLowerCase().includes('efectivo'));
+          return efectivo ? <ExactValue value={efectivo.facturado} /> : '-';
+        },
+        exportId: 'efectivo_facturado',
       },
-      exportId: `medio_${medio}_difference`,
-    }));
+      {
+        id: 'efectivo_cobrado',
+        label: 'Efectivo Cobr.',
+        width: 85,
+        align: 'right',
+        format: (_, row) => {
+          const efectivo = row.medios_pago.find((x) => x.medio.toLowerCase().includes('efectivo'));
+          return efectivo ? <ExactValue value={efectivo.cobrado} /> : '-';
+        },
+        exportId: 'efectivo_cobrado',
+      },
+      {
+        id: 'tarjetas_facturado',
+        label: 'Tarjetas Fact.',
+        width: 85,
+        align: 'right',
+        format: (_, row) => {
+          const tarjetas = row.medios_pago.filter((x) => !x.medio.toLowerCase().includes('efectivo'));
+          const sum = tarjetas.reduce((s, x) => s + (x.facturado || 0), 0);
+          return <ExactValue value={sum} />;
+        },
+        exportId: 'tarjetas_facturado',
+      },
+      {
+        id: 'tarjetas_cobrado',
+        label: 'Tarjetas Cobr.',
+        width: 85,
+        align: 'right',
+        format: (_, row) => {
+          const tarjetas = row.medios_pago.filter((x) => !x.medio.toLowerCase().includes('efectivo'));
+          const sum = tarjetas.reduce((s, x) => s + (x.cobrado || 0), 0);
+          return <ExactValue value={sum} />;
+        },
+        exportId: 'tarjetas_cobrado',
+      },
+    ];
 
     const totalColumn = {
       id: 'gran_total',
-      label: 'Gran Total',
-      width: 80,
+      label: 'Diferencia Total',
+      width: 85,
       align: 'right',
       format: (_, row) => {
         const sum = row.medios_pago.reduce(
@@ -801,7 +984,7 @@ export default function Diferencias() {
       {
         id: 'total_ajustado',
         label: 'Total Ajustado',
-        width: 80,
+        width: 85,
         align: 'right',
         format: (_, row) => {
           const sum = row.justificaciones.reduce(
@@ -814,8 +997,8 @@ export default function Diferencias() {
       },
       {
         id: 'balance_sin_justificar',
-        label: 'Balance sin Justificar',
-        width: 80,
+        label: 'Balance Final',
+        width: 85,
         align: 'right',
         format: (v) => <ExactValue value={v} />,
         exportId: 'grand_difference_total_after_justification',
@@ -836,8 +1019,9 @@ export default function Diferencias() {
                   variant="body2"
                   component="span"
                   display="block"
+                  sx={{ fontSize: '0.75rem' }}
                 >
-                  {mot}
+                  {mot.length > 12 ? mot.substring(0, 12) + '...' : mot}
                 </Typography>
               ))}
             </Box>
@@ -852,7 +1036,7 @@ export default function Diferencias() {
     const estadoColumn = {
       id: 'estado',
       label: 'Estado',
-      width: 80,
+      width: 70,
       format: (_, row) => {
         const e = getEstado(row);
         return (
@@ -873,27 +1057,12 @@ export default function Diferencias() {
       exportId: 'estado',
     };
 
-    // Nueva columna de resumen (ojo)
-    const resumenColumn = {
-      id: 'resumen',
-      label: '',
-      width: 40,
-      format: (_, row) => (
-        <Tooltip title="Ver resumen" arrow>
-          <IconButton size="small" onClick={e => { e.stopPropagation(); setModalDetalle(row); }} color="primary">
-            <VisibilityIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      ),
-      exportable: false,
-    };
-
     const actionsColumn = {
       id: 'acciones',
       label: 'Acciones',
-      width: 100,
+      width: 80,
       format: (_, row) => (
-        <Box display="flex" flexDirection="column" alignItems="center" gap={0.5}>
+        <Box display="flex" flexDirection="row" alignItems="center" gap={0.5}>
           <Tooltip title="Ver detalles" arrow>
             <IconButton
               size="small"
@@ -918,9 +1087,8 @@ export default function Diferencias() {
     };
 
     return [
-      resumenColumn,
       ...baseColumns,
-      ...mediosColumns,
+      ...mediosSintetizadosColumns,
       totalColumn,
       ...ajustesColumns,
       estadoColumn,
@@ -968,18 +1136,24 @@ export default function Diferencias() {
           let value;
           if (col.id === 'fecha') {
             value = moment(row.fecha).format('DD-MM-YYYY');
-          } else if (col.id.startsWith('medio_')) {
-            const medioName = col.id.replace('medio_', '');
-            const m = row.medios_pago.find((x) => x.medio === medioName);
-            value = m ? m.differenceVal : 0;
+          } else if (col.id === 'efectivo_facturado') {
+            const efectivo = row.medios_pago.find((x) => x.medio.toLowerCase().includes('efectivo'));
+            value = efectivo ? efectivo.facturado : 0;
+          } else if (col.id === 'efectivo_cobrado') {
+            const efectivo = row.medios_pago.find((x) => x.medio.toLowerCase().includes('efectivo'));
+            value = efectivo ? efectivo.cobrado : 0;
+          } else if (col.id === 'tarjetas_facturado') {
+            const tarjetas = row.medios_pago.filter((x) => !x.medio.toLowerCase().includes('efectivo'));
+            value = tarjetas.reduce((s, x) => s + (x.facturado || 0), 0);
+          } else if (col.id === 'tarjetas_cobrado') {
+            const tarjetas = row.medios_pago.filter((x) => !x.medio.toLowerCase().includes('efectivo'));
+            value = tarjetas.reduce((s, x) => s + (x.cobrado || 0), 0);
           } else if (col.id === 'gran_total') {
             value = row.medios_pago.reduce(
               (s, x) => s + (x.differenceVal || 0),
               0
             );
-          } else if (
-            col.id === 'total_ajustado'
-          ) {
+          } else if (col.id === 'total_ajustado') {
             value = row.justificaciones.reduce(
               (s, j) => s + (j.ajuste || 0),
               0
@@ -1024,8 +1198,9 @@ export default function Diferencias() {
       p={3}
       sx={{
         fontFamily: 'Inter',
-        backgroundColor: theme.palette.background.default,
-        minHeight: '100vh',
+        bgcolor: '#121212',
+        color: '#ffffff',
+        minHeight: '100vh'
       }}
     >
       <Paper
@@ -1033,7 +1208,8 @@ export default function Diferencias() {
         sx={{
           p: 4,
           borderRadius: 2,
-          backgroundColor: theme.palette.background.paper,
+          bgcolor: '#1e1e1e',
+          color: '#ffffff'
         }}
       >
         <HeaderControls
@@ -1060,23 +1236,13 @@ export default function Diferencias() {
           handleOpenColumnModal={() => setColumnModalOpen(true)}
           selectedId={selectedId}
           onDeleteSelected={handleDeleteSelected}
+          showCorrectos={showCorrectos}
+          setShowCorrectos={setShowCorrectos}
+          showDiferenciasMenores={showDiferenciasMenores}
+          setShowDiferenciasMenores={setShowDiferenciasMenores}
+          showDiferenciasGraves={showDiferenciasGraves}
+          setShowDiferenciasGraves={setShowDiferenciasGraves}
         />
-
-        {/* Filtros adicionales de diferencias (ahora debajo de los filtros principales) */}
-        <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
-          <FormControlLabel
-            control={<Checkbox checked={showCorrectos} onChange={e => setShowCorrectos(e.target.checked)} />}
-            label="Mostrar cierres correctos"
-          />
-          <FormControlLabel
-            control={<Checkbox checked={showDiferenciasMenores} onChange={e => setShowDiferenciasMenores(e.target.checked)} />}
-            label="Mostrar diferencias menores"
-          />
-          <FormControlLabel
-            control={<Checkbox checked={showDiferenciasGraves} onChange={e => setShowDiferenciasGraves(e.target.checked)} />}
-            label="Mostrar diferencias graves"
-          />
-        </Box>
 
         {error && (
           <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
@@ -1085,7 +1251,7 @@ export default function Diferencias() {
         )}
 
         <Collapse in={!loading} timeout={600}>
-          <Grid container spacing={2} sx={{ mb: 3 }}>
+          <Grid container spacing={1.5} sx={{ mb: 3 }}>
             {[
               {
                 title: 'Total Cierres',
@@ -1112,7 +1278,7 @@ export default function Diferencias() {
                 tooltip: 'Diferencias > $10.000 o < -$10.000',
               },
             ].map((stat, i) => (
-              <Grid item xs={6} sm={6} md={3} key={i}>
+              <Grid item xs={6} sm={3} md={3} key={i}>
                 <StatsCard {...stat} />
               </Grid>
             ))}
@@ -1128,30 +1294,37 @@ export default function Diferencias() {
               position: 'relative',
               scrollBehavior: 'smooth',
               borderRadius: 1,
+              bgcolor: '#121212'
             }}
           >
-            <Table size="small" sx={{ minWidth: 800 }}>
+            <Table sx={{ minWidth: 650 }} aria-label="simple table">
               <TableHead>
-                <TableRow sx={styles.tableHeader}>
+                <TableRow>
                   {displayedColumns.map((col) => (
                     <TableCell
                       key={col.id}
                       align={col.align || 'left'}
-                      sx={{
-                        color: 'text.primary',
+                      sortDirection={orderBy === col.id ? order : false}
+                      sx={{ 
+                        color: '#ffffff', 
+                        backgroundColor: '#242424', 
+                        borderBottom: '1px solid #333',
                         width: col.width,
                         minWidth: col.width,
-                        backgroundColor: 'background.paper',
-                        fontWeight: 'bold',
-                        transition: 'background-color 0.3s ease',
+                        fontWeight: 'bold'
                       }}
-                      sortDirection={orderBy === col.id ? order : false}
                     >
                       {col.sortable ? (
                         <TableSortLabel
                           active={orderBy === col.id}
                           direction={orderBy === col.id ? order : 'asc'}
                           onClick={() => handleRequestSort(col.id)}
+                          sx={{
+                            color: '#ffffff !important',
+                            '& .MuiTableSortLabel-icon': {
+                              color: '#ffffff !important',
+                            },
+                          }}
                         >
                           {col.label}
                         </TableSortLabel>
@@ -1175,8 +1348,16 @@ export default function Diferencias() {
                         selected={selectedId === cierre.id}
                         onClick={() => setSelectedId(cierre.id)}
                         sx={{
-                          ...styles.row,
-                          borderLeft: `4px solid ${estado.color}`,
+                          '&:nth-of-type(odd)': { backgroundColor: estado.color === '#f44336' ? '#2a1e1e' : '#1e1e1e' },
+                          '&:nth-of-type(even)': { backgroundColor: estado.color === '#f44336' ? '#3a2323' : '#2a2a2a' },
+                          boxShadow: estado.color === '#f44336' ? 2 : 0,
+                          '&:last-child td, &:last-child th': { border: 0 },
+                          cursor: 'pointer',
+                          transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
+                          '&:hover': {
+                            backgroundColor: 'action.hover',
+                            boxShadow: 1,
+                          },
                         }}
                       >
                         {displayedColumns.map((col) => {
@@ -1185,7 +1366,11 @@ export default function Diferencias() {
                             <TableCell
                               key={col.id}
                               align={col.align || 'left'}
-                              sx={{ width: col.width }}
+                              sx={{ 
+                                width: col.width,
+                                color: '#ffffff', 
+                                borderBottom: '1px solid #333'
+                              }}
                             >
                               {col.format
                                 ? col.format(cellValue, cierre)

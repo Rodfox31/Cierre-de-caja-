@@ -11,6 +11,15 @@ import {
   Card,
   CardContent,
   Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  Divider,
+  Stack,
 } from "@mui/material";
 import {
   Close,
@@ -20,50 +29,65 @@ import {
   Payment,
   Description,
   AssignmentInd,
-  Circle
+  Circle,
+  AttachMoney,
+  AccountBalance,
+  TrendingUp,
+  Print,
 } from "@mui/icons-material";
+import moment from 'moment';
 
 const SectionHeader = ({ icon, title, variant = "caption" }) => {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.25, gap: 0.5 }}>
-      {icon && React.cloneElement(icon, { fontSize: "small", sx: { color: "#000" } })}
-      <Typography variant={variant} sx={{ fontWeight: 600, color: "#000", textTransform: 'uppercase', letterSpacing: 0.5 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.5, gap: 0.5 }}>
+      {icon && React.cloneElement(icon, { fontSize: "small", sx: { color: "#666" } })}
+      <Typography variant={variant} sx={{ fontWeight: 600, color: "#333", textTransform: 'uppercase', letterSpacing: 0.3, fontSize: '0.75rem' }}>
         {title}
       </Typography>
     </Box>
   );
 };
 
-const InfoItem = ({ label, value, icon = <Circle fontSize="small" />, hideIcon = false }) => {
+const InfoRow = ({ label, value, bold = false }) => {
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mr: 1 }}>
-      {(!hideIcon && icon) && React.cloneElement(icon, { sx: { color: "#555" } })}
-      <Typography variant="caption" sx={{ fontWeight: 500, color: "#000" }}>
-        {label}:
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', py: 0.1 }}>
+      <Typography variant="caption" sx={{ color: "#333", fontWeight: bold ? 600 : 400, fontSize: '0.7rem' }}>
+        {label}
       </Typography>
-      <Typography variant="caption" sx={{ color: "#555" }}>
+      <Typography variant="caption" sx={{ color: "#555", fontWeight: bold ? 600 : 400, fontFamily: 'monospace', fontSize: '0.7rem' }}>
         {value}
       </Typography>
     </Box>
   );
 };
 
-const DataCard = ({ title, icon, children }) => {
+const CompactCard = ({ title, icon, children, noPadding = false }) => {
   return (
-    <Card sx={{ mb: 1, background: "#fff", boxShadow: "none", borderRadius: '4px', border: "1px solid #ddd" }}>
-      <CardContent sx={{ p: 0.5 }}>
-        {title && <SectionHeader icon={icon} title={title} variant="caption" />}
-        {children}
-      </CardContent>
-    </Card>
+    <Box sx={{ mb: 0.8, border: '1px solid #e0e0e0', borderRadius: 1, p: noPadding ? 0 : 0.8 }}>
+      {title && <SectionHeader icon={icon} title={title} />}
+      {children}
+    </Box>
   );
 };
 
 function Imprimir({ resumenData = {}, onClose, open }) {
-
   const handlePrint = () => {
     window.print();
   };
+
+  // Formatear valores monetarios
+  const formatCurrency = (value) => {
+    if (typeof value === 'string' && value.includes('$')) return value;
+    const num = parseFloat(value) || 0;
+    return `$${num.toLocaleString('es-CL', { minimumFractionDigits: 0 })}`;
+  };
+
+  // Calcular totales
+  const totalFacturado = resumenData.mediosPago?.reduce((sum, medio) => sum + (parseFloat(medio.facturado) || 0), 0) || 0;
+  const totalCobrado = resumenData.mediosPago?.reduce((sum, medio) => sum + (parseFloat(medio.cobrado) || 0), 0) || 0;
+  const diferenciaMedios = totalCobrado - totalFacturado;
+  const totalJustificaciones = resumenData.justificaciones?.reduce((sum, just) => sum + (parseFloat(just.ajuste) || 0), 0) || 0;
+  const balanceFinal = diferenciaMedios - totalJustificaciones;
 
   return (
     <Dialog 
@@ -74,121 +98,291 @@ function Imprimir({ resumenData = {}, onClose, open }) {
       PaperProps={{
         sx: {
           background: "#fff",
-          // Se han removido las dimensiones fijas para que se imprima igual que en pantalla.
-          borderRadius: '4px',
           color: "#000",
           p: 1,
-          m: "auto"
+          maxHeight: '95vh',
+          overflow: 'auto',
+          '& .MuiPaper-root': {
+            backgroundColor: '#fff'
+          },
+          '& .MuiCard-root': {
+            backgroundColor: '#fff'
+          },
+          '& .MuiTableContainer-root': {
+            backgroundColor: '#fff'
+          },
+          '@media print': {
+            maxHeight: 'none',
+            overflow: 'visible',
+            boxShadow: 'none',
+            margin: 0,
+            padding: '8mm',
+            fontSize: '8pt',
+            width: '210mm',
+            minHeight: '297mm'
+          }
         }
       }}
     >
-      <DialogTitle sx={{ p: 0.5, background: "#f5f5f5", borderBottom: "1px solid #ddd" }}>
+      <DialogTitle sx={{ 
+        p: 0, 
+        mb: 1, 
+        borderBottom: "1px solid #e0e0e0",
+        '@media print': { 
+          display: 'none' 
+        }
+      }}>
         <Grid container alignItems="center" justifyContent="space-between">
           <Grid item>
-            <Typography variant="caption" sx={{ fontWeight: 700, background: "linear-gradient(45deg, #1976d2, #dc004e)", WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Resumen de Cierre
+            <Typography variant="h6" sx={{ fontWeight: 600, color: "#333" }}>
+              Resumen de Cierre de Caja
             </Typography>
           </Grid>
           <Grid item>
-            <IconButton onClick={onClose} sx={{ color: "#555", p: 0.5 }}>
-              <Close fontSize="small" />
+            <IconButton onClick={onClose} sx={{ color: "#666" }} size="small">
+              <Close />
             </IconButton>
           </Grid>
         </Grid>
       </DialogTitle>
       
-      <DialogContent dividers sx={{ p: 0.5 }}>
-        {/* Bloque 1: Informe Base */}
-        <DataCard title="Informe Base" icon={<Store fontSize="small" />}>
-          <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
-            <InfoItem label="Fecha" value={resumenData.fecha} icon={<CalendarToday fontSize="small" />} />
-            <InfoItem label="Tienda" value={resumenData.tienda} icon={<Store fontSize="small" />} />
-            <InfoItem label="Usuario" value={resumenData.usuario} icon={<Person fontSize="small" />} />
-          </Box>
-        </DataCard>
+      <DialogContent sx={{ 
+        p: 0,
+        '@media print': {
+          padding: 0
+        }
+      }}>
+        {/* ENCABEZADO CON INFORMACIÓN BÁSICA */}
+        <CompactCard title="Información General" icon={<Store />}>
+          <Grid container spacing={1}>
+            <Grid item xs={4}>
+              <InfoRow label="Fecha" value={moment(resumenData.fecha, 'DD/MM/YYYY').format('DD/MM/YYYY') || 'N/A'} />
+            </Grid>
+            <Grid item xs={4}>
+              <InfoRow label="Tienda" value={resumenData.tienda || 'N/A'} />
+            </Grid>
+            <Grid item xs={4}>
+              <InfoRow label="Usuario" value={resumenData.usuario || 'N/A'} />
+            </Grid>
+          </Grid>
+        </CompactCard>
 
-        {/* Bloque 2: Medios de Pago / Brinks y Justificaciones */}
+        {/* MEDIOS DE PAGO */}
+        <CompactCard title="Medios de Pago" icon={<Payment />} noPadding>
+          <Box sx={{ p: 0.8 }}>
+            <SectionHeader icon={<Payment />} title="Medios de Pago" />
+          </Box>
+          <Table size="small" sx={{ minWidth: 400, '& .MuiTableCell-root': { py: 0.3, px: 0.5 } }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Medio</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Facturado</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Cobrado</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Diferencia</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {resumenData.mediosPago?.map((medio, idx) => (
+                <TableRow key={idx}>
+                  <TableCell sx={{ fontSize: '0.7rem', color: '#333' }}>{medio.medio}</TableCell>
+                  <TableCell align="right" sx={{ fontSize: '0.7rem', fontFamily: 'monospace', color: '#555' }}>
+                    {formatCurrency(medio.facturado)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontSize: '0.7rem', fontFamily: 'monospace', color: '#555' }}>
+                    {formatCurrency(medio.cobrado)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ 
+                    fontSize: '0.7rem', 
+                    fontFamily: 'monospace',
+                    color: medio.differenceVal > 0 ? '#388e3c' : medio.differenceVal < 0 ? '#d32f2f' : '#666',
+                    fontWeight: medio.differenceVal !== 0 ? 'bold' : 'normal'
+                  }}>
+                    {medio.difference || formatCurrency(medio.differenceVal)}
+                  </TableCell>
+                </TableRow>
+              ))}
+              <TableRow sx={{ borderTop: '1px solid #e0e0e0', fontWeight: 'bold' }}>
+                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>TOTAL</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', fontFamily: 'monospace', color: '#333' }}>
+                  {formatCurrency(totalFacturado)}
+                </TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', fontFamily: 'monospace', color: '#333' }}>
+                  {formatCurrency(totalCobrado)}
+                </TableCell>
+                <TableCell align="right" sx={{ 
+                  fontWeight: 'bold', 
+                  fontSize: '0.7rem', 
+                  fontFamily: 'monospace',
+                  color: diferenciaMedios > 0 ? '#388e3c' : diferenciaMedios < 0 ? '#d32f2f' : '#666'
+                }}>
+                  {formatCurrency(diferenciaMedios)}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </CompactCard>
+
+        {/* BRINKS Y JUSTIFICACIONES */}
         <Grid container spacing={1}>
           <Grid item xs={12} md={6}>
-            <DataCard title="Medios de Pago" icon={<Payment fontSize="small" />}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                {resumenData.mediosPago?.map((medio, idx) => (
-                  <Box key={idx} sx={{ display: 'flex', justifyContent: 'space-between', p: 0.5, border: "1px solid #ddd", borderRadius: '4px' }}>
-                    <Typography variant="caption" sx={{ color: "#000" }}>
-                      {medio.medio}
-                    </Typography>
-                    <Typography variant="caption" sx={{ color: "#000", fontWeight: 500 }}>
-                      ${medio.cobrado} ({medio.difference})
-                    </Typography>
-                  </Box>
-                ))}
-                <Typography variant="caption" sx={{ fontWeight: 600, textAlign: 'right', display: 'block' }}>
-                  Total: {resumenData.granTotalMedios}
-                </Typography>
-              </Box>
-            </DataCard>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <DataCard title="Brinks" icon={<Description fontSize="small" />}>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                {resumenData.brinks?.map((b, idx) => (
-                  <Box key={idx} sx={{ p: 0.5, border: "1px solid #ddd", borderRadius: '4px' }}>
-                    <Typography variant="caption" sx={{ color: "#000", fontWeight: 500 }}>
-                      #{b.codigo} - ${b.monto}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            </DataCard>
-
-            <DataCard title="Justificaciones" icon={<AssignmentInd fontSize="small" />}>
-              {resumenData.justificaciones?.length > 0 ? (
-                resumenData.justificaciones.map((just, idx) => (
-                  <Box key={idx} sx={{ p: 0.5, mb: 0.5, border: "1px solid #ddd", borderRadius: '4px' }}>
-                    {/* Primera fila: Orden y Cliente */}
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                      <InfoItem label="Orden" value={just.orden} hideIcon />
-                      <InfoItem label="Cliente" value={just.cliente} hideIcon />
-                    </Box>
-                    {/* Segunda fila: Monto Dif. y Motivo */}
-                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mt: 0.25 }}>
-                      <InfoItem label="Monto Dif." value={just.monto_dif} hideIcon />
-                      <InfoItem label="Motivo" value={just.motivo} hideIcon />
-                    </Box>
-                  </Box>
-                ))
+            <CompactCard title="Brinks" icon={<AccountBalance />}>
+              {resumenData.brinks?.length > 0 ? (
+                <Stack spacing={0.2}>
+                  {resumenData.brinks.map((brink, idx) => (
+                    <InfoRow key={idx} label={`#${brink.codigo}`} value={formatCurrency(brink.monto)} />
+                  ))}
+                  <Divider sx={{ my: 0.2 }} />
+                  <InfoRow label="Total Brinks" value={resumenData.brinksTotal || '$0'} bold />
+                </Stack>
               ) : (
-                <Typography variant="caption" sx={{ fontStyle: 'italic', color: "#888", textAlign: 'center', py: 0.5 }}>
-                  No se registraron diferencias
+                <Typography variant="caption" sx={{ fontStyle: 'italic', color: '#666', textAlign: 'center', fontSize: '0.65rem' }}>
+                  No hay registros de Brinks
                 </Typography>
               )}
-            </DataCard>
+            </CompactCard>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <CompactCard title="Justificaciones" icon={<AssignmentInd />}>
+              {resumenData.justificaciones?.length > 0 ? (
+                <Stack spacing={0.2}>
+                  {resumenData.justificaciones.map((just, idx) => (
+                    <Box key={idx} sx={{ p: 0.3, border: '1px solid #e0e0e0', borderRadius: 1 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', fontSize: '0.65rem' }}>
+                        {just.orden} - {just.cliente}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#666', display: 'block', fontSize: '0.6rem' }}>
+                        Monto: {formatCurrency(just.monto_dif)} - Ajuste: {formatCurrency(just.ajuste)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ color: '#666', display: 'block', fontSize: '0.6rem' }}>
+                        {just.motivo}
+                      </Typography>
+                    </Box>
+                  ))}
+                  <Divider sx={{ my: 0.2 }} />
+                  <InfoRow label="Total Ajustes" value={formatCurrency(totalJustificaciones)} bold />
+                </Stack>
+              ) : (
+                <Typography variant="caption" sx={{ fontStyle: 'italic', color: '#666', textAlign: 'center', fontSize: '0.65rem' }}>
+                  No hay justificaciones registradas
+                </Typography>
+              )}
+            </CompactCard>
           </Grid>
         </Grid>
 
-        {/* Bloque 3: Cierre Final */}
-        <DataCard title="Cierre Final" icon={null}>
-          {/* Primero Responsable, luego Balance y finalmente Espacio para firma */}
-          <Box sx={{ mt: 0.5 }}>
-            <Typography variant="caption" sx={{ color: "#000", fontWeight: 600 }}>
-              Responsable: {resumenData.responsable}
-            </Typography>
-          </Box>
-          <Box sx={{ mt: 0.5 }}>
-            <Typography variant="caption" sx={{ color: "#000", fontWeight: 600 }}>
-              Balance sin justificar: {resumenData.balanceSinJustificar}
-            </Typography>
-          </Box>
-          <Box sx={{ my: 1, p: 1, border: "1px dashed #aaa", borderRadius: '4px', textAlign: 'center', minHeight: '40px' }}>
-            <Typography variant="caption" sx={{ color: "#888" }}>
-              Espacio para firma
-            </Typography>
-          </Box>
-        </DataCard>
+        {/* RESUMEN FINAL */}
+        <CompactCard title="Resumen Final" icon={<TrendingUp />}>
+          <Grid container spacing={1}>
+            <Grid item xs={12} md={8}>
+              <Stack spacing={0.2}>
+                <InfoRow label="Diferencia en Medios de Pago" value={formatCurrency(diferenciaMedios)} />
+                <InfoRow label="Total Justificaciones" value={formatCurrency(totalJustificaciones)} />
+                <Divider />
+                <InfoRow 
+                  label="BALANCE FINAL SIN JUSTIFICAR" 
+                  value={formatCurrency(balanceFinal)} 
+                  bold 
+                />
+                <InfoRow label="Responsable" value={resumenData.responsable || 'N/A'} />
+              </Stack>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Box sx={{ 
+                border: '1px solid #e0e0e0', 
+                borderRadius: 1, 
+                p: 1, 
+                textAlign: 'center'
+              }}>
+                <Typography variant="subtitle2" sx={{ 
+                  fontWeight: 'bold', 
+                  color: Math.abs(balanceFinal) < 1 ? '#388e3c' : '#f57c00',
+                  mb: 0.5,
+                  fontSize: '0.8rem'
+                }}>
+                  {Math.abs(balanceFinal) < 1 ? 'CUADRADO' : 'CON DIFERENCIAS'}
+                </Typography>
+                <Typography variant="h6" sx={{ 
+                  fontWeight: 'bold', 
+                  color: balanceFinal >= 0 ? '#388e3c' : '#d32f2f',
+                  fontFamily: 'monospace',
+                  fontSize: '1rem'
+                }}>
+                  {formatCurrency(balanceFinal)}
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </CompactCard>
 
-        {/* Botón de impresión */}
-        <Box sx={{ mt: 1, textAlign: 'center' }}>
-          <Button variant="outlined" onClick={handlePrint} size="small" sx={{ p: 0.5 }}>
+        {/* COMENTARIOS */}
+        {resumenData.comentarios && (
+          <CompactCard title="Comentarios" icon={<Description />}>
+            <Typography variant="caption" sx={{ 
+              color: '#333', 
+              fontStyle: 'italic',
+              p: 0.5,
+              border: '1px solid #e0e0e0',
+              borderRadius: 1,
+              display: 'block',
+              fontSize: '0.7rem'
+            }}>
+              {resumenData.comentarios}
+            </Typography>
+          </CompactCard>
+        )}
+
+        {/* CAMPO PARA FIRMA */}
+        <CompactCard title="Validación" icon={<Person />}>
+          <Grid container spacing={1}>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ 
+                border: '1px solid #e0e0e0', 
+                borderRadius: 1, 
+                p: 1.5, 
+                textAlign: 'center',
+                minHeight: '50px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center'
+              }}>
+                <Typography variant="caption" sx={{ color: '#333', fontWeight: 'bold', fontSize: '0.7rem' }}>
+                  FIRMA DEL RESPONSABLE
+                </Typography>
+                <Typography variant="caption" sx={{ color: '#666', mt: 0.5, fontSize: '0.65rem' }}>
+                  {resumenData.responsable || 'Responsable'}
+                </Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Stack spacing={0.3}>
+                <InfoRow label="Fecha de Cierre" value={moment().format('DD/MM/YYYY HH:mm')} />
+                <InfoRow label="Hora de Impresión" value={moment().format('HH:mm:ss')} />
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="caption" sx={{ color: '#666', fontStyle: 'italic', fontSize: '0.6rem' }}>
+                    Documento automático del cierre de caja. Conservar para control interno.
+                  </Typography>
+                </Box>
+              </Stack>
+            </Grid>
+          </Grid>
+        </CompactCard>
+
+        {/* BOTÓN DE IMPRESIÓN - Solo visible en pantalla */}
+        <Box sx={{ 
+          mt: 1, 
+          textAlign: 'center',
+          '@media print': { 
+            display: 'none' 
+          }
+        }}>
+          <Button 
+            variant="contained" 
+            onClick={handlePrint} 
+            size="medium"
+            startIcon={<Print />}
+            sx={{ px: 3, py: 1, backgroundColor: '#666', '&:hover': { backgroundColor: '#555' } }}
+          >
             Imprimir
           </Button>
         </Box>

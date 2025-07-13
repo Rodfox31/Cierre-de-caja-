@@ -117,7 +117,10 @@ app.get('/', (req, res) => {
 
 // ── GET /api/cierres-completo ──
 app.get('/api/cierres-completo', (req, res) => {
-  const cierresQuery = `
+  const { fechaDesde, fechaHasta, tienda, usuario } = req.query;
+  
+  // Construir la consulta con filtros opcionales
+  let cierresQuery = `
     SELECT 
       id,
       fecha,
@@ -131,8 +134,33 @@ app.get('/api/cierres-completo', (req, res) => {
       balance_sin_justificar,
       responsable,
       comentarios
-    FROM cierres
+    FROM cierres WHERE 1=1
   `;
+  
+  const queryParams = [];
+  
+  // Agregar filtros de fecha si se proporcionan (convertir DD/MM/YYYY a YYYY-MM-DD)
+  if (fechaDesde) {
+    const fechaDesdeFormatted = moment(fechaDesde, 'DD/MM/YYYY').format('YYYY-MM-DD');
+    cierresQuery += ` AND fecha >= ?`;
+    queryParams.push(fechaDesdeFormatted);
+  }
+  
+  if (fechaHasta) {
+    const fechaHastaFormatted = moment(fechaHasta, 'DD/MM/YYYY').format('YYYY-MM-DD');
+    cierresQuery += ` AND fecha <= ?`;
+    queryParams.push(fechaHastaFormatted);
+  }
+  
+  if (tienda) {
+    cierresQuery += ` AND tienda = ?`;
+    queryParams.push(tienda);
+  }
+  
+  if (usuario) {
+    cierresQuery += ` AND usuario = ?`;
+    queryParams.push(usuario);
+  }
 
   const justificacionesQuery = `
     SELECT 
@@ -147,7 +175,7 @@ app.get('/api/cierres-completo', (req, res) => {
     FROM justificaciones
   `;
 
-  db.all(cierresQuery, [], (err, cierres) => {
+  db.all(cierresQuery, queryParams, (err, cierres) => {
     if (err) {
       console.error("Error al obtener cierres:", err.message);
       return res.status(500).json({ error: err.message });
@@ -167,8 +195,12 @@ app.get('/api/cierres-completo', (req, res) => {
           console.warn(`Error parseando medios_pago en cierre ID ${cierre.id}:`, e.message);
         }
 
+        // Convertir la fecha de vuelta a DD/MM/YYYY para el frontend
+        const fechaFormateada = moment(cierre.fecha, 'YYYY-MM-DD').format('DD/MM/YYYY');
+
         return {
           ...cierre,
+          fecha: fechaFormateada,
           medios_pago: mediosPagoParsed,
           justificaciones: justificaciones.filter(j => j.cierre_id === cierre.id)
         };
@@ -185,13 +217,98 @@ app.get('/api/cierres/existe', (req, res) => {
   if (!fecha || !tienda || !usuario) {
     return res.status(400).json({ error: 'Faltan parámetros necesarios' });
   }
+  
+  // Convertir fecha de DD/MM/YYYY a YYYY-MM-DD para comparar con la DB
+  const fechaFormatted = moment(fecha, 'DD/MM/YYYY').format('YYYY-MM-DD');
+  
   const query = `SELECT COUNT(*) as count FROM cierres WHERE fecha = ? AND tienda = ? AND usuario = ?`;
-  db.get(query, [fecha, tienda, usuario], (err, row) => {
+  db.get(query, [fechaFormatted, tienda, usuario], (err, row) => {
     if (err) {
       console.error("Error al consultar existencia:", err.message);
       return res.status(500).json({ error: err.message });
     }
     res.json({ existe: row.count > 0 });
+  });
+});
+
+// ── GET /api/cierres-completo/:id ──
+app.get('/api/cierres-completo/:id', (req, res) => {
+  const cierreId = req.params.id;
+  
+  const cierreQuery = `
+    SELECT 
+      id,
+      fecha,
+      tienda,
+      usuario,
+      fondo,
+      total_billetes,
+      final_balance,
+      brinks_total,
+      grand_difference_total,
+      medios_pago,
+      balance_sin_justificar,
+      responsable,
+      comentarios
+    FROM cierres 
+    WHERE id = ?
+  `;
+
+  db.get(cierreQuery, [cierreId], (err, cierre) => {
+    if (err) {
+      console.error('Error obteniendo cierre:', err.message);
+      return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+    
+    if (!cierre) {
+      return res.status(404).json({ error: 'Cierre no encontrado' });
+    }
+
+    // Obtener justificaciones asociadas
+    const justificacionesQuery = `
+      SELECT id, cierre_id, fecha, orden, cliente, monto_dif, ajuste, motivo
+      FROM justificaciones 
+      WHERE cierre_id = ?
+      ORDER BY fecha DESC
+    `;
+
+    db.all(justificacionesQuery, [cierreId], (justErr, justificaciones) => {
+      if (justErr) {
+        console.error('Error obteniendo justificaciones:', justErr.message);
+        return res.status(500).json({ error: 'Error obteniendo justificaciones' });
+      }
+
+      // Procesar medios_pago si es un string JSON
+      let mediosPago = [];
+      if (cierre.medios_pago) {
+        try {
+          const mp = typeof cierre.medios_pago === 'string' 
+            ? JSON.parse(cierre.medios_pago) 
+            : cierre.medios_pago;
+          
+          if (Array.isArray(mp)) {
+            mediosPago = mp;
+          } else if (typeof mp === 'object') {
+            mediosPago = Object.keys(mp).map(key => ({
+              medio: key,
+              facturado: mp[key].facturado || 0,
+              cobrado: mp[key].cobrado || 0,
+              differenceVal: mp[key].differenceVal || 0
+            }));
+          }
+        } catch (parseErr) {
+          console.error('Error parseando medios de pago:', parseErr.message);
+          mediosPago = [];
+        }
+      }
+
+      // Retornar el cierre completo
+      res.json({
+        ...cierre,
+        medios_pago: mediosPago,
+        justificaciones: justificaciones || []
+      });
+    });
   });
 });
 
@@ -331,8 +448,8 @@ app.post('/api/cierres-completo', (req, res) => {
     comentarios
   } = req.body;
 
-  // Formatear la fecha a YYYY-MM-DD antes de guardarla
-  const fechaFormateada = moment(fecha).format('YYYY-MM-DD');
+  // Formatear la fecha recibida en DD/MM/YYYY a YYYY-MM-DD antes de guardarla
+  const fechaFormateada = moment(fecha, 'DD/MM/YYYY').format('YYYY-MM-DD');
 
   const insertCierre = `
     INSERT INTO cierres (
@@ -511,7 +628,8 @@ app.put('/api/cierres-completo/:id', (req, res) => {
   } = req.body;
 
   // Formatear la fecha a YYYY-MM-DD antes de guardarla
-  const fechaFormateada = moment(fecha).format('YYYY-MM-DD');
+  // La fecha viene en formato DD/MM/YYYY desde el frontend
+  const fechaFormateada = moment(fecha, 'DD/MM/YYYY').format('YYYY-MM-DD');
 
   const updateCierre = `
     UPDATE cierres SET
@@ -704,7 +822,135 @@ app.get('/api/random', async (req, res) => {
   });
 });
 
+// ██████████████████████████████████████████████████████████████████████████████
+// ENDPOINTS PARA JUSTIFICACIONES
+// ██████████████████████████████████████████████████████████████████████████████
+
+// ── GET /api/justificaciones/:cierreId ──
+app.get('/api/justificaciones/:cierreId', (req, res) => {
+  const cierreId = req.params.cierreId;
+  
+  const query = 'SELECT * FROM justificaciones WHERE cierre_id = ? ORDER BY fecha DESC';
+  
+  db.all(query, [cierreId], (err, rows) => {
+    if (err) {
+      console.error('Error obteniendo justificaciones:', err.message);
+      return res.status(500).json({ error: 'Error interno del servidor' });
+    }
+    res.json(rows);
+  });
+});
+
+// ── POST /api/justificaciones ──
+app.post('/api/justificaciones', (req, res) => {
+  const {
+    cierre_id,
+    fecha,
+    orden,
+    cliente,
+    monto_dif,
+    ajuste,
+    motivo
+  } = req.body;
+
+  // Formatear la fecha a YYYY-MM-DD antes de guardarla
+  // La fecha viene en formato DD/MM/YYYY desde el frontend
+  const fechaFormateada = moment(fecha, 'DD/MM/YYYY').format('YYYY-MM-DD');
+
+  const insertQuery = `
+    INSERT INTO justificaciones (cierre_id, fecha, orden, cliente, monto_dif, ajuste, motivo)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `;
+
+  db.run(insertQuery, 
+    [cierre_id, fechaFormateada, orden, cliente, monto_dif, ajuste, motivo],
+    function(err) {
+      if (err) {
+        console.error('Error insertando justificación:', err.message);
+        return res.status(500).json({ error: 'Error al crear la justificación' });
+      }
+      res.json({ 
+        id: this.lastID, 
+        message: 'Justificación creada correctamente',
+        cierre_id,
+        fecha: fechaFormateada,
+        orden,
+        cliente,
+        monto_dif,
+        ajuste,
+        motivo
+      });
+    }
+  );
+});
+
+// ── PUT /api/justificaciones/:id ──
+app.put('/api/justificaciones/:id', (req, res) => {
+  const justId = req.params.id;
+  const {
+    fecha,
+    orden,
+    cliente,
+    monto_dif,
+    ajuste,
+    motivo
+  } = req.body;
+
+  // Formatear la fecha a YYYY-MM-DD antes de guardarla
+  // La fecha viene en formato DD/MM/YYYY desde el frontend
+  const fechaFormateada = moment(fecha, 'DD/MM/YYYY').format('YYYY-MM-DD');
+
+  const updateQuery = `
+    UPDATE justificaciones SET
+      fecha = ?,
+      orden = ?,
+      cliente = ?,
+      monto_dif = ?,
+      ajuste = ?,
+      motivo = ?
+    WHERE id = ?
+  `;
+
+  db.run(updateQuery, 
+    [fechaFormateada, orden, cliente, monto_dif, ajuste, motivo, justId],
+    function(err) {
+      if (err) {
+        console.error('Error actualizando justificación:', err.message);
+        return res.status(500).json({ error: 'Error al actualizar la justificación' });
+      }
+      
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Justificación no encontrada' });
+      }
+      
+      res.json({ message: 'Justificación actualizada correctamente' });
+    }
+  );
+});
+
+// ── DELETE /api/justificaciones/:id ──
+app.delete('/api/justificaciones/:id', (req, res) => {
+  const justId = req.params.id;
+
+  const deleteQuery = 'DELETE FROM justificaciones WHERE id = ?';
+
+  db.run(deleteQuery, [justId], function(err) {
+    if (err) {
+      console.error('Error eliminando justificación:', err.message);
+      return res.status(500).json({ error: 'Error al eliminar la justificación' });
+    }
+    
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Justificación no encontrada' });
+    }
+    
+    res.json({ message: 'Justificación eliminada correctamente' });
+  });
+});
+
+// -------------------------------
 // Inicia el servidor en el puerto 3001 (o el definido en process.env.PORT)
+// -------------------------------
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en puerto ${PORT}`);

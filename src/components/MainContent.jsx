@@ -3,6 +3,7 @@ import { Box, Typography, Fade } from '@mui/material';
 import Home from '../pages/Home';
 import CierreCaja from '../pages/CierreCaja';
 import Diferencias from '../pages/Diferencias';
+import ControlMensual from '../pages/ControlMensual';
 import Exportar from '../pages/Exportar';
 import Ajustes from '../pages/Ajustes';
 
@@ -12,6 +13,7 @@ function MainContent({ activePage }) {
       case 'Home': return <Home />;
       case 'Cerrar caja': return <CierreCaja />;
       case 'Control de cajas': return <Diferencias />;
+      case 'Control de Boutiques': return <ControlMensual />;
       case 'Exportar': return <Exportar />;
       case 'Ajustes': return <Ajustes />;
       default: return <Typography>Página no encontrada</Typography>;

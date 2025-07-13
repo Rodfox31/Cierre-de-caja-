@@ -4,6 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import HomeIcon from '@mui/icons-material/Home';
 import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
 import BalanceIcon from '@mui/icons-material/Balance';
+import StoreIcon from '@mui/icons-material/Store';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import SettingsIcon from '@mui/icons-material/Settings';
 
@@ -16,6 +17,7 @@ function Sidebar({ activePage, setActivePage }) {
     { name: "Home", icon: <HomeIcon fontSize="small" /> },
     { name: "Cerrar caja", icon: <PointOfSaleIcon fontSize="small" /> },
     { name: "Control de cajas", icon: <BalanceIcon fontSize="small" /> },
+    { name: "Control de Boutiques", icon: <StoreIcon fontSize="small" /> },
     { name: "Exportar", icon: <FileDownloadIcon fontSize="small" /> },
     { name: "Ajustes", icon: <SettingsIcon fontSize="small" /> },
   ];
@@ -23,15 +25,27 @@ function Sidebar({ activePage, setActivePage }) {
   return (
     <Box
       sx={{
-        width: isExpanded ? '240px' : '80px',
+        width: isExpanded ? '250px' : '75px',
         backgroundColor: theme.palette.background.paper,
-        p: '12px 14px',
-        borderRight: '1px solid rgba(255,255,255,0.08)',
+        p: '16px 12px',
+        borderRight: '1px solid rgba(255,255,255,0.12)',
         display: 'flex',
         flexDirection: 'column',
-        transition: 'width 0.25s ease',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         height: '100vh',
         overflow: 'hidden',
+        position: 'relative',
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: '2px',
+          height: '100%',
+          background: 'linear-gradient(180deg, rgba(0, 198, 255, 0.6) 0%, rgba(0, 198, 255, 0.1) 50%, rgba(0, 198, 255, 0.6) 100%)',
+          opacity: isExpanded ? 1 : 0,
+          transition: 'opacity 0.3s ease',
+        },
       }}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => {
@@ -49,33 +63,54 @@ function Sidebar({ activePage, setActivePage }) {
             onMouseLeave={() => setHovered(null)}
             sx={{
               backgroundColor: isActive
-                ? 'rgba(0, 198, 255, 0.12)'
+                ? 'rgba(0, 198, 255, 0.15)'
                 : hovered === page.name
-                ? theme.palette.custom?.sidebarHover || 'rgba(255, 255, 255, 0.04)'
+                ? theme.palette.custom?.sidebarHover || 'rgba(255, 255, 255, 0.06)'
                 : 'transparent',
               color: isActive ? theme.palette.primary.main : theme.palette.text.primary,
-              borderRadius: '10px',
+              borderRadius: '12px',
               textAlign: 'left',
               fontSize: '16px',
-              fontWeight: isActive ? 600 : 400,
-              mb: 1,
+              fontWeight: isActive ? 600 : 500,
+              mb: 1.5,
               whiteSpace: 'nowrap',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               display: 'flex',
               alignItems: 'center',
               justifyContent: isExpanded ? 'flex-start' : 'center',
-              gap: isExpanded ? '14px' : 0,
-              px: isExpanded ? '20px' : '10px', // 🛠 más aire colapsado
-              py: '12px',
-              minWidth: 0, // ✅ bonus
-              width: '100%', // ✅ bonus
+              gap: isExpanded ? '16px' : 0,
+              px: isExpanded ? '18px' : '0px',
+              py: '14px',
+              minWidth: 0,
+              width: '100%',
               textTransform: 'none',
               fontFamily: theme.typography.fontFamily,
-              transition: 'all 0.25s ease',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: 'relative',
+              border: isActive ? '1px solid rgba(0, 198, 255, 0.3)' : '1px solid transparent',
+              boxShadow: isActive ? '0 4px 12px rgba(0, 198, 255, 0.15)' : 'none',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                left: 0,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '4px',
+                height: isActive ? '60%' : '0%',
+                backgroundColor: theme.palette.primary.main,
+                borderRadius: '0 2px 2px 0',
+                transition: 'height 0.3s ease',
+                opacity: isActive ? 1 : 0,
+              },
               '&:hover': {
-                backgroundColor: theme.palette.custom?.sidebarHover || 'rgba(255, 255, 255, 0.06)',
-                transform: 'scale(1.02)',
+                backgroundColor: isActive 
+                  ? 'rgba(0, 198, 255, 0.2)' 
+                  : theme.palette.custom?.sidebarHover || 'rgba(255, 255, 255, 0.08)',
+                transform: 'translateX(4px)',
+                boxShadow: isActive 
+                  ? '0 6px 16px rgba(0, 198, 255, 0.2)' 
+                  : '0 2px 8px rgba(0, 0, 0, 0.15)',
               },
             }}
           >
@@ -84,9 +119,12 @@ function Sidebar({ activePage, setActivePage }) {
               <Typography
                 variant="body1"
                 sx={{
-                  fontSize: '15.5px',
-                  fontWeight: 500,
+                  fontSize: '15px',
+                  fontWeight: isActive ? 600 : 500,
                   color: isActive ? theme.palette.primary.main : theme.palette.text.primary,
+                  opacity: isExpanded ? 1 : 0,
+                  transition: 'opacity 0.3s ease 0.1s',
+                  letterSpacing: '0.02em',
                 }}
               >
                 {page.name}
