@@ -295,6 +295,7 @@ const HeaderControls = React.memo(function HeaderControls({
   setShowDiferenciasMenores,
   showDiferenciasGraves,
   setShowDiferenciasGraves,
+  setPage,
 }) {
   const theme = useTheme();
 
@@ -302,6 +303,7 @@ const HeaderControls = React.memo(function HeaderControls({
     (event) => {
       const preset = event.target.value;
       setSelectedDatePreset(preset);
+      setPage(0); // Resetear página al cambiar filtros
 
       const today = moment();
       let newFechaDesde = null;
@@ -330,23 +332,24 @@ const HeaderControls = React.memo(function HeaderControls({
       setFechaDesde(newFechaDesde);
       setFechaHasta(newFechaHasta);
     },
-    [setFechaDesde, setFechaHasta, setSelectedDatePreset]
+    [setFechaDesde, setFechaHasta, setSelectedDatePreset, setPage]
   );
-
   const handleFechaDesdeChange = useCallback(
     (event) => {
       setFechaDesde(event.target.value ? moment(event.target.value) : null);
       setSelectedDatePreset('custom');
+      setPage(0); // Resetear página al cambiar filtros
     },
-    [setFechaDesde, setSelectedDatePreset]
+    [setFechaDesde, setSelectedDatePreset, setPage]
   );
 
   const handleFechaHastaChange = useCallback(
     (event) => {
       setFechaHasta(event.target.value ? moment(event.target.value) : null);
       setSelectedDatePreset('custom');
+      setPage(0); // Resetear página al cambiar filtros
     },
-    [setFechaHasta, setSelectedDatePreset]
+    [setFechaHasta, setSelectedDatePreset, setPage]
   );
 
   return (
@@ -431,7 +434,7 @@ const HeaderControls = React.memo(function HeaderControls({
             <Select
               label="Tienda"
               value={tiendaSeleccionada}
-              onChange={(e) => setTiendaSeleccionada(e.target.value)}
+              onChange={(e) => { setTiendaSeleccionada(e.target.value); setPage(0); }}
               MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
               variant="outlined"
               sx={{ 
@@ -458,7 +461,7 @@ const HeaderControls = React.memo(function HeaderControls({
             <Select
               label="Usuario"
               value={usuarioSeleccionado}
-              onChange={(e) => setUsuarioSeleccionado(e.target.value)}
+              onChange={(e) => { setUsuarioSeleccionado(e.target.value); setPage(0); }}
               disabled={!tiendaSeleccionada}
               MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
               variant="outlined"
@@ -486,7 +489,7 @@ const HeaderControls = React.memo(function HeaderControls({
             <Select
               label="Motivo"
               value={motivoSeleccionado}
-              onChange={(e) => setMotivoSeleccionado(e.target.value)}
+              onChange={(e) => { setMotivoSeleccionado(e.target.value); setPage(0); }}
               MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
               variant="outlined"
               sx={{ 
@@ -514,7 +517,7 @@ const HeaderControls = React.memo(function HeaderControls({
               type="text"
               placeholder="Buscar..."
               value={buscador}
-              onChange={(e) => setBuscador(e.target.value)}
+              onChange={(e) => { setBuscador(e.target.value); setPage(0); }}
               style={{
                 background: 'transparent',
                 border: 'none',
@@ -533,14 +536,11 @@ const HeaderControls = React.memo(function HeaderControls({
         {/* FILTROS POR TIPO DE DIFERENCIA */}
         <Grid item xs={12} md={7}>
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-            <Typography variant="body2" sx={{ color: '#b0b0b0', fontWeight: 'medium' }}>
-              Mostrar:
-            </Typography>
             <FormControlLabel
               control={
                 <Checkbox 
                   checked={showCorrectos} 
-                  onChange={e => setShowCorrectos(e.target.checked)}
+                  onChange={e => { setShowCorrectos(e.target.checked); setPage(0); }}
                   sx={{ color: '#4caf50', '&.Mui-checked': { color: '#4caf50' }, p: 0.5 }}
                   size="small"
                 />
@@ -552,7 +552,7 @@ const HeaderControls = React.memo(function HeaderControls({
               control={
                 <Checkbox 
                   checked={showDiferenciasMenores} 
-                  onChange={e => setShowDiferenciasMenores(e.target.checked)}
+                  onChange={e => { setShowDiferenciasMenores(e.target.checked); setPage(0); }}
                   sx={{ color: '#ff9800', '&.Mui-checked': { color: '#ff9800' }, p: 0.5 }}
                   size="small"
                 />
@@ -564,7 +564,7 @@ const HeaderControls = React.memo(function HeaderControls({
               control={
                 <Checkbox 
                   checked={showDiferenciasGraves} 
-                  onChange={e => setShowDiferenciasGraves(e.target.checked)}
+                  onChange={e => { setShowDiferenciasGraves(e.target.checked); setPage(0); }}
                   sx={{ color: '#f44336', '&.Mui-checked': { color: '#f44336' }, p: 0.5 }}
                   size="small"
                 />
@@ -647,6 +647,7 @@ export default function Diferencias() {
   const theme = useTheme();
 
   const [allCierres, setAllCierres] = useState([]);
+  const [totalRecords, setTotalRecords] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
@@ -698,19 +699,60 @@ export default function Diferencias() {
     setLoading(true);
     setError('');
     try {
+      console.log('Fetching cierres from:', API_BASE_URL);
+      
       // Enviar fechas en formato DD/MM/YYYY
       const pad = (n) => n.toString().padStart(2, '0');
       const fechaDesdeStr = fechaDesde ? `${pad(fechaDesde.date())}/${pad(fechaDesde.month() + 1)}/${fechaDesde.year()}` : '';
       const fechaHastaStr = fechaHasta ? `${pad(fechaHasta.date())}/${pad(fechaHasta.month() + 1)}/${fechaHasta.year()}` : '';
+      
       const params = {
         fechaDesde: fechaDesdeStr,
         fechaHasta: fechaHastaStr,
+        page: page + 1, // Backend usa 1-based index
+        limit: rowsPerPage === -1 ? 1000 : rowsPerPage, // Si "Todas", usar un límite alto
+        sortBy: orderBy,
+        sortOrder: order,
       };
+      
       if (tiendaSeleccionada) params.tienda = tiendaSeleccionada;
       if (usuarioSeleccionado) params.usuario = usuarioSeleccionado;
 
+      console.log('Request params:', params);
       const response = await axios.get(`${API_BASE_URL}/api/cierres-completo`, { params });
-      const mapped = response.data.map((cierre) => {
+      console.log('Response received:', response.status);
+      console.log('Response data structure:', response.data);
+      
+      // Manejar diferentes estructuras de respuesta del servidor
+      let cierresData;
+      let total;
+      
+      if (response.data && typeof response.data === 'object') {
+        // Si la respuesta tiene la estructura esperada: { data: [...], total: number }
+        if (response.data.data && Array.isArray(response.data.data)) {
+          cierresData = response.data.data;
+          total = response.data.total || response.data.data.length;
+        }
+        // Si la respuesta es directamente un array
+        else if (Array.isArray(response.data)) {
+          cierresData = response.data;
+          total = response.data.length;
+        }
+        // Si la respuesta tiene otra estructura
+        else {
+          console.warn('Unexpected response structure:', response.data);
+          cierresData = [];
+          total = 0;
+        }
+      } else {
+        console.warn('Invalid response data:', response.data);
+        cierresData = [];
+        total = 0;
+      }
+      
+      setTotalRecords(total);
+      
+      const mapped = cierresData.map((cierre) => {
         let mediosPago = [];
         try {
           const mp = typeof cierre.medios_pago === 'string'
@@ -766,13 +808,21 @@ export default function Diferencias() {
       setAllCierres(mapped);
       showSnackbar('Datos cargados exitosamente.', 'success');
     } catch (err) {
-      console.error(err);
-      setError('Error al cargar los datos. Intente nuevamente.');
-      showSnackbar('Error al cargar los datos. Intente nuevamente.', 'error');
+      console.error('Error fetching cierres:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        url: `${API_BASE_URL}/api/cierres-completo`
+      });
+      
+      const errorMessage = err.response?.data?.message || err.message || 'Error al cargar los datos';
+      setError(`Error al cargar los datos: ${errorMessage}`);
+      showSnackbar(`Error al cargar los datos: ${errorMessage}`, 'error');
     } finally {
       setLoading(false);
     }
-  }, [fechaDesde, fechaHasta, tiendaSeleccionada, usuarioSeleccionado, showSnackbar]);
+  }, [fechaDesde, fechaHasta, tiendaSeleccionada, usuarioSeleccionado, page, rowsPerPage, orderBy, order, showSnackbar]);
 
   // DELETE usando el id en la URL RESTful
   const handleDeleteSelected = useCallback(() => {
@@ -855,29 +905,15 @@ export default function Diferencias() {
 
   const cierresFiltrados = useMemo(
     () =>
-      filtrarCierres({
-        cierres: allCierres.filter((c) => {
-          const estado = getEstado(c);
-          if (estado === ESTADOS_CIERRE.CORRECTO && !showCorrectos) return false;
-          if (estado === ESTADOS_CIERRE.DIFERENCIA_MENOR && !showDiferenciasMenores) return false;
-          if (estado === ESTADOS_CIERRE.DIFERENCIA_GRAVE && !showDiferenciasGraves) return false;
-          return true;
-        }),
-        fechaDesde,
-        fechaHasta,
-        tienda: tiendaSeleccionada,
-        usuario: usuarioSeleccionado,
-        motivo: motivoSeleccionado,
-        buscador,
+      allCierres.filter((c) => {
+        const estado = getEstado(c);
+        if (estado === ESTADOS_CIERRE.CORRECTO && !showCorrectos) return false;
+        if (estado === ESTADOS_CIERRE.DIFERENCIA_MENOR && !showDiferenciasMenores) return false;
+        if (estado === ESTADOS_CIERRE.DIFERENCIA_GRAVE && !showDiferenciasGraves) return false;
+        return true;
       }),
     [
       allCierres,
-      fechaDesde,
-      fechaHasta,
-      tiendaSeleccionada,
-      usuarioSeleccionado,
-      motivoSeleccionado,
-      buscador,
       showCorrectos,
       showDiferenciasMenores,
       showDiferenciasGraves,
@@ -885,16 +921,13 @@ export default function Diferencias() {
   );
 
   const sortedCierres = useMemo(
-    () => ordenarCierres({ cierres: cierresFiltrados, order, orderBy }),
-    [cierresFiltrados, order, orderBy]
+    () => cierresFiltrados, // Ya vienen ordenados del servidor
+    [cierresFiltrados]
   );
 
   const paginatedCierres = useMemo(
-    () =>
-      rowsPerPage === -1
-        ? sortedCierres
-        : sortedCierres.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [sortedCierres, page, rowsPerPage]
+    () => sortedCierres, // Ya vienen paginados del servidor
+    [sortedCierres]
   );
 
   const estadisticas = useMemo(
@@ -1106,6 +1139,7 @@ export default function Diferencias() {
       const isAsc = orderBy === property && order === 'asc';
       setOrder(isAsc ? 'desc' : 'asc');
       setOrderBy(property);
+      setPage(0); // Resetear página al cambiar ordenamiento
     },
     [order, orderBy]
   );
@@ -1120,11 +1154,6 @@ export default function Diferencias() {
   }, []);
 
   const handleDownloadCSV = useCallback(() => {
-    if (!sortedCierres.length) {
-      showSnackbar('No hay datos para exportar.', 'warning');
-      return;
-    }
-
     const exportableColumns = allPossibleColumns.filter(
       (col) => col.exportable !== false && visibleColumns.includes(col.id)
     );
@@ -1242,6 +1271,7 @@ export default function Diferencias() {
           setShowDiferenciasMenores={setShowDiferenciasMenores}
           showDiferenciasGraves={showDiferenciasGraves}
           setShowDiferenciasGraves={setShowDiferenciasGraves}
+          setPage={setPage}
         />
 
         {error && (
@@ -1352,32 +1382,13 @@ export default function Diferencias() {
                           '&:nth-of-type(even)': { backgroundColor: estado.color === '#f44336' ? '#3a2323' : '#2a2a2a' },
                           boxShadow: estado.color === '#f44336' ? 2 : 0,
                           '&:last-child td, &:last-child th': { border: 0 },
-                          cursor: 'pointer',
-                          transition: 'background-color 0.3s ease, box-shadow 0.3s ease',
-                          '&:hover': {
-                            backgroundColor: 'action.hover',
-                            boxShadow: 1,
-                          },
                         }}
                       >
-                        {displayedColumns.map((col) => {
-                          const cellValue = cierre[col.id];
-                          return (
-                            <TableCell
-                              key={col.id}
-                              align={col.align || 'left'}
-                              sx={{ 
-                                width: col.width,
-                                color: '#ffffff', 
-                                borderBottom: '1px solid #333'
-                              }}
-                            >
-                              {col.format
-                                ? col.format(cellValue, cierre)
-                                : cellValue}
-                            </TableCell>
-                          );
-                        })}
+                        {displayedColumns.map((col) => (
+                          <TableCell key={col.id} align={col.align || 'left'}>
+                            {col.format ? col.format(cierre[col.id], cierre) : cierre[col.id]}
+                          </TableCell>
+                        ))}
                       </TableRow>
                     );
                   })
@@ -1394,48 +1405,43 @@ export default function Diferencias() {
                 )}
               </TableBody>
             </Table>
-            <Slide
-              direction="up"
-              in={cierresFiltrados.length > 0}
-              mountOnEnter
-              unmountOnExit
-            >
-              <TablePagination
-                rowsPerPageOptions={[5, 10, 25, { label: 'Todas', value: -1 }]}
-                component="div"
-                count={cierresFiltrados.length}
-                rowsPerPage={rowsPerPage}
-                page={rowsPerPage === -1 ? 0 : page}
-                onPageChange={handleChangePage}
-                onRowsPerPageChange={handleChangeRowsPerPage}
-                labelRowsPerPage="Filas por página:"
-                sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
-              />
-            </Slide>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 25, { label: 'Todas', value: -1 }]}
+              component="div"
+              count={totalRecords}
+              rowsPerPage={rowsPerPage}
+              page={rowsPerPage === -1 ? 0 : page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              labelRowsPerPage="Filas por página:"
+              sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
+            />
           </Paper>
         </Collapse>
-      </Paper>
 
-      <Modal open={!!modalDetalle} onClose={() => { setModalDetalle(null); setTabValue(0); }}>
-        <Fade in={!!modalDetalle}>
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: { xs: '95%', md: '80%' },
-              maxWidth: 1000,
-              bgcolor: 'background.paper',
-              boxShadow: 24,
-              p: 3,
-              borderRadius: 2,
-              outline: 'none',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              transition: 'transform 0.3s ease',
-            }}
-          >
+        {/* Modal de detalle */}
+        <Modal
+          open={modalDetalle !== null}
+          onClose={() => { setModalDetalle(null); setTabValue(0); }}
+        >
+          <Fade in={modalDetalle !== null}>
+            <Box
+              sx={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                width: { xs: '95%', sm: '80%', md: '70%' },
+                bgcolor: 'background.paper',
+                boxShadow: 24,
+                p: 3,
+                borderRadius: 2,
+                outline: 'none',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                transition: 'transform 0.3s ease',
+              }}
+            >
             <Typography variant="h5" gutterBottom>
               Detalle completo del cierre – {moment(modalDetalle?.fecha).format('DD/MM/YYYY')}
             </Typography>
@@ -1642,6 +1648,7 @@ export default function Diferencias() {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      </Paper>
     </Box>
   );
 }

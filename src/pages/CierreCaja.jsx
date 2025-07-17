@@ -106,8 +106,8 @@ function HeaderControls({
     };
 
     return (
-        <Paper elevation={4} sx={{ borderRadius: 4, mb: 2, overflow: 'hidden', transition: 'all 0.4s ease-in-out' }}>
-            <Collapse in={!isCollapsed} timeout={400}>
+        <Paper elevation={0} sx={{ borderRadius: 1, mb: 2, backgroundColor: '#1e1e1e', border: '1px solid #333' }}>
+            <Collapse in={!isCollapsed} timeout={300}>
                 <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
                     <Stack direction="row" spacing={2} flexWrap="wrap">
                         <TextField
@@ -117,43 +117,86 @@ function HeaderControls({
                             value={fecha.toISOString().split("T")[0]}
                             onChange={(e) => setFecha(new Date(e.target.value))}
                             InputLabelProps={{ shrink: true }}
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    backgroundColor: '#2a2a2a',
+                                    '& fieldset': { borderColor: '#444' },
+                                    '&:hover fieldset': { borderColor: '#666' },
+                                    '&.Mui-focused fieldset': { borderColor: '#888' }
+                                },
+                                '& .MuiInputBase-input': { color: '#ffffff' },
+                                '& .MuiInputLabel-root': { color: '#888' }
+                            }}
                         />
                         <FormControl size="small" sx={{ minWidth: 200 }}>
-                            <InputLabel>Tienda</InputLabel>
-                            <Select value={selectedTienda} label="Tienda" onChange={(e) => setSelectedTienda(e.target.value)}>
+                            <InputLabel sx={{ color: '#888' }}>Tienda</InputLabel>
+                            <Select 
+                                value={selectedTienda} 
+                                label="Tienda" 
+                                onChange={(e) => setSelectedTienda(e.target.value)}
+                                sx={{
+                                    backgroundColor: '#2a2a2a',
+                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#666' },
+                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
+                                    '& .MuiSelect-select': { color: '#ffffff' },
+                                    '& .MuiSvgIcon-root': { color: '#888' }
+                                }}
+                            >
                                 {tiendas?.length > 0 ? (
                                     tiendas.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)
                                 ) : <MenuItem value="error" disabled>Error: Sin datos</MenuItem>}
                             </Select>
                         </FormControl>
                         <FormControl size="small" sx={{ minWidth: 200 }}>
-                            <InputLabel>Usuario</InputLabel>
-                            <Select value={selectedUsuario} label="Usuario" onChange={(e) => setSelectedUsuario(e.target.value)}>
+                            <InputLabel sx={{ color: '#888' }}>Usuario</InputLabel>
+                            <Select 
+                                value={selectedUsuario} 
+                                label="Usuario" 
+                                onChange={(e) => setSelectedUsuario(e.target.value)}
+                                sx={{
+                                    backgroundColor: '#2a2a2a',
+                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#666' },
+                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
+                                    '& .MuiSelect-select': { color: '#ffffff' },
+                                    '& .MuiSvgIcon-root': { color: '#888' }
+                                }}
+                            >
                                 {usuarios?.length > 0 ? (
                                     usuarios.map((u, idx) => <MenuItem key={idx} value={u}>{u}</MenuItem>)
                                 ) : <MenuItem value="error" disabled>Error: Sin datos</MenuItem>}
                             </Select>
                         </FormControl>
                     </Stack>
-                    <Button variant="contained" onClick={handleCerrarCajaClick} disabled={isButtonDisabled}>
+                    <Button 
+                        variant="contained" 
+                        onClick={handleCerrarCajaClick} 
+                        disabled={isButtonDisabled}
+                        sx={{
+                            backgroundColor: '#1f2bccff',
+                            '&:hover': { backgroundColor: '#1f2bccff' },
+                            '&:disabled': { backgroundColor: '#333' }
+                        }}
+                    >
                         Cerrar Caja
                     </Button>
                 </Box>
             </Collapse>
-            <Collapse in={isCollapsed} timeout={400}>
-                <Box sx={{ p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider' }}>
+            <Collapse in={isCollapsed} timeout={300}>
+                <Box sx={{ p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #333' }}>
                     <Stack direction="row" spacing={3} alignItems="center">
                         <Stack direction="row" spacing={1} alignItems="center">
-                            <EventIcon fontSize="small" color="action" />
-                            <Typography variant="body2" fontWeight="bold">{fecha.toLocaleDateString("es-CL")}</Typography>
+                            <EventIcon fontSize="small" sx={{ color: '#888' }} />
+                            <Typography variant="body2" sx={{ color: '#ffffff' }}>{fecha.toLocaleDateString("es-CL")}</Typography>
                         </Stack>
                         <Stack direction="row" spacing={1} alignItems="center">
-                            <StorefrontIcon fontSize="small" color="action" />
-                            <Typography variant="body2" fontWeight="bold">{selectedTienda}</Typography>
+                            <StorefrontIcon fontSize="small" sx={{ color: '#888' }} />
+                            <Typography variant="body2" sx={{ color: '#ffffff' }}>{selectedTienda}</Typography>
                         </Stack>
                         <Stack direction="row" spacing={1} alignItems="center">
-                            <PersonIcon fontSize="small" color="action" />
-                            <Typography variant="body2" fontWeight="bold">{selectedUsuario}</Typography>
+                            <PersonIcon fontSize="small" sx={{ color: '#888' }} />
+                            <Typography variant="body2" sx={{ color: '#ffffff' }}>{selectedUsuario}</Typography>
                         </Stack>
                     </Stack>
                 </Box>
@@ -169,19 +212,19 @@ function HeaderControls({
 function BillsPanel({ billEntries, updateRowTotal, finalTotal }) {
     const theme = useTheme();
     return (
-        <Card elevation={4} sx={{ borderRadius: 4, width: '100%', background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.02)} 0%, ${alpha(theme.palette.background.paper, 1)} 100%)`, border: `1px solid ${alpha(theme.palette.success.main, 0.1)}` }}>
-            <CardContent sx={{ p: 1.2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7, mb: 1.2 }}>
-                    <AccountBalanceWalletIcon color="success" />
-                    <Typography variant="subtitle1" fontWeight="bold" color="white" sx={{ fontSize: '0.92rem' }}>Detalle de Efectivo</Typography>
+        <Card elevation={0} sx={{ borderRadius: 1, width: '100%', backgroundColor: '#1e1e1e', border: '1px solid #333' }}>
+            <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <AccountBalanceWalletIcon sx={{ color: '#ffffff', fontSize: 20 }} />
+                    <Typography variant="h6" sx={{ color: '#ffffff', fontSize: '1rem' }}>Detalle de Efectivo</Typography>
                 </Box>
                 <Stack spacing={0.3}>
-                    <Grid container spacing={0.5} sx={{ alignItems: 'center', color: 'text.secondary', px: 0.2 }}>
-                        <Grid item xs={5}><Typography variant="subtitle2" fontWeight="bold">Billete/Moneda</Typography></Grid>
-                        <Grid item xs={3}><Typography variant="subtitle2" fontWeight="bold">Cantidad</Typography></Grid>
-                        <Grid item xs={4} textAlign="right"><Typography variant="subtitle2" fontWeight="bold">Total</Typography></Grid>
+                    <Grid container spacing={0.5} sx={{ alignItems: 'center', color: '#888', px: 0.5 }}>
+                        <Grid item xs={5}><Typography variant="body2" sx={{ fontSize: '0.85rem' }}>Billete/Moneda</Typography></Grid>
+                        <Grid item xs={3}><Typography variant="body2" sx={{ fontSize: '0.85rem' }}>Cantidad</Typography></Grid>
+                        <Grid item xs={4} textAlign="right"><Typography variant="body2" sx={{ fontSize: '0.85rem' }}>Total</Typography></Grid>
                     </Grid>
-                    <Divider />
+                    <Divider sx={{ borderColor: '#333' }} />
                     {billEntries.map((bill, index) => (
                         <Fade in={true} timeout={300 + index * 50} key={index}>
                             <Grid container spacing={0.5} sx={{ alignItems: 'center', py: 0.15, px: 0.2, borderRadius: 2 }}>
@@ -233,14 +276,18 @@ function BrinksPanel({ brinksEntries, setBrinksEntries, onTotalChange }) {
 
     const theme = useTheme();
     return (
-        <Card elevation={4} sx={{ borderRadius: 4, width: '100%', background: `linear-gradient(135deg, ${alpha(theme.palette.info.main, 0.04)} 0%, ${alpha(theme.palette.background.paper, 1)} 100%)`, border: `1px solid ${alpha(theme.palette.info.main, 0.12)}` }}>
-            <CardContent sx={{ p: 1.2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7, mb: 1.2 }}>
-                    <AssignmentIcon color="info" />
-                    <Typography variant="subtitle1" fontWeight="bold" color="white" sx={{ fontSize: '0.92rem' }}>Depósitos (Brinks)</Typography>
+        <Card elevation={0} sx={{ borderRadius: 1, width: '100%', backgroundColor: '#1e1e1e', border: '1px solid #333' }}>
+            <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <AssignmentIcon sx={{ color: '#ffffff', fontSize: 20 }} />
+                    <Typography variant="h6" sx={{ color: '#ffffff', fontSize: '1rem' }}>Depósitos (Brinks)</Typography>
                     <Box sx={{ flexGrow: 1 }} />
-                    <IconButton onClick={addNewRow} color="info" title="Agregar nueva fila" aria-label="Agregar nueva fila">
-                        <AddCircleOutlineIcon />
+                    <IconButton 
+                        onClick={addNewRow} 
+                        sx={{ color: '#ffffff', '&:hover': { backgroundColor: '#333' } }}
+                        size="small"
+                    >
+                        <AddCircleOutlineIcon fontSize="small" />
                     </IconButton>
                 </Box>
                 <Stack spacing={0.3}>
@@ -324,11 +371,11 @@ function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, d
 
     const theme = useTheme();
     return(
-        <Card elevation={4} sx={{ borderRadius: 4, width: '100%', background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.04)} 0%, ${alpha(theme.palette.background.paper, 1)} 100%)`, border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}` }}>
-            <CardContent sx={{ p: 1.2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7, mb: 1.2 }}>
-                    <CreditCardIcon color="primary" />
-                    <Typography variant="subtitle1" fontWeight="bold" color="white" sx={{ fontSize: '0.92rem' }}>Medios de Pago</Typography>
+        <Card elevation={0} sx={{ borderRadius: 1, width: '100%', backgroundColor: '#1e1e1e', border: '1px solid #333' }}>
+            <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <CreditCardIcon sx={{ color: '#ffffff', fontSize: 20 }} />
+                    <Typography variant="h6" sx={{ color: '#ffffff', fontSize: '1rem' }}>Medios de Pago</Typography>
                 </Box>
                 <Stack spacing={1}>
                     <Grid container spacing={0.5} sx={{ color: 'text.secondary', px: 0.2, mb: 0.5 }}>
@@ -342,53 +389,74 @@ function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, d
                         <Typography color="error">Error: Sin datos de medios de pago</Typography>
                     ) : (
                         paymentEntries.map((entry, idx) => (
-                            <Grid container spacing={0.5} alignItems="center" sx={{ py: 0.3, px: 0.2, borderRadius: 2, mb: 0.2 }} key={idx}>
-                                <Grid item xs={4}><Typography variant="body1">{entry.medio}</Typography></Grid>
-                                <Grid item xs={2.5}>
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        placeholder="Facturado"
-                                        value={entry.facturado}
-                                        onChange={(e) => updatePaymentRow(idx, "facturado", e.target.value)}
-                                        sx={{ fontSize: '0.95rem', height: 32 }}
-                                        InputProps={{
-                                            readOnly: idx === 0,
-                                            sx: { fontSize: '0.95rem', height: 32 }
-                                        }}
-                                    />
+                                <Grid container spacing={0.5} alignItems="center" sx={{ py: 0.5, px: 0.5 }}>
+                                    <Grid item xs={4}><Typography variant="body2" sx={{ color: '#ffffff' }}>{entry.medio}</Typography></Grid>
+                                    <Grid item xs={2.5}>
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            placeholder="Facturado"
+                                            value={entry.facturado}
+                                            onChange={(e) => updatePaymentRow(idx, "facturado", e.target.value)}
+                                            InputProps={{
+                                                readOnly: idx === 0,
+                                                sx: { 
+                                                    fontSize: '0.9rem', 
+                                                    height: 36,
+                                                    backgroundColor: '#2a2a2a',
+                                                    '& fieldset': { borderColor: '#444' },
+                                                    '&:hover fieldset': { borderColor: '#666' },
+                                                    '&.Mui-focused fieldset': { borderColor: '#888' }
+                                                }
+                                            }}
+                                            sx={{ 
+                                                '& .MuiInputBase-input': { color: '#ffffff' }
+                                            }}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={2.5}>
+                                        <TextField
+                                            fullWidth
+                                            size="small"
+                                            placeholder="Cobrado"
+                                            value={entry.cobrado}
+                                            onChange={(e) => updatePaymentRow(idx, "cobrado", e.target.value)}
+                                            InputProps={{ 
+                                                sx: { 
+                                                    fontSize: '0.9rem', 
+                                                    height: 36,
+                                                    backgroundColor: '#2a2a2a',
+                                                    '& fieldset': { borderColor: '#444' },
+                                                    '&:hover fieldset': { borderColor: '#666' },
+                                                    '&.Mui-focused fieldset': { borderColor: '#888' }
+                                                }
+                                            }}
+                                            sx={{ 
+                                                '& .MuiInputBase-input': { color: '#ffffff' }
+                                            }}
+                                            onInput={(e) => e.target.value = e.target.value.replace(/[^0-9.,]/g, "")}
+                                        />
+                                    </Grid>
+                                    <Grid item xs={3} textAlign="right">
+                                        <Typography variant="body2" sx={{ 
+                                            color: entry.differenceVal === 0 ? '#666' : (entry.differenceVal > 0 ? '#4caf50' : '#f44336'),
+                                            fontFamily: 'monospace',
+                                            fontSize: '0.9rem'
+                                        }}>
+                                            {entry.difference}
+                                        </Typography>
+                                    </Grid>
                                 </Grid>
-                                <Grid item xs={2.5}>
-                                    <TextField
-                                        fullWidth
-                                        size="small"
-                                        placeholder="Cobrado"
-                                        value={entry.cobrado}
-                                        onChange={(e) => updatePaymentRow(idx, "cobrado", e.target.value)}
-                                        sx={{ fontSize: '0.95rem', height: 32 }}
-                                        InputProps={{ sx: { fontSize: '0.95rem', height: 32 } }}
-                                        onInput={(e) => e.target.value = e.target.value.replace(/[^0-9.,]/g, "")}
-                                    />
-                                </Grid>
-                                <Grid item xs={3} textAlign="right">
-                                    <Typography variant="body1" sx={{ 
-                                        color: entry.differenceVal === 0 ? 'text.disabled' : (entry.differenceVal > 0 ? 'success.main' : 'error.main'),
-                                        fontWeight: entry.differenceVal !== 0 ? 'bold' : 'regular',
-                                        fontVariantNumeric: 'tabular-nums'
-                                    }}>
-                                        {entry.difference}
-                                    </Typography>
-                                </Grid>
-                            </Grid>
                         ))
                     )}
-                    <Divider sx={{ my: 1.2 }}/>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 0.2, py: 0.5, borderRadius: 2, background: `linear-gradient(45deg, ${alpha(theme.palette.primary.main, 0.08)} 30%, ${alpha(theme.palette.primary.main, 0.03)} 90%)`, border: `1px solid ${alpha(theme.palette.primary.main, 0.18)}` }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <TrendingUpIcon color="primary" />
-                            <Typography variant="h6" fontWeight="bold" color="primary.main">Diferencia Total:</Typography>
-                        </Box>
-                        <Typography variant="h6" fontWeight="bold" color={grandTotal === 0 ? 'text.primary' : (grandTotal > 0 ? 'success.main' : 'error.main')}>
+                    <Divider sx={{ my: 1, borderColor: '#333' }}/>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 0.5, py: 1, backgroundColor: '#2a2a2a', borderRadius: 1 }}>
+                        <Typography variant="body1" sx={{ color: '#ffffff' }}>Diferencia Total:</Typography>
+                        <Typography variant="body1" sx={{ 
+                            color: grandTotal === 0 ? '#ffffff' : (grandTotal > 0 ? '#4caf50' : '#f44336'),
+                            fontWeight: 'bold',
+                            fontFamily: 'monospace'
+                        }}>
                             {formatCurrency(grandTotal)}
                         </Typography>
                     </Box>
@@ -463,11 +531,11 @@ function JustificacionesPanel({ paymentEntries, ajustesMotivos, fecha, onSumChan
 
     const theme = useTheme();
     return (
-        <Card elevation={4} sx={{ borderRadius: 4, width: '100%', background: `linear-gradient(135deg, ${alpha(theme.palette.warning.main, 0.04)} 0%, ${alpha(theme.palette.background.paper, 1)} 100%)`, border: `1px solid ${alpha(theme.palette.warning.main, 0.12)}` }}>
-            <CardContent sx={{ p: 1.2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7, mb: 1.2 }}>
-                    <ReceiptIcon color="warning" />
-                    <Typography variant="subtitle1" fontWeight="bold" color="white" sx={{ fontSize: '0.92rem' }}>Justificaciones de Diferencias</Typography>
+        <Card elevation={0} sx={{ borderRadius: 1, width: '100%', backgroundColor: '#1e1e1e', border: '1px solid #333' }}>
+            <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <ReceiptIcon sx={{ color: '#ffffff', fontSize: 20 }} />
+                    <Typography variant="h6" sx={{ color: '#ffffff', fontSize: '1rem' }}>Justificaciones de Diferencias</Typography>
                 </Box>
                 {rowsWithDifference.length > 0 || justificaciones.length > 0 ? (
                     <Stack spacing={0.7}>
@@ -588,11 +656,11 @@ function FinalizationPanel({
 
     const theme = useTheme();
     return (
-        <Card elevation={4} sx={{ borderRadius: 4, minHeight: 0, background: `linear-gradient(135deg, ${alpha(theme.palette.success.main, 0.04)} 0%, ${alpha(theme.palette.background.paper, 1)} 100%)`, border: `1px solid ${alpha(theme.palette.success.main, 0.12)}` }}>
-            <CardContent sx={{ p: 1.2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.7, mb: 1.2 }}>
-                    <CheckCircleIcon color="success" />
-                    <Typography variant="subtitle1" fontWeight="bold" color="white" sx={{ fontSize: '0.92rem' }}>Finalizar Cierre</Typography>
+        <Card elevation={0} sx={{ borderRadius: 1, backgroundColor: '#1e1e1e', border: '1px solid #333' }}>
+            <CardContent sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+                    <CheckCircleIcon sx={{ color: '#ffffff', fontSize: 20 }} />
+                    <Typography variant="h6" sx={{ color: '#ffffff', fontSize: '1rem' }}>Finalizar Cierre</Typography>
                 </Box>
                 <Stack spacing={0.7}>
                     {isBalanced ? (
@@ -609,10 +677,29 @@ function FinalizationPanel({
                     <TextField label="Nombre del responsable del cierre" variant="outlined" fullWidth value={responsable} onChange={(e) => setResponsable(e.target.value)} />
                     <TextField label="Comentarios adicionales (opcional)" variant="outlined" fullWidth multiline rows={3} value={comentarios} onChange={(e) => setComentarios(e.target.value)} />
                     <Stack direction="row" spacing={2} sx={{ pt: 1 }}>
-                        <Button variant="contained" startIcon={<SendIcon />} onClick={onEnviarCierre} size="large">
+                        <Button 
+                            variant="contained" 
+                            startIcon={<SendIcon />} 
+                            onClick={onEnviarCierre} 
+                            size="large"
+                            sx={{
+                                backgroundColor: '#4caf50',
+                                '&:hover': { backgroundColor: '#45a049' }
+                            }}
+                        >
                             Enviar Cierre
                         </Button>
-                        <Button variant="outlined" startIcon={<PrintIcon />} onClick={onImprimir} size="large">
+                        <Button 
+                            variant="outlined" 
+                            startIcon={<PrintIcon />} 
+                            onClick={onImprimir} 
+                            size="large"
+                            sx={{
+                                borderColor: '#666',
+                                color: '#ffffff',
+                                '&:hover': { borderColor: '#888', backgroundColor: '#333' }
+                            }}
+                        >
                             Imprimir Resumen
                         </Button>
                     </Stack>
@@ -807,7 +894,8 @@ function CierreCaja() {
     };
 
     return (
-        <Container maxWidth="xl" sx={{ py: 2 }}>
+        <Box sx={{ backgroundColor: '#121212', minHeight: '100vh', py: 2 }}>
+            <Container maxWidth="xl">
             <HeaderControls
                 fecha={fecha} setFecha={setFecha}
                 tiendas={tiendas} selectedTienda={selectedTienda} setSelectedTienda={setSelectedTienda}
@@ -869,7 +957,8 @@ function CierreCaja() {
                     onClose={() => setMostrarResumen(false)}
                 />
             )}
-        </Container>
+            </Container>
+        </Box>
     );
 }
 

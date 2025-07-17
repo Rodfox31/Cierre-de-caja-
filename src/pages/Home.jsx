@@ -17,6 +17,10 @@ import {
   Chip,
   Fade,
   Paper,
+  LinearProgress,
+  Divider,
+  Badge,
+  Stack,
 } from '@mui/material';
 import {
   Storefront,
@@ -27,59 +31,186 @@ import {
   Timeline,
   FilterList,
   InfoOutlined,
+  TrendingUp,
+  Assessment,
+  PieChart,
+  BarChart,
+  Person,
+  Today,
+  AttachMoney,
+  Error,
 } from '@mui/icons-material';
 
-// --- COMPONENTES DE UI (Sin cambios) ---
+// --- COMPONENTES DE DASHBOARD ---
 
-const StatCard = ({ title, value, icon, subtitle }) => {
-  const theme = useTheme();
+const MetricCard = ({ title, value, icon, trend, color = '#ffffff' }) => {
   return (
-    <Card sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <Avatar sx={{ bgcolor: `${theme.palette.primary.main}20`, color: 'primary.main', mr: 2 }}>
+    <Card sx={{ 
+      p: 2, 
+      height: '100%',
+      backgroundColor: '#1e1e1e',
+      border: '1px solid #333',
+      borderRadius: 1,
+    }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Avatar sx={{ 
+          bgcolor: 'transparent',
+          color: color,
+          mr: 2,
+          width: 40,
+          height: 40
+        }}>
           {icon}
         </Avatar>
-        <Box>
-          <Typography variant="h5" fontWeight="bold">
+        <Box sx={{ flex: 1 }}>
+          <Typography variant="h4" fontWeight="bold" sx={{ color: '#ffffff' }}>
             {value}
           </Typography>
-          <Typography variant="subtitle2" color="text.secondary">
+          <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
             {title}
           </Typography>
         </Box>
       </Box>
-      {subtitle && (
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-          {subtitle}
-        </Typography>
+      {trend && (
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+          <Typography variant="caption" sx={{ color: '#888888' }}>
+            {trend}
+          </Typography>
+        </Box>
       )}
     </Card>
   );
 };
 
-const PrecisionPodium = ({ users }) => {
-  const theme = useTheme();
-  const podiumColors = {
-    0: theme.palette.warning.main,
-    1: '#C0C0C0',
-    2: '#CD7F32',
-  };
+const ProgressCard = ({ title, current, total, color = '#4caf50' }) => {
+  const percentage = total > 0 ? (current / total) * 100 : 0;
+  
   return (
-    <Card sx={{ p: 3, height: '100%' }}>
-      <Typography variant="h6" gutterBottom fontWeight="bold">
-        🏆 Podio de Precisión
+    <Card sx={{ 
+      p: 2, 
+      backgroundColor: '#1e1e1e',
+      border: '1px solid #333',
+      borderRadius: 1,
+    }}>
+      <Typography variant="h6" sx={{ color: '#ffffff', mb: 1 }}>
+        {title}
+      </Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h4" sx={{ color: '#ffffff', mr: 1 }}>
+          {current}
+        </Typography>
+        <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+          de {total}
+        </Typography>
+      </Box>
+      <LinearProgress
+        variant="determinate"
+        value={percentage}
+        sx={{
+          height: 8,
+          borderRadius: 4,
+          backgroundColor: '#333',
+          '& .MuiLinearProgress-bar': {
+            backgroundColor: color,
+            borderRadius: 4,
+          },
+        }}
+      />
+      <Typography variant="caption" sx={{ color: '#888888', mt: 1 }}>
+        {percentage.toFixed(1)}%
+      </Typography>
+    </Card>
+  );
+};
+
+const StatusOverview = ({ stats }) => {
+  const data = [
+    { label: 'Correctos', value: stats.totalCorrectos, color: '#4caf50' },
+    { label: 'Diferencias Menores', value: stats.totalAdvertencias, color: '#ff9800' },
+    { label: 'Diferencias Graves', value: stats.totalGraves, color: '#f44336' },
+  ];
+
+  return (
+    <Card sx={{ 
+      p: 3, 
+      backgroundColor: '#1e1e1e',
+      border: '1px solid #333',
+      borderRadius: 1,
+    }}>
+      <Typography variant="h6" sx={{ color: '#ffffff', mb: 2 }}>
+        Estado de Cierres
+      </Typography>
+      <Stack spacing={2}>
+        {data.map((item) => (
+          <Box key={item.label}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+              <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+                {item.label}
+              </Typography>
+              <Typography variant="body2" sx={{ color: '#ffffff' }}>
+                {item.value}
+              </Typography>
+            </Box>
+            <LinearProgress
+              variant="determinate"
+              value={stats.totalCierres > 0 ? (item.value / stats.totalCierres) * 100 : 0}
+              sx={{
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: '#333',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: item.color,
+                  borderRadius: 3,
+                },
+              }}
+            />
+          </Box>
+        ))}
+      </Stack>
+    </Card>
+  );
+};
+
+const TopPerformers = ({ users }) => {
+  return (
+    <Card sx={{ 
+      p: 3, 
+      backgroundColor: '#1e1e1e',
+      border: '1px solid #333',
+      borderRadius: 1,
+    }}>
+      <Typography variant="h6" sx={{ color: '#ffffff', mb: 2 }}>
+        Mejores Empleados
       </Typography>
       <List dense>
-        {users.slice(0, 3).map((user, index) => (
-          <ListItem key={user.usuario} sx={{ py: 1 }}>
-            <ListItemIcon>
-              <EmojiEvents style={{ color: podiumColors[index] }} />
+        {users.slice(0, 5).map((user, index) => (
+          <ListItem key={user.usuario} sx={{ px: 0 }}>
+            <ListItemIcon sx={{ minWidth: 36 }}>
+              <Badge 
+                badgeContent={index + 1} 
+                color="primary"
+                sx={{ 
+                  '& .MuiBadge-badge': { 
+                    backgroundColor: index === 0 ? '#4caf50' : '#666',
+                    color: '#ffffff'
+                  }
+                }}
+              >
+                <Person sx={{ color: '#b0b0b0' }} />
+              </Badge>
             </ListItemIcon>
             <ListItemText
-              primary={user.usuario}
-              secondary={`Promedio Diferencia: $${user.promedioDiferencia.toFixed(2)}`}
+              primary={
+                <Typography variant="body2" sx={{ color: '#ffffff' }}>
+                  {user.usuario}
+                </Typography>
+              }
+              secondary={
+                <Typography variant="caption" sx={{ color: '#b0b0b0' }}>
+                  Promedio: ${user.promedioDiferencia.toFixed(2)}
+                </Typography>
+              }
             />
-            <Chip label={`#${index + 1}`} size="small" sx={{ backgroundColor: podiumColors[index], color: 'white' }} />
           </ListItem>
         ))}
       </List>
@@ -87,70 +218,97 @@ const PrecisionPodium = ({ users }) => {
   );
 };
 
-const CriticalAnomalies = ({ anomalies }) => (
-  <Card sx={{ p: 3, backgroundColor: 'error.lightest', height: '100%' }}>
-    <Typography variant="h6" gutterBottom fontWeight="bold" color="error.dark">
-      <WarningAmber sx={{ verticalAlign: 'middle', mr: 1 }} />
-      Anomalías Críticas
-    </Typography>
-    {anomalies.length > 0 ? (
-      <List dense>
-        {anomalies.map((cierre) => (
-          <ListItem key={cierre.id}>
-            <ListItemText
-              primary={`Diferencia de $${parseFloat(cierre.grand_difference_total).toFixed(2)}`}
-              secondary={`En ${cierre.tienda} por ${cierre.usuario} el ${
-                cierre.fechaObj && !isNaN(cierre.fechaObj.getTime())
-                  ? cierre.fechaObj.toLocaleDateString('es-CL')
-                  : `Invalid date (${cierre.fecha})`
-              }`}
-            />
-          </ListItem>
-        ))}
-      </List>
-    ) : (
-      <Box sx={{ display: 'flex', alignItems: 'center', mt: 2 }}>
-        <CheckCircleOutline sx={{ color: 'success.main', mr: 1 }} />
-        <Typography color="text.secondary">¡Sin anomalías importantes!</Typography>
-      </Box>
-    )}
-  </Card>
-);
-
-const RecentClosures = ({ closures }) => {
+const RecentActivity = ({ closures }) => {
   const sorted = [...closures].sort((a, b) => b.fechaObj - a.fechaObj);
+  
   return (
-    <Card sx={{ p: 3, height: '100%' }}>
-      <Typography variant="h6" gutterBottom fontWeight="bold">
-        <Timeline sx={{ verticalAlign: 'middle', mr: 1 }} />
+    <Card sx={{ 
+      p: 3, 
+      backgroundColor: '#1e1e1e',
+      border: '1px solid #333',
+      borderRadius: 1,
+    }}>
+      <Typography variant="h6" sx={{ color: '#ffffff', mb: 2 }}>
         Actividad Reciente
       </Typography>
       <List dense sx={{ maxHeight: 300, overflow: 'auto' }}>
-        {sorted.slice(0, 10).map((cierre) => {
-          const isNegative = cierre.grand_difference_total < 0;
-          const difference = Math.abs(parseFloat(cierre.grand_difference_total) || 0);
-          const parsed = cierre.fechaObj;
-          const isInvalid = isNaN(parsed.getTime());
+        {sorted.slice(0, 8).map((cierre) => {
+          const difference = parseFloat(cierre.grand_difference_total) || 0;
+          const isInvalid = isNaN(cierre.fechaObj.getTime());
+          
           return (
-            <ListItem key={cierre.id} sx={{ my: 1 }}>
+            <ListItem key={cierre.id} sx={{ px: 0, py: 1 }}>
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                {difference === 0 ? (
+                  <CheckCircleOutline sx={{ color: '#4caf50', fontSize: 20 }} />
+                ) : (
+                  <Error sx={{ color: '#f44336', fontSize: 20 }} />
+                )}
+              </ListItemIcon>
               <ListItemText
-                primary={`${cierre.tienda} - ${cierre.usuario}`}
-                secondary={
-                  isInvalid
-                    ? `Cierre del Invalid date (${cierre.fecha})`
-                    : `Cierre del ${parsed.toLocaleDateString('es-CL')}`
+                primary={
+                  <Typography variant="body2" sx={{ color: '#ffffff' }}>
+                    {cierre.tienda} - {cierre.usuario}
+                  </Typography>
                 }
-              />
-              <Chip
-                label={`${isNegative ? '-' : ''}$${difference.toFixed(2)}`}
-                color={difference > 0 ? (isNegative ? 'error' : 'warning') : 'success'}
-                size="small"
-                variant="outlined"
+                secondary={
+                  <Typography variant="caption" sx={{ color: '#b0b0b0' }}>
+                    {isInvalid
+                      ? `Cierre del Invalid date (${cierre.fecha})`
+                      : `${cierre.fechaObj.toLocaleDateString('es-CL')} - $${Math.abs(difference).toFixed(2)}`
+                    }
+                  </Typography>
+                }
               />
             </ListItem>
           );
         })}
       </List>
+    </Card>
+  );
+};
+
+const CriticalAlerts = ({ anomalies }) => {
+  return (
+    <Card sx={{ 
+      p: 3, 
+      backgroundColor: '#1e1e1e',
+      border: '1px solid #333',
+      borderRadius: 1,
+    }}>
+      <Typography variant="h6" sx={{ color: '#ffffff', mb: 2 }}>
+        Alertas Críticas
+      </Typography>
+      {anomalies.length > 0 ? (
+        <List dense>
+          {anomalies.slice(0, 5).map((cierre) => (
+            <ListItem key={cierre.id} sx={{ px: 0, py: 1 }}>
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <WarningAmber sx={{ color: '#f44336', fontSize: 20 }} />
+              </ListItemIcon>
+              <ListItemText
+                primary={
+                  <Typography variant="body2" sx={{ color: '#ffffff' }}>
+                    ${parseFloat(cierre.grand_difference_total).toFixed(2)}
+                  </Typography>
+                }
+                secondary={
+                  <Typography variant="caption" sx={{ color: '#b0b0b0' }}>
+                    {cierre.tienda} - {cierre.usuario}
+                  </Typography>
+                }
+              />
+            </ListItem>
+          ))}
+        </List>
+      ) : (
+        <Box sx={{ textAlign: 'center', py: 2 }}>
+          <CheckCircleOutline sx={{ color: '#4caf50', fontSize: 40, mb: 1 }} />
+          <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+            Sin alertas críticas
+          </Typography>
+        </Box>
+      )}
     </Card>
   );
 };
@@ -340,111 +498,116 @@ const HomePage = ({ allClosures, setAllClosures }) => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <CircularProgress size={60} />
+      <Box 
+        display="flex" 
+        justifyContent="center" 
+        alignItems="center" 
+        minHeight="100vh"
+        sx={{ backgroundColor: '#121212' }}
+      >
+        <CircularProgress size={40} sx={{ color: '#ffffff' }} />
       </Box>
     );
   }
 
   return (
-    <Fade in={!loading} timeout={800}>
-      <Box sx={{ p: 4, backgroundColor: theme.palette.background.default, minHeight: '100vh' }}>
-        {/* Cabecera */}
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="h4" fontWeight="bold">Centro de Mando de Cierres</Typography>
-          <Typography variant="subtitle1" color="text.secondary">
-            Análisis de rendimiento y estado operativo en tiempo real.
+    <Box sx={{ 
+      p: 3, 
+      backgroundColor: '#121212', 
+      color: '#ffffff',
+      minHeight: '100vh',
+    }}>
+      {/* Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h4" fontWeight="bold" sx={{ color: '#ffffff', mb: 0.5 }}>
+          Dashboard de Cierres
+        </Typography>
+        <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+          Resumen general del sistema de cierres de caja
+        </Typography>
+      </Box>
+
+      {/* Contenido */}
+      {allClosures.length > 0 ? (
+        <Grid container spacing={3}>
+          {/* Métricas principales */}
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Total de Cierres"
+              value={stats.totalCierres}
+              icon={<Assessment />}
+              color="#4caf50"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Tiendas Activas"
+              value={stats.totalTiendas}
+              icon={<Storefront />}
+              color="#2196f3"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Diferencia Total"
+              value={`$${stats.totalDiferencias.toFixed(0)}`}
+              icon={<AttachMoney />}
+              color="#ff9800"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={3}>
+            <MetricCard
+              title="Promedio por Cierre"
+              value={`$${stats.promedioDiferencias.toFixed(0)}`}
+              icon={<TrendingUp />}
+              color="#9c27b0"
+            />
+          </Grid>
+
+          {/* Progreso y estado */}
+          <Grid item xs={12} md={8}>
+            <StatusOverview stats={stats} />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <ProgressCard
+              title="Cierres Correctos"
+              current={stats.totalCorrectos}
+              total={stats.totalCierres}
+              color="#4caf50"
+            />
+          </Grid>
+
+          {/* Actividad y rendimiento */}
+          <Grid item xs={12} md={6}>
+            <RecentActivity closures={recentClosures} />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TopPerformers users={podiumUsers} />
+          </Grid>
+
+          {/* Alertas críticas */}
+          <Grid item xs={12}>
+            <CriticalAlerts anomalies={criticalAnomalies} />
+          </Grid>
+        </Grid>
+      ) : (
+        <Box sx={{ 
+          textAlign: 'center', 
+          py: 8,
+          backgroundColor: '#1e1e1e',
+          border: '1px solid #333',
+          borderRadius: 1,
+        }}>
+          <InfoOutlined sx={{ fontSize: 60, color: '#666', mb: 2 }} />
+          <Typography variant="h6" sx={{ color: '#ffffff', mb: 1 }}>
+            No hay datos disponibles
+          </Typography>
+          <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+            No se encontraron cierres en la base de datos
           </Typography>
         </Box>
-
-        {/* Contenido */}
-        {allClosures.length > 0 ? (
-          <Grid container spacing={3}>
-            <Grid item xs={12} md={8}>
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={6}>
-                  <StatCard
-                    title="Diferencia Total"
-                    value={`$${stats.totalDiferencias.toFixed(2)}`}
-                    icon={<WarningAmber />}
-                    subtitle="Suma de diferencias en la base."
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <StatCard
-                    title="Tiendas"
-                    value={stats.totalTiendas}
-                    icon={<Storefront />}
-                    subtitle="Tiendas con cierres en la base."
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <StatCard
-                    title="Cierres Correctos"
-                    value={stats.totalCorrectos}
-                    icon={<CheckCircleOutline />}
-                    subtitle="Cierres sin diferencias."
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <StatCard
-                    title="Diferencias Menores"
-                    value={stats.totalAdvertencias}
-                    icon={<WarningAmber color='warning' />}
-                    subtitle="Diferencias entre -10.000 y 10.000."
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <StatCard
-                    title="Diferencias Graves"
-                    value={stats.totalGraves}
-                    icon={<WarningAmber color='error' />}
-                    subtitle="Diferencias >10.000 o <-10.000."
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <CriticalAnomalies anomalies={criticalAnomalies} />
-                </Grid>
-                <Grid item xs={12}>
-                  <RecentClosures closures={recentClosures} />
-                </Grid>
-              </Grid>
-            </Grid>
-            <Grid item xs={12} md={4}>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
-                  <StatCard
-                    title="Diferencia Promedio"
-                    value={`$${stats.promedioDiferencias.toFixed(2)}`}
-                    icon={<TrendingDown />}
-                    subtitle="Promedio por cierre en la base."
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <StatCard
-                    title="Total de Cierres"
-                    value={stats.totalCierres}
-                    icon={<Timeline />}
-                    subtitle="Cantidad total de cierres."
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <PrecisionPodium users={podiumUsers} />
-                </Grid>
-              </Grid>
-            </Grid>
-          </Grid>
-        ) : (
-          <Box sx={{ textAlign:'center', p:5, backgroundColor:'background.paper', borderRadius:2 }}>
-            <InfoOutlined sx={{ fontSize:60, color:'text.secondary' }} />
-            <Typography variant="h6" sx={{ mt:2 }}>No se encontraron datos</Typography>
-            <Typography color="text.secondary">
-              No hay datos disponibles en la base.
-            </Typography>
-          </Box>
-        )}
-      </Box>
-    </Fade>
+      )}
+    </Box>
   );
 };
 
