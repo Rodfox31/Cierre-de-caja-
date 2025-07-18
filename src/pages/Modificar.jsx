@@ -5,927 +5,435 @@ import {
   TextField,
   Button,
   Grid,
-  Paper,
-  MenuItem,
+  Divider,
   Alert,
   CircularProgress,
-  Divider,
-  Stack,
+  Paper,
   IconButton,
-  Tooltip,
-  Card,
-  CardContent,
+  Select,
+  MenuItem,
   FormControl,
   InputLabel,
-  Select,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
-  Fab,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Chip,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
 } from '@mui/material';
-import {
-  ExpandMore as ExpandMoreIcon,
-  Add as AddIcon,
-  Delete as DeleteIcon,
-  Save as SaveIcon,
-  Close as CloseIcon,
-  Calculate as CalculateIcon,
-  Warning as WarningIcon,
-  Check as CheckIcon,
-} from '@mui/icons-material';
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import { Add as AddIcon, Delete as DeleteIcon, Save as SaveIcon } from '@mui/icons-material';
+import { axiosWithFallback } from '../config';
 import moment from 'moment';
 
 export default function Modificar({ cierre, onClose, onSave }) {
   const [form, setForm] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [config, setConfig] = useState({ tiendas: [], motivos_error_pago: [], medios_pago: [], asignaciones: {} });
+  const [config, setConfig] = useState({ motivos_error_pago: [] });
   const [justificaciones, setJustificaciones] = useState([]);
-  const [expandedSections, setExpandedSections] = useState({
-    basicos: true,
-    medios: false,
-    justificaciones: false,
-    calculos: false
-  });
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [deleteJustId, setDeleteJustId] = useState(null);
-  
-  // Estados calculados
   const [totales, setTotales] = useState({
     totalFacturado: 0,
     totalCobrado: 0,
     diferenciaTotal: 0,
     totalAjustes: 0,
-    balanceFinal: 0
+    balanceFinal: 0,
   });
 
-  // Cargar configuración inicial
+  // carga init
   useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        const response = await axios.get(`${API_BASE_URL}/localStorage`);
-        setConfig(response.data);
-      } catch (err) {
-        console.error('Error cargando configuración:', err);
-      }
-    };
-    loadConfig();
-  }, []);
-
-  // Cargar datos del cierre
-  useEffect(() => {
+    axiosWithFallback('/localStorage').then(res => setConfig(res.data)).catch(() => {});
     if (!cierre?.id) return;
     setLoading(true);
-    setError('');
-    
-    const loadCierre = async () => {
-      try {
-        const response = await axios.get(`${API_BASE_URL}/api/cierres-completo/${cierre.id}`);
-        const data = response.data;
-        
-        // Procesar medios de pago
-        let mediosPago = [];
-        try {
-          const mp = typeof data.medios_pago === 'string' ? JSON.parse(data.medios_pago) : (data.medios_pago || {});
-          if (Array.isArray(mp)) {
-            mediosPago = mp;
-          } else {
-            mediosPago = Object.keys(mp).map(key => ({
-              medio: key,
-              facturado: mp[key].facturado || 0,
-              cobrado: mp[key].cobrado || 0,
-              differenceVal: mp[key].differenceVal || 0
-            }));
-          }
-        } catch {
-          mediosPago = config.medios_pago.map(medio => ({
-            medio,
-            facturado: 0,
-            cobrado: 0,
-            differenceVal: 0
+    axiosWithFallback(`/api/cierres-completo/${cierre.id}`)
+      .then(res => {
+        const d = res.data;
+        let medios = [];
+        if (d.medios_pago) {
+          if (typeof d.medios_pago === 'string') medios = JSON.parse(d.medios_pago);
+          else if (Array.isArray(d.medios_pago)) medios = d.medios_pago;
+          else medios = Object.entries(d.medios_pago).map(([m, v]) => ({
+            medio: m,
+            facturado: v.facturado || 0,
+            cobrado: v.cobrado || 0,
+            differenceVal: v.differenceVal || 0,
           }));
         }
-
-        // Manejar el formato de fecha que viene de la API (DD/MM/YYYY)
-        let fechaFormateada = data.fecha;
-        if (/^\d{2}\/\d{2}\/\d{4}$/.test(fechaFormateada)) {
-          // Si viene en formato DD/MM/YYYY, convertir a YYYY-MM-DD para el input
-          fechaFormateada = moment(fechaFormateada, 'DD/MM/YYYY').format('YYYY-MM-DD');
-        } else if (/^\d{4}-\d{2}-\d{2}$/.test(fechaFormateada)) {
-          // Si viene en formato YYYY-MM-DD, mantener
-          fechaFormateada = fechaFormateada;
+        medios = medios.map(mp => ({
+          ...mp,
+          facturado: +mp.facturado || 0,
+          cobrado: +mp.cobrado || 0,
+          differenceVal: +mp.differenceVal || 0,
+        }));
+        let fecha = d.fecha;
+        if (/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
+          fecha = moment(fecha, 'DD/MM/YYYY').format('YYYY-MM-DD');
         }
-
-        setForm({
-          ...data,
-          medios_pago: mediosPago,
-          fecha: fechaFormateada
-        });
-        
-        // Limpiar y validar justificaciones
-        const justificacionesValidas = (data.justificaciones || []).filter(just => 
-          just && typeof just === 'object' && (
-            just.motivo || 
-            just.ajuste || 
-            just.monto_dif || 
-            just.orden || 
-            just.cliente
-          )
+        setForm({ ...d, medios_pago: medios, fecha });
+        const js = (d.justificaciones || []).filter(j =>
+          j && (j.motivo || j.ajuste || j.monto_dif || j.orden || j.cliente)
         );
-        setJustificaciones(justificacionesValidas);
-        
-      } catch (err) {
-        setError('No se pudo cargar el cierre actualizado.');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadCierre();
-  }, [cierre?.id, config.medios_pago]);
+        setJustificaciones(js);
+      })
+      .catch(err => setError('No se pudo cargar: ' + err.message))
+      .finally(() => setLoading(false));
+  }, [cierre]);
 
-  // Calcular totales automáticamente
+  // calcula totales
   useEffect(() => {
-    const mediosPago = form.medios_pago || [];
-    const totalFacturado = mediosPago.reduce((sum, mp) => sum + (parseFloat(mp.facturado) || 0), 0);
-    const totalCobrado = mediosPago.reduce((sum, mp) => sum + (parseFloat(mp.cobrado) || 0), 0);
+    const m = form.medios_pago || [];
+    const totalFacturado = m.reduce((s, x) => s + x.facturado, 0);
+    const totalCobrado = m.reduce((s, x) => s + x.cobrado, 0);
     const diferenciaTotal = totalCobrado - totalFacturado;
-    const totalAjustes = justificaciones
-      .filter(j => j && (j.ajuste || j.monto_dif || j.motivo)) // Filtrar justificaciones válidas
-      .reduce((sum, j) => sum + (parseFloat(j.ajuste) || 0), 0);
-    const balanceFinal = diferenciaTotal - totalAjustes;
-
+    const totalAjustes = justificaciones.reduce((s, j) => s + (+j.ajuste || 0), 0);
     setTotales({
       totalFacturado,
       totalCobrado,
       diferenciaTotal,
       totalAjustes,
-      balanceFinal
+      balanceFinal: diferenciaTotal - totalAjustes,
     });
   }, [form.medios_pago, justificaciones]);
 
-  // Sincronizar fechas de justificaciones con la fecha del cierre
-  useEffect(() => {
-    if (form.fecha && justificaciones.length > 0) {
-      setJustificaciones(prevJust => 
-        prevJust.map(just => ({
-          ...just,
-          fecha: form.fecha // Sincronizar con la fecha del cierre
-        }))
-      );
-    }
-  }, [form.fecha]);
-
-  const handleChange = useCallback((e) => {
+  const handleChange = useCallback(e => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
+    setForm(f => ({ ...f, [name]: value }));
   }, []);
 
-  const handleMedioPagoChange = useCallback((index, field, value) => {
-    setForm(prev => {
-      const mediosPago = [...(prev.medios_pago || [])];
-      mediosPago[index] = {
-        ...mediosPago[index],
-        [field]: parseFloat(value) || 0
-      };
-      
-      // Recalcular diferencia automáticamente
-      if (field === 'facturado' || field === 'cobrado') {
-        mediosPago[index].differenceVal = mediosPago[index].cobrado - mediosPago[index].facturado;
-      }
-      
-      return { ...prev, medios_pago: mediosPago };
+  const handleMedioChange = useCallback((i, field, value) => {
+    setForm(f => {
+      const list = [...(f.medios_pago || [])];
+      list[i] = { ...list[i], [field]: +value || 0 };
+      list[i].differenceVal = list[i].cobrado - list[i].facturado;
+      return { ...f, medios_pago: list };
     });
   }, []);
 
-  const handleJustificacionChange = useCallback((index, field, value) => {
-    setJustificaciones(prev => {
-      const newJust = [...prev];
-      newJust[index] = { ...newJust[index], [field]: value };
-      return newJust;
+  const handleJustChange = useCallback((i, field, value) => {
+    setJustificaciones(js => {
+      const arr = [...js];
+      arr[i] = { ...arr[i], [field]: value };
+      return arr;
     });
   }, []);
 
-  const addJustificacion = useCallback(() => {
-    const newJust = {
-      cierre_id: form.id,
-      fecha: form.fecha, // Usar la fecha del cierre (ya está en formato YYYY-MM-DD)
-      orden: '',
-      cliente: '',
-      monto_dif: 0,
-      ajuste: 0,
-      motivo: ''
-    };
-    setJustificaciones(prev => [...prev, newJust]);
-  }, [form.id, form.fecha]);
+  const addJust = useCallback(() => {
+    setJustificaciones(js => [
+      ...js,
+      { cierre_id: form.id, fecha: form.fecha, orden: '', cliente: '', monto_dif: 0, ajuste: 0, motivo: '' },
+    ]);
+  }, [form]);
 
-  const deleteJustificacion = useCallback(async (index) => {
-    const just = justificaciones[index];
-    if (just.id) {
-      // Si tiene ID, eliminar de la base de datos
-      setDeleteJustId(just.id);
-      setDeleteConfirmOpen(true);
-    } else {
-      // Si no tiene ID, solo remover del array
-      setJustificaciones(prev => prev.filter((_, i) => i !== index));
-    }
-  }, [justificaciones]);
-
-  const confirmDeleteJustificacion = useCallback(async () => {
-    try {
-      if (deleteJustId) {
-        await axios.delete(`${API_BASE_URL}/api/justificaciones/${deleteJustId}`);
+  const delJust = useCallback(
+    async i => {
+      const j = justificaciones[i];
+      if (window.confirm('¿Eliminar justificación?')) {
+        if (j.id) {
+          try {
+            await axiosWithFallback(`/api/justificaciones/${j.id}`, { method: 'DELETE' });
+          } catch {}
+        }
+        setJustificaciones(js => js.filter((_, idx) => idx !== i));
       }
-      setJustificaciones(prev => prev.filter(j => j.id !== deleteJustId));
-      setDeleteConfirmOpen(false);
-      setDeleteJustId(null);
-    } catch (err) {
-      setError('Error al eliminar la justificación.');
-    }
-  }, [deleteJustId]);
-
-  const handleGuardar = async () => {
+    },
+    [justificaciones]
+  );
+  const handleSave = useCallback(async () => {
     setLoading(true);
     setError('');
-    
     try {
-      // Limpiar justificaciones inválidas o vacías
-      const justificacionesLimpias = justificaciones.filter(just => 
-        just && 
-        typeof just === 'object' && 
-        just.cierre_id && 
-        (
-          (just.motivo && just.motivo.trim()) || 
-          (just.ajuste && parseFloat(just.ajuste) !== 0) || 
-          (just.monto_dif && parseFloat(just.monto_dif) !== 0) ||
-          (just.orden && just.orden.trim()) || 
-          (just.cliente && just.cliente.trim())
-        )
+      const cleanJs = justificaciones.filter(
+        j => j.motivo || j.ajuste || j.monto_dif || j.orden || j.cliente
       );
-
-      // Preparar datos para guardar
-      // Convertir fecha de YYYY-MM-DD (del input) a DD/MM/YYYY para enviar a la API
-      const fechaParaEnviar = moment(form.fecha, 'YYYY-MM-DD').format('DD/MM/YYYY');
-      
-      const dataToSave = {
+      const fechaEnv = moment(form.fecha, 'YYYY-MM-DD').format('DD/MM/YYYY');
+      const payload = {
         ...form,
         medios_pago: JSON.stringify(form.medios_pago),
         grand_difference_total: totales.diferenciaTotal,
         balance_sin_justificar: totales.balanceFinal,
-        fecha: fechaParaEnviar
+        fecha: fechaEnv,
       };
-
-      // Guardar cierre principal
-      await axios.put(`${API_BASE_URL}/api/cierres-completo/${form.id}`, dataToSave);
       
-      // Guardar justificaciones con fechas en formato correcto
-      for (const just of justificacionesLimpias) {
-        // Convertir fecha de justificación a DD/MM/YYYY si es necesario
-        const justToSave = {
-          ...just,
-          fecha: moment(just.fecha, 'YYYY-MM-DD').format('DD/MM/YYYY')
-        };
-        
+      // Guardar cierre
+      await axiosWithFallback(`/api/cierres-completo/${form.id}`, { method: 'PUT', data: payload });
+      
+      // Guardar justificaciones
+      for (const j of cleanJs) {
+        const jData = { ...j, fecha: fechaEnv };
         try {
-          if (just.id) {
-            // Intentar actualizar existente
-            await axios.put(`${API_BASE_URL}/api/justificaciones/${just.id}`, justToSave);
+          if (j.id) {
+            await axiosWithFallback(`/api/justificaciones/${j.id}`, { method: 'PUT', data: jData });
           } else {
-            // Crear nueva
-            await axios.post(`${API_BASE_URL}/api/justificaciones`, {
-              ...justToSave,
-              cierre_id: form.id
+            await axiosWithFallback(`/api/justificaciones`, {
+              method: 'POST',
+              data: { ...jData, cierre_id: form.id },
             });
           }
         } catch (justError) {
-          // Si falla la actualización (ej: ID no existe), intentar crear una nueva
-          if (justError.response?.status === 404 && just.id) {
-            console.warn(`Justificación ID ${just.id} no encontrada, creando nueva...`);
-            try {
-              const justSinId = { ...justToSave };
-              delete justSinId.id; // Remover el ID para crear nueva
-              await axios.post(`${API_BASE_URL}/api/justificaciones`, {
-                ...justSinId,
-                cierre_id: form.id
-              });
-            } catch (createError) {
-              console.error('Error creando justificación de respaldo:', createError);
-              throw new Error(`Error al guardar justificación: ${createError.response?.data?.error || createError.message}`);
-            }
-          } else {
-            throw new Error(`Error al actualizar justificación: ${justError.response?.data?.error || justError.message}`);
-          }
+          console.error('Error en justificación:', justError);
+          // Continuar con las demás justificaciones
         }
       }
-
-      // Ejecutar callbacks y cerrar modal automáticamente
-      // Pasar los datos con la fecha ya convertida al formato correcto
-      if (onSave) onSave({
+      
+      // Callback de éxito
+      onSave?.({
         ...form,
-        fecha: fechaParaEnviar, // Fecha en formato DD/MM/YYYY
-        medios_pago: form.medios_pago, // Mantener como array
+        fecha: fechaEnv,
+        medios_pago: form.medios_pago,
         grand_difference_total: totales.diferenciaTotal,
-        balance_sin_justificar: totales.balanceFinal
+        balance_sin_justificar: totales.balanceFinal,
       });
-      if (onClose) onClose();
-    } catch (err) {
-      setError('Error al guardar los cambios: ' + (err.response?.data?.error || err.message));
+      
+      // Cerrar automáticamente
+      onClose?.();
+      
+    } catch (e) {
+      setError('Error al guardar: ' + (e.response?.data?.error || e.message || e));
     } finally {
       setLoading(false);
     }
-  };
+  }, [form, justificaciones, totales, onSave, onClose]);
 
-  const getUsuariosByTienda = useCallback((tienda) => {
-    return config.asignaciones[tienda] || [];
-  }, [config.asignaciones]);
+  const formatMoney = v =>
+    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(v || 0);
 
-  const getEstadoCierre = () => {
-    if (Math.abs(totales.balanceFinal) < 0.01) return { color: 'success', label: 'Cuadrado' };
-    if (Math.abs(totales.balanceFinal) <= 1000) return { color: 'warning', label: 'Diferencia Menor' };
-    return { color: 'error', label: 'Diferencia Grave' };
-  };
-
+  // loader
   if (loading && !form.id) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
-        <CircularProgress />
+      <Box
+        sx={{
+          width: '100vw',
+          height: '100vh',
+          bgcolor: '#121214',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <CircularProgress color="primary" />
       </Box>
     );
   }
-
-  return (
-    <Paper sx={{
-      p: 0,
-      maxWidth: 1400,
-      width: '95vw',
-      maxHeight: '95vh',
-      margin: '0 auto',
-      display: 'flex',
-      flexDirection: 'column',
-      bgcolor: '#1e1e1e',
-      color: '#ffffff'
-    }}>
-      {/* HEADER FIJO */}
-      <Box sx={{ 
-        p: 3, 
-        borderBottom: '1px solid #333',
-        bgcolor: '#242424',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <Box>
-          <Typography variant="h5" gutterBottom sx={{ color: '#ffffff', mb: 1 }}>
-            Modificar Cierre #{form.id}
-          </Typography>
-          <Box display="flex" gap={2} alignItems="center">
-            <Chip 
-              label={`${form.tienda} - ${form.usuario}`} 
-              color="primary" 
-              size="small" 
-            />
-            <Chip 
-              label={moment(form.fecha, 'YYYY-MM-DD').format('DD/MM/YYYY')} 
-              variant="outlined" 
-              size="small"
-              sx={{ color: '#ffffff', borderColor: '#666' }}
-            />
-            <Chip 
-              label={getEstadoCierre().label}
-              color={getEstadoCierre().color}
-              size="small"
-            />
-          </Box>
-        </Box>
-        
-        <Box display="flex" gap={1}>
-          <Button 
-            onClick={onClose} 
-            variant="outlined" 
-            startIcon={<CloseIcon />}
-            disabled={loading}
-            sx={{ color: '#ffffff', borderColor: '#666' }}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleGuardar} 
-            variant="contained" 
-            startIcon={loading ? <CircularProgress size={16} /> : <SaveIcon />}
-            disabled={loading}
-            color="success"
-          >
-            {loading ? 'Guardando...' : 'Guardar Cambios'}
-          </Button>
-        </Box>
-      </Box>
-
-      {/* CONTENIDO SCROLLEABLE */}
-      <Box sx={{ flexGrow: 1, overflowY: 'auto', p: 3 }}>
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-
-        {/* RESUMEN DE TOTALES */}
-        <Card sx={{ mb: 3, bgcolor: '#2a2a2a' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ color: '#ffffff' }}>
-              Resumen Financiero
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={6} sm={2.4}>
-                <Typography variant="body2" color="textSecondary">Total Facturado</Typography>
-                <Typography variant="h6" sx={{ color: '#4caf50' }}>
-                  ${totales.totalFacturado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} sm={2.4}>
-                <Typography variant="body2" color="textSecondary">Total Cobrado</Typography>
-                <Typography variant="h6" sx={{ color: '#2196f3' }}>
-                  ${totales.totalCobrado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} sm={2.4}>
-                <Typography variant="body2" color="textSecondary">Diferencia Inicial</Typography>
-                <Typography variant="h6" sx={{ color: totales.diferenciaTotal >= 0 ? '#4caf50' : '#f44336' }}>
-                  ${totales.diferenciaTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} sm={2.4}>
-                <Typography variant="body2" color="textSecondary">Total Ajustes</Typography>
-                <Typography variant="h6" sx={{ color: '#ff9800' }}>
-                  ${totales.totalAjustes.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                </Typography>
-              </Grid>
-              <Grid item xs={6} sm={2.4}>
-                <Typography variant="body2" color="textSecondary">Balance Final</Typography>
-                <Typography variant="h6" sx={{ color: Math.abs(totales.balanceFinal) < 0.01 ? '#4caf50' : '#f44336' }}>
-                  ${totales.balanceFinal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                </Typography>
-              </Grid>
+  return (    <Box
+      sx={{
+        width: '70vw',
+        maxWidth: 1000,
+        mx: 'auto',
+        p: 1.5,
+        height: '100vh',
+        overflow: 'auto',
+        bgcolor: '#121214',
+        color: '#E0E0E0',
+      }}
+    >
+      <Typography variant="h5" align="center" sx={{ mb: 1.5, fontWeight: 600 }}>
+        Modificar Cierre #{form.id}
+      </Typography>      <Paper elevation={1} sx={{ p: 1, mb: 1.5, bgcolor: '#1E1E1E', borderRadius: 2 }}>
+        <Grid container spacing={1}>
+          {[
+            ['Fecha', form.fecha ? moment(form.fecha).format('DD/MM/YYYY') : '-'],
+            ['Usuario', form.usuario || '-'],
+            ['Responsable', form.responsable || '-'],
+            ['Balance Final', formatMoney(totales.balanceFinal)],
+            ['Diferencia', formatMoney(totales.diferenciaTotal)],
+            ['Ajustes', formatMoney(totales.totalAjustes)],
+          ].map(([label, value], idx) => (
+            <Grid item xs={6} sm={4} key={idx}>
+              <Typography variant="caption" sx={{ color: '#A0A0A0', fontSize: '0.7rem' }}>
+                {label}
+              </Typography>
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>{value}</Typography>
             </Grid>
-          </CardContent>
-        </Card>
-
-        {/* SECCIONES ACCORDION */}
-        <Stack spacing={2}>
-          {/* DATOS BÁSICOS */}
-          <Accordion 
-            expanded={expandedSections.basicos} 
-            onChange={() => setExpandedSections(prev => ({...prev, basicos: !prev.basicos}))}
-            sx={{ bgcolor: '#2a2a2a' }}
+          ))}
+        </Grid>
+      </Paper>      <Typography variant="h6" sx={{ mb: 0.5, fontSize: '1rem' }}>
+        Medios de Pago
+      </Typography>
+      <Box sx={{ display: 'grid', gap: 1, mb: 1.5 }}>
+        {(form.medios_pago || []).map((m, i) => (
+          <Paper
+            key={i}
+            elevation={0}
+            sx={{
+              p: 1.5,
+              display: 'flex',
+              gap: 2,
+              alignItems: 'center',
+              bgcolor: '#1E1E1E',
+              borderRadius: 2,
+            }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#ffffff' }} />}>
-              <Typography variant="h6" sx={{ color: '#ffffff' }}>Datos Básicos del Cierre</Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={3}>
-                <Grid item xs={12} sm={4}>
-                  <TextField
-                    label="Fecha"
-                    name="fecha"
-                    type="date"
-                    value={form.fecha || ''}
-                    onChange={handleChange}
-                    fullWidth
-                    InputLabelProps={{ shrink: true }}
-                    sx={{ 
-                      '& .MuiOutlinedInput-root': { color: '#ffffff' },
-                      '& .MuiInputLabel-root': { color: '#ffffff' }
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <FormControl fullWidth>
-                    <InputLabel sx={{ color: '#ffffff' }}>Tienda</InputLabel>
-                    <Select
-                      name="tienda"
-                      value={form.tienda || ''}
-                      onChange={handleChange}
-                      sx={{ color: '#ffffff' }}
-                    >
-                      {config.tiendas.map((tienda) => (
-                        <MenuItem key={tienda} value={tienda}>{tienda}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={4}>
-                  <FormControl fullWidth>
-                    <InputLabel sx={{ color: '#ffffff' }}>Usuario</InputLabel>
-                    <Select
-                      name="usuario"
-                      value={form.usuario || ''}
-                      onChange={handleChange}
-                      sx={{ color: '#ffffff' }}
-                    >
-                      {getUsuariosByTienda(form.tienda).map((user) => (
-                        <MenuItem key={user.usuario} value={user.usuario}>
-                          {user.nombre} ({user.usuario})
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="Responsable"
-                    name="responsable"
-                    value={form.responsable || ''}
-                    onChange={handleChange}
-                    fullWidth
-                    sx={{ 
-                      '& .MuiOutlinedInput-root': { color: '#ffffff' },
-                      '& .MuiInputLabel-root': { color: '#ffffff' }
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="Comentarios"
-                    name="comentarios"
-                    value={form.comentarios || ''}
-                    onChange={handleChange}
-                    fullWidth
-                    multiline
-                    rows={2}
-                    sx={{ 
-                      '& .MuiOutlinedInput-root': { color: '#ffffff' },
-                      '& .MuiInputLabel-root': { color: '#ffffff' }
-                    }}
-                  />
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* MEDIOS DE PAGO */}
-          <Accordion 
-            expanded={expandedSections.medios} 
-            onChange={() => setExpandedSections(prev => ({...prev, medios: !prev.medios}))}
-            sx={{ bgcolor: '#2a2a2a' }}
-          >
-            <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#ffffff' }} />}>
-              <Typography variant="h6" sx={{ color: '#ffffff' }}>
-                Medios de Pago 
-                <Chip 
-                  label={`${form.medios_pago?.length || 0} medios`} 
-                  size="small" 
-                  sx={{ ml: 2, bgcolor: '#333', color: '#ffffff' }} 
-                />
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="body2">{m.medio}</Typography>
+            </Box>            <TextField
+              label="Facturado"
+              type="number"
+              value={m.facturado || ''}
+              onChange={e => handleMedioChange(i, 'facturado', e.target.value)}
+              variant="filled"
+              size="small"
+              sx={{
+                width: 120,
+                bgcolor: '#2A2A2A',
+                borderRadius: 1,
+                '& .MuiInputBase-input': { height: '16px' },
+              }}
+            />
+            <TextField
+              label="Cobrado"
+              type="number"
+              value={m.cobrado || ''}
+              onChange={e => handleMedioChange(i, 'cobrado', e.target.value)}
+              variant="filled"
+              size="small"
+              sx={{
+                width: 120,
+                bgcolor: '#2A2A2A',
+                borderRadius: 1,
+                '& .MuiInputBase-input': { height: '16px' },
+              }}
+            />
+            <Box sx={{ width: 100, textAlign: 'right' }}>
+              <Typography variant="caption" sx={{ color: '#A0A0A0', fontSize: '0.7rem' }}>
+                Diferencia
               </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>Medio de Pago</TableCell>
-                    <TableCell align="right" sx={{ color: '#ffffff', fontWeight: 'bold' }}>Facturado</TableCell>
-                    <TableCell align="right" sx={{ color: '#ffffff', fontWeight: 'bold' }}>Cobrado</TableCell>
-                    <TableCell align="right" sx={{ color: '#ffffff', fontWeight: 'bold' }}>Diferencia</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {(form.medios_pago || []).map((medio, index) => (
-                    <TableRow key={index}>
-                      <TableCell sx={{ color: '#ffffff' }}>
-                        <Chip label={medio.medio} size="small" color="primary" />
-                      </TableCell>
-                      <TableCell align="right">
-                        <TextField
-                          size="small"
-                          type="number"
-                          value={medio.facturado || ''}
-                          onChange={(e) => handleMedioPagoChange(index, 'facturado', e.target.value)}
-                          sx={{ 
-                            width: 120,
-                            '& .MuiOutlinedInput-root': { color: '#ffffff' }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <TextField
-                          size="small"
-                          type="number"
-                          value={medio.cobrado || ''}
-                          onChange={(e) => handleMedioPagoChange(index, 'cobrado', e.target.value)}
-                          sx={{ 
-                            width: 120,
-                            '& .MuiOutlinedInput-root': { color: '#ffffff' }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell align="right">
-                        <Typography 
-                          variant="body2" 
-                          sx={{ 
-                            color: medio.differenceVal >= 0 ? '#4caf50' : '#f44336',
-                            fontWeight: 'bold'
-                          }}
-                        >
-                          ${(medio.differenceVal || 0).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </AccordionDetails>
-          </Accordion>
-
-          {/* JUSTIFICACIONES */}
-          <Accordion 
-            expanded={expandedSections.justificaciones} 
-            onChange={() => setExpandedSections(prev => ({...prev, justificaciones: !prev.justificaciones}))}
-            sx={{ bgcolor: '#2a2a2a' }}
+              <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>{formatMoney(m.differenceVal)}</Typography>
+            </Box>
+          </Paper>
+        ))}
+      </Box>      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Typography variant="h6" sx={{ flex: 1, fontSize: '1rem' }}>
+          Justificaciones
+        </Typography>
+        <Button
+          startIcon={<AddIcon />}
+          size="small"
+          variant="outlined"
+          onClick={addJust}
+          sx={{ borderRadius: 2, borderColor: '#444', fontSize: '0.8rem' }}
+        >
+          Nueva
+        </Button>
+      </Box>
+      {justificaciones.length === 0 && (
+        <Typography color="text.secondary" sx={{ mb: 1, fontSize: '0.8rem' }}>
+          No hay justificaciones registradas
+        </Typography>
+      )}
+      <Box sx={{ display: 'grid', gap: 1, mb: 1.5 }}>
+        {justificaciones.map((j, i) => (
+          <Paper
+            key={i}
+            elevation={0}
+            sx={{
+              p: 1.5,
+              display: 'flex',
+              gap: 1.5,
+              alignItems: 'center',
+              bgcolor: '#1E1E1E',
+              borderRadius: 2,
+            }}
           >
-            <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#ffffff' }} />}>
-              <Typography variant="h6" sx={{ color: '#ffffff' }}>
-                Justificaciones 
-                <Chip 
-                  label={`${justificaciones.length} items`} 
-                  size="small" 
-                  sx={{ ml: 2, bgcolor: '#333', color: '#ffffff' }} 
-                />
-                {totales.totalAjustes !== 0 && (
-                  <Chip 
-                    label={`Total: $${totales.totalAjustes.toLocaleString('es-AR', { minimumFractionDigits: 2 })}`} 
-                    size="small" 
-                    color="warning"
-                    sx={{ ml: 1 }} 
-                  />
-                )}
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={addJustificacion}
-                  size="small"
-                  color="primary"
-                >
-                  Agregar Justificación
-                </Button>
-              </Box>
-              
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>Fecha</TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>Orden</TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>Cliente</TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>Monto Dif.</TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>Ajuste</TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>Motivo</TableCell>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>Acciones</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {justificaciones.map((just, index) => (
-                    <TableRow key={index}>
-                      <TableCell>
-                        <TextField
-                          size="small"
-                          type="date"
-                          value={just.fecha || ''}
-                          disabled
-                          sx={{ 
-                            width: 140,
-                            '& .MuiOutlinedInput-root': { 
-                              color: '#ffffff',
-                              backgroundColor: '#333'
-                            }
-                          }}
-                        />
-                        <Typography variant="caption" sx={{ color: '#888', display: 'block', fontSize: '0.7rem' }}>
-                          (Misma fecha del cierre)
-                        </Typography>
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          size="small"
-                          value={just.orden || ''}
-                          onChange={(e) => handleJustificacionChange(index, 'orden', e.target.value)}
-                          sx={{ 
-                            width: 100,
-                            '& .MuiOutlinedInput-root': { color: '#ffffff' }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          size="small"
-                          value={just.cliente || ''}
-                          onChange={(e) => handleJustificacionChange(index, 'cliente', e.target.value)}
-                          sx={{ 
-                            width: 120,
-                            '& .MuiOutlinedInput-root': { color: '#ffffff' }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          size="small"
-                          type="number"
-                          value={just.monto_dif || ''}
-                          onChange={(e) => handleJustificacionChange(index, 'monto_dif', e.target.value)}
-                          sx={{ 
-                            width: 100,
-                            '& .MuiOutlinedInput-root': { color: '#ffffff' }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <TextField
-                          size="small"
-                          type="number"
-                          value={just.ajuste || ''}
-                          onChange={(e) => handleJustificacionChange(index, 'ajuste', e.target.value)}
-                          sx={{ 
-                            width: 100,
-                            '& .MuiOutlinedInput-root': { color: '#ffffff' }
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <FormControl size="small" sx={{ minWidth: 200 }}>
-                          <Select
-                            value={just.motivo || ''}
-                            onChange={(e) => handleJustificacionChange(index, 'motivo', e.target.value)}
-                            sx={{ color: '#ffffff' }}
-                          >
-                            {config.motivos_error_pago.map((motivo) => (
-                              <MenuItem key={motivo} value={motivo}>{motivo}</MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </TableCell>
-                      <TableCell>
-                        <Tooltip title="Eliminar justificación">
-                          <IconButton
-                            size="small"
-                            onClick={() => deleteJustificacion(index)}
-                            color="error"
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {justificaciones.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center" sx={{ color: '#888', py: 4 }}>
-                        No hay justificaciones registradas
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </AccordionDetails>
-          </Accordion>
+            <IconButton
+              onClick={() => delJust(i)}
+              sx={{ color: '#f44336', p: 0.5 }}
+              size="small"
+            >
+              <DeleteIcon fontSize="small" />
+            </IconButton>            <TextField
+              label="Orden"
+              value={j.orden || ''}
+              onChange={e => handleJustChange(i, 'orden', e.target.value)}
+              variant="filled"
+              size="small"
+              sx={{ 
+                width: 80, 
+                bgcolor: '#2A2A2A', 
+                borderRadius: 1,
+                '& .MuiInputBase-input': { height: '16px' },
+              }}
+            />
+            <TextField
+              label="Cliente"
+              value={j.cliente || ''}
+              onChange={e => handleJustChange(i, 'cliente', e.target.value)}
+              variant="filled"
+              size="small"
+              sx={{ 
+                width: 120, 
+                bgcolor: '#2A2A2A', 
+                borderRadius: 1,
+                '& .MuiInputBase-input': { height: '16px' },
+              }}
+            />
+            <TextField
+              label="Ajuste"
+              type="number"
+              value={j.ajuste || ''}
+              onChange={e => handleJustChange(i, 'ajuste', e.target.value)}
+              variant="filled"
+              size="small"
+              sx={{ 
+                width: 80, 
+                bgcolor: '#2A2A2A', 
+                borderRadius: 1,
+                '& .MuiInputBase-input': { height: '16px' },
+              }}
+            />
+            <FormControl 
+              variant="filled" 
+              size="small" 
+              sx={{ 
+                flex: 1, 
+                bgcolor: '#2A2A2A', 
+                borderRadius: 1,
+                '& .MuiInputBase-input': { height: '16px' },
+              }}
+            >
+              <InputLabel sx={{ color: '#A0A0A0' }}>Motivo</InputLabel>
+              <Select
+                value={j.motivo || ''}
+                onChange={e => handleJustChange(i, 'motivo', e.target.value)}
+                sx={{ 
+                  color: '#E0E0E0',
+                  '& .MuiSelect-select': { height: '16px' },
+                }}
+              >
+                {config.motivos_error_pago?.map((motivo, idx) => (
+                  <MenuItem key={idx} value={motivo} sx={{ fontSize: '0.8rem' }}>
+                    {motivo}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Paper>
+        ))}
+      </Box>      <Typography variant="h6" sx={{ mb: 0.5, fontSize: '1rem' }}>
+        Comentarios
+      </Typography>
+      <TextField
+        name="comentarios"
+        value={form.comentarios || ''}
+        onChange={handleChange}
+        variant="filled"
+        multiline
+        rows={2}
+        fullWidth
+        sx={{ 
+          mb: 2, 
+          bgcolor: '#2A2A2A', 
+          borderRadius: 2,
+          '& .MuiInputBase-input': { fontSize: '0.9rem' },
+        }}
+      />
 
-          {/* CÁLCULOS Y VALIDACIONES */}
-          <Accordion 
-            expanded={expandedSections.calculos} 
-            onChange={() => setExpandedSections(prev => ({...prev, calculos: !prev.calculos}))}
-            sx={{ bgcolor: '#2a2a2a' }}
-          >
-            <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ color: '#ffffff' }} />}>
-              <Typography variant="h6" sx={{ color: '#ffffff' }}>
-                Validaciones y Cálculos
-                {Math.abs(totales.balanceFinal) < 0.01 ? (
-                  <CheckIcon sx={{ color: '#4caf50', ml: 1 }} />
-                ) : (
-                  <WarningIcon sx={{ color: '#f44336', ml: 1 }} />
-                )}
-              </Typography>
-            </AccordionSummary>
-            <AccordionDetails>
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#ffffff' }}>
-                    Detalle de Cálculos
-                  </Typography>
-                  <Table size="small">
-                    <TableBody>
-                      <TableRow>
-                        <TableCell sx={{ color: '#ffffff' }}>Total Facturado:</TableCell>
-                        <TableCell align="right" sx={{ color: '#4caf50' }}>
-                          ${totales.totalFacturado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell sx={{ color: '#ffffff' }}>Total Cobrado:</TableCell>
-                        <TableCell align="right" sx={{ color: '#2196f3' }}>
-                          ${totales.totalCobrado.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }}>Diferencia Inicial:</TableCell>
-                        <TableCell align="right" sx={{ 
-                          color: totales.diferenciaTotal >= 0 ? '#4caf50' : '#f44336',
-                          fontWeight: 'bold'
-                        }}>
-                          ${totales.diferenciaTotal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow>
-                        <TableCell sx={{ color: '#ffffff' }}>Total Ajustes:</TableCell>
-                        <TableCell align="right" sx={{ color: '#ff9800' }}>
-                          ${totales.totalAjustes.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                      </TableRow>
-                      <TableRow sx={{ borderTop: '2px solid #666' }}>
-                        <TableCell sx={{ color: '#ffffff', fontWeight: 'bold', fontSize: '1.1em' }}>
-                          Balance Final:
-                        </TableCell>
-                        <TableCell align="right" sx={{ 
-                          color: Math.abs(totales.balanceFinal) < 0.01 ? '#4caf50' : '#f44336',
-                          fontWeight: 'bold',
-                          fontSize: '1.1em'
-                        }}>
-                          ${totales.balanceFinal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </Grid>
-                
-                <Grid item xs={12} md={6}>
-                  <Typography variant="subtitle2" gutterBottom sx={{ color: '#ffffff' }}>
-                    Estado del Cierre
-                  </Typography>
-                  <Box sx={{ p: 2, border: '1px solid #666', borderRadius: 1 }}>
-                    {Math.abs(totales.balanceFinal) < 0.01 ? (
-                      <Box display="flex" alignItems="center" sx={{ color: '#4caf50' }}>
-                        <CheckIcon sx={{ mr: 1 }} />
-                        <Typography variant="body1" fontWeight="bold">
-                          Cierre Cuadrado - Balance: $0.00
-                        </Typography>
-                      </Box>
-                    ) : (
-                      <Box display="flex" alignItems="center" sx={{ color: '#f44336' }}>
-                        <WarningIcon sx={{ mr: 1 }} />
-                        <Box>
-                          <Typography variant="body1" fontWeight="bold">
-                            {Math.abs(totales.balanceFinal) <= 1000 ? 'Diferencia Menor' : 'Diferencia Grave'}
-                          </Typography>
-                          <Typography variant="body2">
-                            Diferencia: ${Math.abs(totales.balanceFinal).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                          </Typography>
-                        </Box>
-                      </Box>
-                    )}
-                  </Box>
-                  
-                  {justificaciones.length > 0 && (
-                    <Box sx={{ mt: 2 }}>
-                      <Typography variant="subtitle2" gutterBottom sx={{ color: '#ffffff' }}>
-                        Resumen de Justificaciones
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-                        {justificaciones.length} justificaciones registradas
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
-                        Total ajustado: ${totales.totalAjustes.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-                      </Typography>
-                    </Box>
-                  )}
-                </Grid>
-              </Grid>
-            </AccordionDetails>
-          </Accordion>
-        </Stack>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+        <Button onClick={onClose} variant="text" sx={{ color: '#bbb', borderRadius: 2, fontSize: '0.9rem' }}>
+          Cancelar
+        </Button>
+        <Button onClick={handleSave} variant="contained" startIcon={<SaveIcon />} sx={{ borderRadius: 2, fontSize: '0.9rem' }}>
+          {loading ? <CircularProgress size={20} color="inherit" /> : 'Guardar'}
+        </Button>
       </Box>
 
-      {/* DIÁLOGO DE CONFIRMACIÓN PARA ELIMINAR JUSTIFICACIÓN */}
-      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
-        <DialogTitle>Confirmar eliminación</DialogTitle>
-        <DialogContent>
-          <Typography>
-            ¿Está seguro que desea eliminar esta justificación? Esta acción no se puede deshacer.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>Cancelar</Button>
-          <Button onClick={confirmDeleteJustificacion} color="error" variant="contained">
-            Eliminar
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Paper>
+      {error && (
+        <Alert severity="error" sx={{ mt: 2, borderRadius: 2 }}>
+          {error}
+        </Alert>
+      )}
+    </Box>
   );
 }

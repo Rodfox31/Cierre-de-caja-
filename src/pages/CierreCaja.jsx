@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Imprimir from "./imprimir"; // Asumo que este componente existe
-import { API_BASE_URL } from '../config'; // Asumo que este archivo de config existe
+import { fetchWithFallback } from '../config';
 import moment from 'moment';
 
 // --- MUI Imports ---
@@ -711,7 +711,7 @@ function FinalizationPanel({
 
 async function loadAjustesFromBackend() {
     try {
-        const response = await fetch(`${API_BASE_URL}/localStorage`);
+        const response = await fetchWithFallback('/localStorage');
         if (!response.ok) {
             throw new Error(`HTTP error: ${response.status}`);
         }
@@ -804,10 +804,12 @@ function CierreCaja() {
         const pad = (n) => n.toString().padStart(2, '0');
         const fechaStr = `${pad(fecha.getDate())}/${pad(fecha.getMonth() + 1)}/${fecha.getFullYear()}`;
         try {
-            const queryUrl = `${API_BASE_URL}/api/cierres/existe?fecha=${encodeURIComponent(fechaStr)}&tienda=${encodeURIComponent(selectedTienda)}&usuario=${encodeURIComponent(selectedUsuario)}`;
-            const response = await fetch(queryUrl);
-            if (!response.ok) throw new Error(`Error ${response.status}: ${await response.text()}`);
-            // Si la respuesta contiene fecha, formatear a DD/MM/YYYY
+            const queryUrl = `/api/cierres/existe?fecha=${encodeURIComponent(fechaStr)}&tienda=${encodeURIComponent(selectedTienda)}&usuario=${encodeURIComponent(selectedUsuario)}`;
+            const response = await fetchWithFallback(queryUrl);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Error al conectar con la base de datos: ${response.status} - ${errorText}`);
+            }
             const result = await response.json();
             if (result.fecha) {
                 // Si la fecha viene en otro formato, convertirla
@@ -822,8 +824,8 @@ function CierreCaja() {
             }
             setPanelVisible(!panelVisible);
         } catch (error) {
-            console.error("Error al verificar cierre:", error);
-            alert("Error al conectar con la base de datos para verificar el cierre.");
+            // Mostrar error en la interfaz
+            alert(error.message || 'Error al conectar con la base de datos para verificar el cierre');
         }
     };
 
@@ -855,7 +857,7 @@ function CierreCaja() {
             comentarios: comentarios
         };
         try {
-            const response = await fetch(`${API_BASE_URL}/api/cierres-completo`, {
+            const response = await fetchWithFallback('/api/cierres-completo', {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(exportData)

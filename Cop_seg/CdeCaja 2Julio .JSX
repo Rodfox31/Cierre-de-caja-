@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Imprimir from "./imprimir"; // Asumo que este componente existe
-import { API_BASE_URL } from '../config'; // Asumo que este archivo de config existe
+import { API_BASE_URL } from '../src/config'; // Asumo que este archivo de config existe
 
 // --- MUI Imports ---
 import {

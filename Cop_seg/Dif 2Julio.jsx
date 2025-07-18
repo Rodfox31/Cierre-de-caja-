@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import moment from 'moment';
 import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL } from '../src/config';
 import {
   Box,
   Typography,
@@ -1321,4 +1321,4 @@ export default function Diferencias() {
       </Snackbar>  
     </Box>  
   );  
-}  
+}

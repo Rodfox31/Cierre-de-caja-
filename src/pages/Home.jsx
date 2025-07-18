@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import { axiosWithFallback } from '../config';
 import {
   Box,
   Typography,
@@ -389,10 +388,11 @@ const HomePage = ({ allClosures, setAllClosures }) => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/cierres-completo`);
-      const data = response.data.map(mapCierre);
-      setAllClosures(data);
-      procesarDatos(data);
+      const response = await axiosWithFallback('/api/cierres-completo');
+      const data = response.data;
+      const mappedData = data.map(mapCierre);
+      setAllClosures(mappedData);
+      procesarDatos(mappedData);
     } catch (error) {
       console.error('Error al cargar datos:', error);
       setStats({

@@ -2,8 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import moment from 'moment';
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import { fetchWithFallback, axiosWithFallback } from '../config';
 import {
   Box,
   Typography,
@@ -699,13 +698,11 @@ export default function Diferencias() {
     setLoading(true);
     setError('');
     try {
-      console.log('Fetching cierres from:', API_BASE_URL);
-      
+      // console.log('Fetching cierres from:', API_BASE_URL); // Remove, not needed
       // Enviar fechas en formato DD/MM/YYYY
       const pad = (n) => n.toString().padStart(2, '0');
       const fechaDesdeStr = fechaDesde ? `${pad(fechaDesde.date())}/${pad(fechaDesde.month() + 1)}/${fechaDesde.year()}` : '';
       const fechaHastaStr = fechaHasta ? `${pad(fechaHasta.date())}/${pad(fechaHasta.month() + 1)}/${fechaHasta.year()}` : '';
-      
       const params = {
         fechaDesde: fechaDesdeStr,
         fechaHasta: fechaHastaStr,
@@ -714,38 +711,37 @@ export default function Diferencias() {
         sortBy: orderBy,
         sortOrder: order,
       };
-      
       if (tiendaSeleccionada) params.tienda = tiendaSeleccionada;
       if (usuarioSeleccionado) params.usuario = usuarioSeleccionado;
-
-      console.log('Request params:', params);
-      const response = await axios.get(`${API_BASE_URL}/api/cierres-completo`, { params });
-      console.log('Response received:', response.status);
-      console.log('Response data structure:', response.data);
+      // console.log('Request params:', params); // Optional: keep for debugging
+      const response = await axiosWithFallback('/api/cierres-completo', { params: params });
+      const data = response.data;
+      // console.log('Response received:', response.status); // Optional: keep for debugging
+      // console.log('Response data structure:', data); // Optional: keep for debugging
       
       // Manejar diferentes estructuras de respuesta del servidor
       let cierresData;
       let total;
       
-      if (response.data && typeof response.data === 'object') {
+      if (data && typeof data === 'object') {
         // Si la respuesta tiene la estructura esperada: { data: [...], total: number }
-        if (response.data.data && Array.isArray(response.data.data)) {
-          cierresData = response.data.data;
-          total = response.data.total || response.data.data.length;
+        if (data.data && Array.isArray(data.data)) {
+          cierresData = data.data;
+          total = data.total || data.data.length;
         }
         // Si la respuesta es directamente un array
-        else if (Array.isArray(response.data)) {
-          cierresData = response.data;
-          total = response.data.length;
+        else if (Array.isArray(data)) {
+          cierresData = data;
+          total = data.length;
         }
         // Si la respuesta tiene otra estructura
         else {
-          console.warn('Unexpected response structure:', response.data);
+          console.warn('Unexpected response structure:', data);
           cierresData = [];
           total = 0;
         }
       } else {
-        console.warn('Invalid response data:', response.data);
+        console.warn('Invalid response data:', data);
         cierresData = [];
         total = 0;
       }
@@ -813,9 +809,8 @@ export default function Diferencias() {
         message: err.message,
         response: err.response?.data,
         status: err.response?.status,
-        url: `${API_BASE_URL}/api/cierres-completo`
+        url: '/api/cierres-completo'
       });
-      
       const errorMessage = err.response?.data?.message || err.message || 'Error al cargar los datos';
       setError(`Error al cargar los datos: ${errorMessage}`);
       showSnackbar(`Error al cargar los datos: ${errorMessage}`, 'error');
@@ -837,7 +832,7 @@ export default function Diferencias() {
   const confirmDelete = useCallback(async () => {
     setConfirmDeleteOpen(false);
     try {
-      await axios.delete(`${API_BASE_URL}/api/cierres-completo/${selectedId}`);
+      await axiosWithFallback(`/api/cierres-completo/${selectedId}`, { method: 'delete' });
       showSnackbar('Entrada eliminada exitosamente.', 'success');
       setSelectedId(null);
       fetchCierres();
@@ -854,10 +849,11 @@ export default function Diferencias() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/localStorage`);
-        setMotivos(res.data.motivos_error_pago || []);
-        setTiendas(res.data.tiendas || []);
-        setMediosPagoConfig(res.data.medios_pago || []);
+        const res = await axiosWithFallback('/localStorage');
+        const configData = res.data;
+        setMotivos(configData.motivos_error_pago || []);
+        setTiendas(configData.tiendas || []);
+        setMediosPagoConfig(configData.medios_pago || []);
       } catch (err) {
         console.error(err);
         showSnackbar('Error al cargar la configuración inicial.', 'error');

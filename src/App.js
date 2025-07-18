@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
-import { API_BASE_URL } from './config';
+import { API_BASE_URL, fetchWithFallback } from './config';
 
 const colors = {
   mainBg: "#1E1E1E",
@@ -16,13 +16,8 @@ function App() {
   // Llamada al backend para obtener los cierres (DB)
 
   useEffect(() => {
-    fetch(`${API_BASE_URL}/api/cierres-completo`)
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Error al cargar datos de cierres");
-        }
-        return response.json();
-      })
+    fetchWithFallback('/api/cierres-completo')
+      .then((response) => response.json())
       .then((data) => {
         setCierres(data);
       })

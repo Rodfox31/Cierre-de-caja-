@@ -56,7 +56,7 @@ import {
 } from '@mui/icons-material';
 import moment from 'moment';
 import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import { fetchWithFallback, axiosWithFallback } from '../config';
 
 // Función para formatear moneda
 function formatCurrency(value) {
@@ -161,8 +161,8 @@ const TiendaCard = React.memo(function TiendaCard({
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
       currency: 'ARS',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(Math.abs(amount));
   };
 
@@ -314,7 +314,7 @@ export default function ControlMensual() {
   useEffect(() => {
     const loadConfig = async () => {
       try {
-        const res = await axios.get(`${API_BASE_URL}/localStorage`);
+        const res = await axiosWithFallback('/localStorage');
         setTiendas(res.data.tiendas || []);
       } catch (err) {
         console.error('Error al cargar configuración:', err);
@@ -328,23 +328,20 @@ export default function ControlMensual() {
   const fetchCierres = useCallback(async () => {
     setLoading(true);
     setError('');
-    
     try {
       // Calcular el primer y último día del mes seleccionado
       const firstDay = moment().year(selectedYear).month(selectedMonth).startOf('month');
       const lastDay = moment().year(selectedYear).month(selectedMonth).endOf('month');
-      
       const pad = (n) => n.toString().padStart(2, '0');
       const fechaDesdeStr = `${pad(firstDay.date())}/${pad(firstDay.month() + 1)}/${firstDay.year()}`;
       const fechaHastaStr = `${pad(lastDay.date())}/${pad(lastDay.month() + 1)}/${lastDay.year()}`;
-      
       const params = {
         fechaDesde: fechaDesdeStr,
         fechaHasta: fechaHastaStr,
       };
-
-      const response = await axios.get(`${API_BASE_URL}/api/cierres-completo`, { params });
-      
+      console.log('Solicitando cierres:', params);
+      const response = await axiosWithFallback('/api/cierres-completo', { params });
+      console.log('Respuesta cierres:', response);
       // Procesar los datos con la misma lógica que en Diferencias.jsx
       const mapped = response.data.map((cierre) => {
         let mediosPago = [];
@@ -392,7 +389,7 @@ export default function ControlMensual() {
       showSnackbar('Datos cargados exitosamente.', 'success');
     } catch (err) {
       console.error('Error al cargar cierres:', err);
-      setError('Error al cargar los datos. Intente nuevamente.');
+      setError(`Error al cargar los datos. Intente nuevamente.\n${err?.message || ''}\n${err?.response?.data ? JSON.stringify(err.response.data) : ''}`);
       showSnackbar('Error al cargar los datos.', 'error');
     } finally {
       setLoading(false);
@@ -520,8 +517,8 @@ export default function ControlMensual() {
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
       currency: 'ARS',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 
@@ -815,7 +812,20 @@ export default function ControlMensual() {
                             if (j.monto_dif != null) {
                               let monto = j.monto_dif;
                               if (typeof monto === 'string') {
-                                monto = monto.replace(/\$/g, '').replace(/,/g, '.').trim();
+                                // Limpiar el string: remover $ y espacios, luego procesar formato argentino
+                                monto = monto.replace(/\$/g, '').trim();
+                                // En formato argentino: punto = separador de miles, coma = separador decimal
+                                // Ej: "20.500" = 20500, "20.500,50" = 20500.50, "20,50" = 20.50
+                                if (monto.includes(',')) {
+                                  // Tiene coma decimal: "20.500,50" -> partes: ["20.500", "50"]
+                                  const partes = monto.split(',');
+                                  const entero = partes[0].replace(/\./g, ''); // Remover puntos de miles
+                                  const decimal = partes[1] || '0';
+                                  monto = entero + '.' + decimal;
+                                } else {
+                                  // No tiene coma decimal: "20.500" -> 20500 (punto como separador de miles)
+                                  monto = monto.replace(/\./g, '');
+                                }
                               }
                               const numeroMonto = Number(monto);
                               return sum + (isNaN(numeroMonto) ? 0 : numeroMonto);
@@ -1096,7 +1106,20 @@ export default function ControlMensual() {
                         // Procesar el monto_dif que puede venir como texto con "$" y comas
                         let monto = j.monto_dif;
                         if (typeof monto === 'string') {
-                          monto = monto.replace(/\$/g, '').replace(/,/g, '.').trim();
+                          // Limpiar el string: remover $ y espacios, luego procesar formato argentino
+                          monto = monto.replace(/\$/g, '').trim();
+                          // En formato argentino: punto = separador de miles, coma = separador decimal
+                          // Ej: "20.500" = 20500, "20.500,50" = 20500.50, "20,50" = 20.50
+                          if (monto.includes(',')) {
+                            // Tiene coma decimal: "20.500,50" -> partes: ["20.500", "50"]
+                            const partes = monto.split(',');
+                            const entero = partes[0].replace(/\./g, ''); // Remover puntos de miles
+                            const decimal = partes[1] || '0';
+                            monto = entero + '.' + decimal;
+                          } else {
+                            // No tiene coma decimal: "20.500" -> 20500 (punto como separador de miles)
+                            monto = monto.replace(/\./g, '');
+                          }
                         }
                         const numeroMonto = Number(monto);
                         const montoValido = !isNaN(numeroMonto) ? numeroMonto : 0;
