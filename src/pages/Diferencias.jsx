@@ -295,6 +295,9 @@ const HeaderControls = React.memo(function HeaderControls({
   showDiferenciasGraves,
   setShowDiferenciasGraves,
   setPage,
+  selectedMonth,
+  setSelectedMonth,
+  handleMonthChange,
 }) {
   const theme = useTheme();
 
@@ -354,9 +357,9 @@ const HeaderControls = React.memo(function HeaderControls({
   return (
     <Box mb={3}>
       {/* Filtros principales en una sola fila */}
-      <Grid container spacing={2} alignItems="center" sx={{ mb: 2 }}>
-        {/* SELECTOR DE PRESETS */}
-        <Grid item xs={12} sm={6} md={2}>
+      <Grid container spacing={1} alignItems="center" sx={{ mb: 2, flexWrap: 'nowrap', width: '100%', maxWidth: '100%', minWidth: 0 }}>
+        {/* PERIODO */}
+        <Grid item sx={{ flex: '1 1 120px', minWidth: 120 }}>
           <FormControl fullWidth size="small">
             <InputLabel sx={{ color: '#ffffff' }}>Período</InputLabel>
             <Select
@@ -364,12 +367,7 @@ const HeaderControls = React.memo(function HeaderControls({
               value={selectedDatePreset}
               onChange={handleDatePresetChange}
               variant="outlined"
-              sx={{ 
-                color: '#ffffff', 
-                '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, 
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, 
-                '.MuiSvgIcon-root': { color: '#ffffff' } 
-              }}
+              sx={{ color: '#ffffff', '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, '.MuiSvgIcon-root': { color: '#ffffff' } }}
             >
               <MenuItem value="custom">Personalizado</MenuItem>
               <MenuItem value="last7days">Últimos 7 días</MenuItem>
@@ -379,9 +377,29 @@ const HeaderControls = React.memo(function HeaderControls({
             </Select>
           </FormControl>
         </Grid>
-
-        {/* FECHA DESDE */}
-        <Grid item xs={12} sm={6} md={1.5}>
+        {/* MES SOLO DEL AÑO ACTUAL */}
+        <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
+          <FormControl fullWidth size="small">
+            <InputLabel sx={{ color: '#ffffff' }}>Mes</InputLabel>
+            <Select
+              label="Mes"
+              value={selectedMonth}
+              onChange={handleMonthChange}
+              variant="outlined"
+              sx={{ color: '#ffffff', '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, '.MuiSvgIcon-root': { color: '#ffffff' } }}
+            >
+              <MenuItem value="">Todos</MenuItem>
+              {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].map((mes, idx) => {
+                const value = `${moment().year()}-${String(idx+1).padStart(2,'0')}`;
+                return (
+                  <MenuItem key={value} value={value}>{mes}</MenuItem>
+                );
+              })}
+            </Select>
+          </FormControl>
+        </Grid>
+        {/* DESDE */}
+        <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
           <TextField
             fullWidth
             size="small"
@@ -392,19 +410,11 @@ const HeaderControls = React.memo(function HeaderControls({
             onChange={handleFechaDesdeChange}
             InputLabelProps={{ shrink: true, sx: { color: '#ffffff' } }}
             disabled={selectedDatePreset !== 'custom'}
-            sx={{ 
-              '& .MuiOutlinedInput-root': { 
-                color: '#ffffff',
-                '& fieldset': { borderColor: '#444' },
-                '&:hover fieldset': { borderColor: '#888' }
-              },
-              '& .MuiInputLabel-root': { color: '#ffffff' }
-            }}
+            sx={{ '& .MuiOutlinedInput-root': { color: '#ffffff', '& fieldset': { borderColor: '#444' }, '&:hover fieldset': { borderColor: '#888' } }, '& .MuiInputLabel-root': { color: '#ffffff' } }}
           />
         </Grid>
-
-        {/* FECHA HASTA */}
-        <Grid item xs={12} sm={6} md={1.5}>
+        {/* HASTA */}
+        <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
           <TextField
             fullWidth
             size="small"
@@ -415,19 +425,11 @@ const HeaderControls = React.memo(function HeaderControls({
             onChange={handleFechaHastaChange}
             InputLabelProps={{ shrink: true, sx: { color: '#ffffff' } }}
             disabled={selectedDatePreset !== 'custom'}
-            sx={{ 
-              '& .MuiOutlinedInput-root': { 
-                color: '#ffffff',
-                '& fieldset': { borderColor: '#444' },
-                '&:hover fieldset': { borderColor: '#888' }
-              },
-              '& .MuiInputLabel-root': { color: '#ffffff' }
-            }}
+            sx={{ '& .MuiOutlinedInput-root': { color: '#ffffff', '& fieldset': { borderColor: '#444' }, '&:hover fieldset': { borderColor: '#888' } }, '& .MuiInputLabel-root': { color: '#ffffff' } }}
           />
         </Grid>
-
-        {/* SELECT TIENDA */}
-        <Grid item xs={12} sm={6} md={1.5}>
+        {/* TIENDA */}
+        <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
           <FormControl fullWidth size="small">
             <InputLabel sx={{ color: '#ffffff' }}>Tienda</InputLabel>
             <Select
@@ -436,25 +438,17 @@ const HeaderControls = React.memo(function HeaderControls({
               onChange={(e) => { setTiendaSeleccionada(e.target.value); setPage(0); }}
               MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
               variant="outlined"
-              sx={{ 
-                color: '#ffffff', 
-                '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, 
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, 
-                '.MuiSvgIcon-root': { color: '#ffffff' } 
-              }}
+              sx={{ color: '#ffffff', '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, '.MuiSvgIcon-root': { color: '#ffffff' } }}
             >
               <MenuItem value="">Todas</MenuItem>
               {tiendas.map((t) => (
-                <MenuItem key={t} value={t}>
-                  {t}
-                </MenuItem>
+                <MenuItem key={t} value={t}>{t}</MenuItem>
               ))}
             </Select>
           </FormControl>
         </Grid>
-
-        {/* SELECT USUARIO */}
-        <Grid item xs={12} sm={6} md={1.5}>
+        {/* USUARIO */}
+        <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
           <FormControl fullWidth size="small">
             <InputLabel sx={{ color: '#ffffff' }}>Usuario</InputLabel>
             <Select
@@ -464,72 +458,16 @@ const HeaderControls = React.memo(function HeaderControls({
               disabled={!tiendaSeleccionada}
               MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
               variant="outlined"
-              sx={{ 
-                color: '#ffffff', 
-                '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, 
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, 
-                '.MuiSvgIcon-root': { color: '#ffffff' } 
-              }}
+              sx={{ color: '#ffffff', '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, '.MuiSvgIcon-root': { color: '#ffffff' } }}
             >
               <MenuItem value="">Todos</MenuItem>
               {usuarios.map((u) => (
-                <MenuItem key={u} value={u}>
-                  {u}
-                </MenuItem>
+                <MenuItem key={u} value={u}>{u}</MenuItem>
               ))}
             </Select>
           </FormControl>
-        </Grid>
-
-        {/* SELECT MOTIVO */}
-        <Grid item xs={12} sm={6} md={1.5}>
-          <FormControl fullWidth size="small">
-            <InputLabel sx={{ color: '#ffffff' }}>Motivo</InputLabel>
-            <Select
-              label="Motivo"
-              value={motivoSeleccionado}
-              onChange={(e) => { setMotivoSeleccionado(e.target.value); setPage(0); }}
-              MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
-              variant="outlined"
-              sx={{ 
-                color: '#ffffff', 
-                '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, 
-                '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, 
-                '.MuiSvgIcon-root': { color: '#ffffff' } 
-              }}
-            >
-              <MenuItem value="">Todos</MenuItem>
-              {motivos.map((m) => (
-                <MenuItem key={m} value={m}>
-                  {m}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-
-        {/* BUSCADOR COMPACTO */}
-        <Grid item xs={12} sm={6} md={2}>
-          <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: '#242424', borderRadius: 1, px: 2, height: '40px' }}>
-            <SearchIcon sx={{ color: '#888', mr: 1 }} />
-            <input
-              type="text"
-              placeholder="Buscar..."
-              value={buscador}
-              onChange={(e) => { setBuscador(e.target.value); setPage(0); }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                outline: 'none',
-                color: '#fff',
-                width: '100%',
-                fontSize: '0.9rem',
-              }}
-            />
-          </Box>
         </Grid>
       </Grid>
-
       {/* Segunda fila: Filtros por tipo y botones de acción */}
       <Grid container spacing={2} alignItems="center">
         {/* FILTROS POR TIPO DE DIFERENCIA */}
@@ -684,6 +622,8 @@ export default function Diferencias() {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [editCierre, setEditCierre] = useState(null);
+
+  const [selectedMonth, setSelectedMonth] = useState(''); // formato 'YYYY-MM'
 
   const showSnackbar = useCallback((message, severity = 'info') => {
     setSnackbar({ open: true, message, severity });
@@ -862,9 +802,9 @@ export default function Diferencias() {
   }, [showSnackbar]);
 
   useEffect(() => {
-    // Actualizar las columnas visibles por defecto con las nuevas columnas sintetizadas
+    // Incluir 'id' como primera columna visible por defecto
     setVisibleColumns([
-      'resumen',
+      'id',
       'fecha',
       'tienda',
       'usuario',
@@ -933,6 +873,13 @@ export default function Diferencias() {
 
   const allPossibleColumns = useMemo(() => {
     const baseColumns = [
+      {
+        id: 'id',
+        label: 'ID',
+        width: 50,
+        sortable: true,
+        format: (v) => v,
+      },
       {
         id: 'fecha',
         label: 'Fecha',
@@ -1218,6 +1165,20 @@ export default function Diferencias() {
     return m.isValid() ? m.format('DD/MM/YYYY') : 'Fecha inválida';
   }
 
+  const handleMonthChange = useCallback((e) => {
+    const value = e.target.value;
+    setSelectedMonth(value);
+    if (value) {
+      const [year, month] = value.split('-');
+      const firstDay = moment(`${year}-${month}-01`);
+      const lastDay = moment(firstDay).endOf('month');
+      setFechaDesde(firstDay);
+      setFechaHasta(lastDay);
+      setSelectedDatePreset('custom');
+      setPage(0);
+    }
+  }, [setSelectedMonth, setFechaDesde, setFechaHasta, setSelectedDatePreset, setPage]);
+
   return (
     <Box
       p={3}
@@ -1268,6 +1229,9 @@ export default function Diferencias() {
           showDiferenciasGraves={showDiferenciasGraves}
           setShowDiferenciasGraves={setShowDiferenciasGraves}
           setPage={setPage}
+          selectedMonth={selectedMonth}
+          setSelectedMonth={setSelectedMonth}
+          handleMonthChange={handleMonthChange}
         />
 
         {error && (
@@ -1373,12 +1337,7 @@ export default function Diferencias() {
                         hover
                         selected={selectedId === cierre.id}
                         onClick={() => setSelectedId(cierre.id)}
-                        sx={{
-                          '&:nth-of-type(odd)': { backgroundColor: estado.color === '#f44336' ? '#2a1e1e' : '#1e1e1e' },
-                          '&:nth-of-type(even)': { backgroundColor: estado.color === '#f44336' ? '#3a2323' : '#2a2a2a' },
-                          boxShadow: estado.color === '#f44336' ? 2 : 0,
-                          '&:last-child td, &:last-child th': { border: 0 },
-                        }}
+                        sx={{ cursor: 'pointer', ...(selectedId === cierre.id ? { backgroundColor: '#1976d222' } : {}) }}
                       >
                         {displayedColumns.map((col) => (
                           <TableCell key={col.id} align={col.align || 'left'}>

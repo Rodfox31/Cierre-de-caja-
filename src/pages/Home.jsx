@@ -81,15 +81,18 @@ const MetricCard = ({ title, value, icon, trend, color = '#ffffff' }) => {
   );
 };
 
-const ProgressCard = ({ title, current, total, color = '#4caf50' }) => {
+const ProgressCard = ({ title, current, total, color = '#4caf50', compact }) => {
   const percentage = total > 0 ? (current / total) * 100 : 0;
-  
   return (
     <Card sx={{ 
-      p: 2, 
+      p: compact ? 3 : 2,
       backgroundColor: '#1e1e1e',
       border: '1px solid #333',
       borderRadius: 1,
+      height: compact ? 240 : '100%', // Ajuste de altura para igualar a Estado de Cierres
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
     }}>
       <Typography variant="h6" sx={{ color: '#ffffff', mb: 1 }}>
         {title}
@@ -122,7 +125,37 @@ const ProgressCard = ({ title, current, total, color = '#4caf50' }) => {
   );
 };
 
-const StatusOverview = ({ stats }) => {
+// --- NUEVA TARJETA: Resumen de Validaciones ---
+const ValidationSummaryCard = ({ allClosures, compact }) => {
+  const total = allClosures.length;
+  const validados = allClosures.filter(c => c.validado === 1).length;
+  const sinValidar = total - validados;
+  const porcentaje = total > 0 ? (validados / total) * 100 : 0;
+  return (
+    <Card sx={{
+      p: compact ? 3 : 2,
+      backgroundColor: '#1e1e1e',
+      border: '1px solid #333',
+      borderRadius: 1,
+      height: compact ? 220 : '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
+    }}>
+      <Typography variant="h6" sx={{ color: '#ffffff', mb: 1 }}>
+        Validaciones
+      </Typography>
+      <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+        <Chip label={`Validados: ${validados}`} color="success" size="small" />
+        <Chip label={`Sin validar: ${sinValidar}`} color="warning" size="small" />
+      </Box>
+      <LinearProgress variant="determinate" value={porcentaje} sx={{ height: 8, borderRadius: 4, backgroundColor: '#333', '& .MuiLinearProgress-bar': { backgroundColor: '#4caf50' } }} />
+      <Typography variant="caption" sx={{ color: '#888' }}>{porcentaje.toFixed(1)}% validados</Typography>
+    </Card>
+  );
+};
+
+const StatusOverview = ({ stats, compact }) => {
   const data = [
     { label: 'Correctos', value: stats.totalCorrectos, color: '#4caf50' },
     { label: 'Diferencias Menores', value: stats.totalAdvertencias, color: '#ff9800' },
@@ -312,6 +345,72 @@ const CriticalAlerts = ({ anomalies }) => {
   );
 };
 
+// --- COMPONENTE DE TARJETA POR TIENDA ---
+const StoreDashboardCard = ({ tienda, stats, compact }) => {
+  const total = stats.cierres.length;
+  const validados = stats.cierres.filter(c => c.validado === 1).length;
+  const sinValidar = total - validados;
+  const porcentajeValidados = total > 0 ? (validados / total) * 100 : 0;
+  // Métricas de diferencias
+  const correctos = stats.cierres.filter(c => Number(c.grand_difference_total) === 0).length;
+  const advertencias = stats.cierres.filter(c => {
+    const d = Number(c.grand_difference_total) || 0;
+    return d !== 0 && Math.abs(d) <= 10000;
+  }).length;
+  const graves = stats.cierres.filter(c => Math.abs(Number(c.grand_difference_total) || 0) > 10000).length;
+  // Color chip
+  let chipColor = 'default', chipLabel = 'Sin validar';
+  if (porcentajeValidados === 100) {
+    chipColor = 'success'; chipLabel = 'Validado';
+  } else if (porcentajeValidados > 0) {
+    chipColor = 'warning'; chipLabel = 'Parcialmente validado';
+  }
+  return (
+    <Card sx={{
+      p: compact ? 2 : 2,
+      backgroundColor: '#232323',
+      border: '1px solid #333',
+      borderRadius: 2,
+      height: 300,
+      minWidth: 220,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
+      alignItems: 'stretch',
+    }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+        <Avatar sx={{ bgcolor: '#2196f3', mr: 1, width: 32, height: 32 }}><Storefront fontSize="small" /></Avatar>
+        <Typography variant="subtitle1" sx={{ color: '#fff', flex: 1, fontSize: 15 }}>{tienda}</Typography>
+        <Chip label={chipLabel} color={chipColor} size="small" />
+      </Box>
+      <Divider sx={{ mb: 1, bgcolor: '#444' }} />
+      <Typography variant="body2" sx={{ color: '#b0b0b0', mb: 0.5, fontSize: 13 }}>
+        Total: <b>{total}</b>
+      </Typography>
+      {/* Texto de validación y contador */}
+      <Box sx={{ mb: 0.5 }}>
+        {validados > 0 ? (
+          <Typography variant="body2" sx={{ color: '#4caf50', fontWeight: 'bold', fontSize: 13 }}>
+            Validadas: {validados} / {total}
+          </Typography>
+        ) : (
+          <Typography variant="body2" sx={{ color: '#ff9800', fontWeight: 'bold', fontSize: 13 }}>
+            Sin validar
+          </Typography>
+        )}
+      </Box>
+      <LinearProgress variant="determinate" value={porcentajeValidados} sx={{ height: 6, borderRadius: 3, mb: 0.5, backgroundColor: '#333', '& .MuiLinearProgress-bar': { backgroundColor: '#4caf50' } }} />
+      <Typography variant="caption" sx={{ color: '#888', fontSize: 11 }}>{porcentajeValidados.toFixed(1)}%</Typography>
+      <Divider sx={{ my: 0.5, bgcolor: '#444' }} />
+      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Chip label={`C: ${correctos}`} color="success" size="small" sx={{ fontSize: 11 }} />
+        <Chip label={`A: ${advertencias}`} color="warning" size="small" sx={{ fontSize: 11 }} />
+        <Chip label={`G: ${graves}`} color="error" size="small" sx={{ fontSize: 11 }} />
+      </Box>
+    </Card>
+  );
+};
+
 // --- COMPONENTE PRINCIPAL ---
 
 function parseMediosPago(medios_pago) {
@@ -496,6 +595,16 @@ const HomePage = ({ allClosures, setAllClosures }) => {
     // console.log('Panel: PrecisionPodium', podiumUsers);
   }, [allClosures, stats, criticalAnomalies, recentClosures, podiumUsers]);
 
+  // Agrupar cierres por tienda para dashboard (usa tiendas reales)
+  const tiendasStats = React.useMemo(() => {
+    const tiendas = {};
+    allClosures.forEach(c => {
+      if (!tiendas[c.tienda]) tiendas[c.tienda] = { cierres: [] };
+      tiendas[c.tienda].cierres.push(c);
+    });
+    return tiendas;
+  }, [allClosures]);
+
   if (loading) {
     return (
       <Box 
@@ -529,7 +638,7 @@ const HomePage = ({ allClosures, setAllClosures }) => {
 
       {/* Contenido */}
       {allClosures.length > 0 ? (
-        <Grid container spacing={3}>
+        <Grid container spacing={2}>
           {/* Métricas principales */}
           <Grid item xs={12} sm={6} md={3}>
             <MetricCard
@@ -564,17 +673,50 @@ const HomePage = ({ allClosures, setAllClosures }) => {
             />
           </Grid>
 
-          {/* Progreso y estado */}
-          <Grid item xs={12} md={8}>
-            <StatusOverview stats={stats} />
+          {/* Línea: Tarjetas de tiendas */}
+          <Grid item xs={12}>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'row',
+                width: '100%',
+                gap: 2, // Espaciado entre tarjetas
+                alignItems: 'stretch',
+                paddingY: 1,
+                paddingX: 0,
+                minHeight: 300,
+                marginBottom: 4, // Más margen inferior para separar de las siguientes tarjetas
+                backgroundColor: 'transparent',
+              }}
+            >
+              {Object.entries(tiendasStats).map(([tienda, stats]) => (
+                <Box
+                  key={tienda}
+                  sx={{
+                    flex: '1 1 0', // Cada tarjeta ocupa el mismo ancho
+                    height: 300,
+                    display: 'flex',
+                  }}
+                >
+                  <StoreDashboardCard tienda={tienda} stats={stats} compact />
+                </Box>
+              ))}
+            </Box>
           </Grid>
-          <Grid item xs={12} md={4}>
-            <ProgressCard
-              title="Cierres Correctos"
-              current={stats.totalCorrectos}
-              total={stats.totalCierres}
-              color="#4caf50"
-            />
+
+          {/* Línea: Estado y Correctos */}
+          <Grid item xs={12}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3} lg={3}>
+                <StatusOverview stats={stats} compact />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3} lg={3}>
+                <ProgressCard title="Cierres Correctos" current={stats.totalCorrectos} total={stats.totalCierres} color="#4caf50" compact />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3} lg={3}>
+                <ActivitySummaryCard recentClosures={recentClosures} compact />
+              </Grid>
+            </Grid>
           </Grid>
 
           {/* Actividad y rendimiento */}
@@ -643,3 +785,58 @@ function parseFecha(fechaStr) {
   // Otros ISO
   return new Date(str);
 }
+
+// --- TARJETA DE ÚLTIMA ACTIVIDAD ---
+const ActivitySummaryCard = ({ recentClosures, compact }) => {
+  if (!recentClosures || recentClosures.length === 0) {
+    return (
+      <Card sx={{
+        p: compact ? 3 : 2,
+        backgroundColor: '#1e1e1e',
+        border: '1px solid #333',
+        borderRadius: 1,
+        height: compact ? 240 : '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <Typography variant="h6" sx={{ color: '#ffffff', mb: 1 }}>
+          Última Actividad
+        </Typography>
+        <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+          No hay cierres recientes
+        </Typography>
+      </Card>
+    );
+  }
+  const ultimo = recentClosures[0];
+  return (
+    <Card sx={{
+      p: compact ? 3 : 2,
+      backgroundColor: '#1e1e1e',
+      border: '1px solid #333',
+      borderRadius: 1,
+      height: compact ? 240 : '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'space-between',
+    }}>
+      <Typography variant="h6" sx={{ color: '#ffffff', mb: 1 }}>
+        Última Actividad
+      </Typography>
+      <Box sx={{ mb: 1 }}>
+        <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+          Tienda: <b>{ultimo.tienda}</b>
+        </Typography>
+        <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+          Usuario: <b>{ultimo.usuario}</b>
+        </Typography>
+        <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+          Fecha: <b>{ultimo.fechaObj ? ultimo.fechaObj.toLocaleDateString('es-CL') : ultimo.fecha}</b>
+        </Typography>
+      </Box>
+      <Chip label={`Diferencia: $${parseFloat(ultimo.grand_difference_total || 0).toFixed(2)}`} color={parseFloat(ultimo.grand_difference_total || 0) === 0 ? "success" : "error"} size="small" />
+    </Card>
+  );
+};

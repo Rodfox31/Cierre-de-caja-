@@ -112,7 +112,12 @@
         "nombre": "micaela narice"
       }
     ],
-    "Unicenter": [],
+    "Unicenter": [
+      {
+        "usuario": "NNzomermax",
+        "nombre": "Maxi Zommer"
+      }
+    ],
     "Solar": [
       {
         "usuario": "NNLARROSEM",
@@ -155,8 +160,18 @@
         "nombre": "Cristian Quiroz"
       }
     ],
-    "Cordoba": [],
-    "Rosario": []
+    "Cordoba": [
+      {
+        "usuario": "NNmirabela",
+        "nombre": "Belen Mirabella"
+      }
+    ],
+    "Rosario": [
+      {
+        "usuario": "nnpirenma",
+        "nombre": "Maria Piren"
+      }
+    ]
   },
   "config_font_size": 14,
   "config_theme": "Claro",

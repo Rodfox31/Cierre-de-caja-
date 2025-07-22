@@ -127,6 +127,26 @@ const processNumericValue = (value) => {
   return 0;
 };
 
+// NUEVO: función para mostrar estado de validación
+function getValidacionInfo(cierre) {
+  if (cierre.validado) {
+    return {
+      label: 'Validado',
+      icon: <CheckCircleIcon color="success" fontSize="small" />,
+      color: '#4caf50',
+      usuario: cierre.usuario_validacion,
+      fecha: cierre.fecha_validacion
+    };
+  }
+  return {
+    label: 'Sin validar',
+    icon: <ErrorIcon color="error" fontSize="small" />,
+    color: '#f44336',
+    usuario: null,
+    fecha: null
+  };
+}
+
 // Componente para la tarjeta de tienda
 const TiendaCard = React.memo(function TiendaCard({ 
   tienda, 
@@ -299,6 +319,10 @@ export default function ControlMensual() {
   const [modalDetalle, setModalDetalle] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [selectedCierresIds, setSelectedCierresIds] = useState(new Set());
+  // Nuevo estado para el filtro de validación
+  const [showValidados, setShowValidados] = useState(false);
+  // Nuevo estado para el tercer switch
+  const [showTodos, setShowTodos] = useState(false);
 
   // Funciones auxiliares
   const showSnackbar = useCallback((message, severity = 'info') => {
@@ -446,26 +470,32 @@ export default function ControlMensual() {
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ];
 
-  // Efecto para actualizar la tabla cuando cambie el switch
+  // Efecto para actualizar la tabla cuando cambie cualquier switch
   useEffect(() => {
     if (selectedTienda) {
       handleTiendaClick(selectedTienda);
     }
-  }, [showWithoutErrors]); // Se ejecuta cuando cambia el switch
+  }, [showWithoutErrors, showValidados, showTodos]); // Se ejecuta cuando cambia cualquiera de los switches
 
   const handleTiendaClick = (tienda) => {
     // Encontrar la tienda en las estadísticas
     const tiendaStats = estadisticasPorTienda.find(stats => stats.tienda === tienda);
-    
     if (tiendaStats) {
-      // Filtrar según el switch de mostrar sin errores (solo para la tabla)
-      const cierresFiltrados = showWithoutErrors 
-        ? tiendaStats.todosCierres 
-        : tiendaStats.todosCierres.filter(cierre => {
+      // Filtrar según los switches
+      let cierresFiltrados = tiendaStats.todosCierres;
+      if (!showTodos) {
+        if (!showWithoutErrors) {
+          cierresFiltrados = cierresFiltrados.filter(cierre => {
             const estado = getEstado(cierre);
             return estado === ESTADOS_CIERRE.DIFERENCIA_MENOR || estado === ESTADOS_CIERRE.DIFERENCIA_GRAVE;
           });
-      
+        }
+        if (showValidados) {
+          cierresFiltrados = cierresFiltrados.filter(cierre => cierre.validado);
+        } else {
+          cierresFiltrados = cierresFiltrados.filter(cierre => !cierre.validado);
+        }
+      }
       setSelectedTienda(tienda);
       setSelectedCierres(cierresFiltrados);
       setSelectedCierresIds(new Set()); // Limpiar selección al cambiar de tienda
@@ -486,31 +516,63 @@ export default function ControlMensual() {
 
   const handleSelectAll = (checked) => {
     if (checked) {
-      const allIds = new Set(selectedCierres.map(cierre => cierre.id));
+      const allIds = new Set(selectedCierres.filter(c => !c.validado).map(cierre => cierre.id));
       setSelectedCierresIds(allIds);
     } else {
       setSelectedCierresIds(new Set());
     }
   };
 
-  const handleValidarDiferencias = () => {
-    const selectedCount = selectedCierresIds.size;
-    if (selectedCount === 0) {
+  const handleValidarDiferencias = async () => {
+    const selectedIds = Array.from(selectedCierresIds);
+    if (selectedIds.length === 0) {
       showSnackbar('Por favor seleccione al menos un cierre para validar.', 'warning');
       return;
     }
-    // TODO: Implementar lógica de validación
-    showSnackbar(`Se validarán ${selectedCount} cierres seleccionados.`, 'info');
+    try {
+      const usuario_validacion = window.prompt('Ingrese su usuario para validar:', 'admin');
+      if (!usuario_validacion) return;
+      await axiosWithFallback('/api/cierres-validar', {
+        method: 'PUT',
+        data: {
+          ids: selectedIds,
+          usuario_validacion
+        }
+      });
+      showSnackbar('Cierres validados correctamente.', 'success');
+      setSelectedCierresIds(new Set());
+      await fetchCierres(); // Refrescar todos los datos
+      setSelectedTienda(null); // Reiniciar selección para mostrar la tabla general
+    } catch (err) {
+      showSnackbar('Error al validar cierres.', 'error');
+    }
   };
 
-  const handlePasarRevision = () => {
-    const selectedCount = selectedCierresIds.size;
-    if (selectedCount === 0) {
-      showSnackbar('Por favor seleccione al menos un cierre para pasar a revisión.', 'warning');
+  const handlePasarRevision = async () => {
+    const selectedIds = Array.from(selectedCierresIds);
+    if (selectedIds.length === 0) {
+      showSnackbar('Selecciona al menos un cierre para pasar a revisión.', 'warning');
       return;
     }
-    // TODO: Implementar lógica de pasar a revisión
-    showSnackbar(`Se pasarán a revisión ${selectedCount} cierres seleccionados.`, 'info');
+    let successCount = 0;
+    for (const cierreId of selectedIds) {
+      try {
+        // Usar el endpoint correcto con axiosWithFallback (usa el puerto 3001)
+        const res = await axiosWithFallback(`/api/cierres-completo/${cierreId}/revisar`, {
+          method: 'PUT',
+        });
+        if (res.status === 200) successCount++;
+      } catch (err) {
+        // Error individual, continuar con los demás
+      }
+    }
+    if (successCount > 0) {
+      showSnackbar(`Se pasaron a revisión ${successCount} cierre(s).`, 'success');
+      await fetchCierres(); // Refresca la tabla
+      setSelectedCierresIds(new Set());
+    } else {
+      showSnackbar('No se pudo pasar a revisión ningún cierre.', 'error');
+    }
   };
 
   const formatMoney = (amount) => {
@@ -520,6 +582,244 @@ export default function ControlMensual() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(amount);
+  };
+
+  // Cambiar estado a 'revisar' para cierres validados
+  const handleMarcarRevisar = async (cierreId) => {
+    try {
+      await axiosWithFallback(`/api/cierres-completo/${cierreId}/revisar`, {
+        method: 'PUT'
+      });
+      showSnackbar('Cierre marcado para revisión.', 'success');
+      await fetchCierres(); // Refrescar datos
+    } catch (err) {
+      showSnackbar('Error al marcar para revisión.', 'error');
+    }
+  };
+
+  // Handlers para exportar datos
+  // Utilidad para exportar CSV
+  const handleExportCSV = () => {
+    if (!selectedCierres || selectedCierres.length === 0) {
+      showSnackbar('No hay datos para exportar.', 'warning');
+      return;
+    }
+    // Definir columnas a exportar
+    const columns = [
+      'ID', 'Fecha', 'Usuario', 'Estado', 'Validación', 'Diferencia Total', 'Cliente', 'Pedido', 'Monto', 'Justificaciones'
+    ];
+    // Mapear datos
+    const rows = selectedCierres.map(cierre => {
+      const estado = getEstado(cierre).label;
+      const validacion = getValidacionInfo(cierre).label;
+      const diferencia = formatMoney(Number(cierre.grand_difference_total) || 0);
+      // Justificaciones resumidas
+      let clientes = '-';
+      let ordenes = '-';
+      let monto = '-';
+      let justificaciones = '-';
+      if (cierre.justificaciones && cierre.justificaciones.length > 0) {
+        clientes = [...new Set(cierre.justificaciones.map(j => j.cliente).filter(c => c && c !== '0'))].join(', ');
+        ordenes = [...new Set(cierre.justificaciones.map(j => j.orden).filter(o => o && o !== '0'))].join(', ');
+        monto = formatMoney(cierre.justificaciones.reduce((sum, j) => {
+          let m = j.monto_dif;
+          if (typeof m === 'string') {
+            m = m.replace(/\$/g, '').trim();
+            if (m.includes(',')) {
+              const partes = m.split(',');
+              const entero = partes[0].replace(/\./g, '');
+              const decimal = partes[1] || '0';
+              m = entero + '.' + decimal;
+            } else {
+              m = m.replace(/\./g, '');
+            }
+          }
+          const numeroMonto = Number(m);
+          return sum + (isNaN(numeroMonto) ? 0 : numeroMonto);
+        }, 0));
+        justificaciones = cierre.justificaciones.map(j => j.motivo).join(' | ');
+      }
+      return [
+        cierre.id,
+        cierre.fecha ? cierre.fecha.format('DD/MM/YYYY') : '',
+        cierre.usuario || '',
+        estado,
+        validacion,
+        diferencia,
+        clientes,
+        ordenes,
+        monto,
+        justificaciones
+      ];
+    });
+    // Construir CSV
+    let csvContent = columns.join(',') + '\n';
+    rows.forEach(row => {
+      csvContent += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',') + '\n';
+    });
+    // Descargar
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `cierres_${selectedTienda || 'todas'}_${months[selectedMonth]}_${selectedYear}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Utilidad para exportar Excel (XLSX)
+  const handleExportXLSX = () => {
+    if (!selectedCierres || selectedCierres.length === 0) {
+      showSnackbar('No hay datos para exportar.', 'warning');
+      return;
+    }
+    // Usar SheetJS (xlsx) si está disponible
+    try {
+      // @ts-ignore
+      if (!window.XLSX) {
+        showSnackbar('No se encontró la librería XLSX. Instale SheetJS en el proyecto.', 'error');
+        return;
+      }
+      const columns = [
+        'ID', 'Fecha', 'Usuario', 'Estado', 'Validación', 'Diferencia Total', 'Cliente', 'Pedido', 'Monto', 'Justificaciones'
+      ];
+      const rows = selectedCierres.map(cierre => {
+        const estado = getEstado(cierre).label;
+        const validacion = getValidacionInfo(cierre).label;
+        const diferencia = Number(cierre.grand_difference_total) || 0;
+        let clientes = '-';
+        let ordenes = '-';
+        let monto = '-';
+        let justificaciones = '-';
+        if (cierre.justificaciones && cierre.justificaciones.length > 0) {
+          clientes = [...new Set(cierre.justificaciones.map(j => j.cliente).filter(c => c && c !== '0'))].join(', ');
+          ordenes = [...new Set(cierre.justificaciones.map(j => j.orden).filter(o => o && o !== '0'))].join(', ');
+          monto = cierre.justificaciones.reduce((sum, j) => {
+            let m = j.monto_dif;
+            if (typeof m === 'string') {
+              m = m.replace(/\$/g, '').trim();
+              if (m.includes(',')) {
+                const partes = m.split(',');
+                const entero = partes[0].replace(/\./g, '');
+                const decimal = partes[1] || '0';
+                m = entero + '.' + decimal;
+              } else {
+                m = m.replace(/\./g, '');
+              }
+            }
+            const numeroMonto = Number(m);
+            return sum + (isNaN(numeroMonto) ? 0 : numeroMonto);
+          }, 0);
+          justificaciones = cierre.justificaciones.map(j => j.motivo).join(' | ');
+        }
+        return {
+          ID: cierre.id,
+          Fecha: cierre.fecha ? cierre.fecha.format('DD/MM/YYYY') : '',
+          Usuario: cierre.usuario || '',
+          Estado: estado,
+          Validación: validacion,
+          'Diferencia Total': diferencia,
+          Cliente: clientes,
+          Pedido: ordenes,
+          Monto: monto,
+          Justificaciones: justificaciones
+        };
+      });
+      // @ts-ignore
+      const ws = window.XLSX.utils.json_to_sheet(rows);
+      // @ts-ignore
+      const wb = window.XLSX.utils.book_new();
+      // @ts-ignore
+      window.XLSX.utils.book_append_sheet(wb, ws, 'Cierres');
+      // @ts-ignore
+      window.XLSX.writeFile(wb, `cierres_${selectedTienda || 'todas'}_${months[selectedMonth]}_${selectedYear}.xlsx`);
+    } catch (err) {
+      showSnackbar('Error al exportar a Excel.', 'error');
+    }
+  };
+
+  // Utilidad para exportar PDF
+  const handleExportPDF = () => {
+    if (!selectedCierres || selectedCierres.length === 0) {
+      showSnackbar('No hay datos para exportar.', 'warning');
+      return;
+    }
+    // Usar jsPDF si está disponible
+    try {
+      // @ts-ignore
+      if (!window.jspdf || !window.jspdf.autoTable) {
+        showSnackbar('No se encontró la librería jsPDF. Instale jsPDF y jsPDF-autotable en el proyecto.', 'error');
+        return;
+      }
+      // @ts-ignore
+      const doc = new window.jspdf.jsPDF();
+      const columns = [
+        { header: 'ID', dataKey: 'id' },
+        { header: 'Fecha', dataKey: 'fecha' },
+        { header: 'Usuario', dataKey: 'usuario' },
+        { header: 'Estado', dataKey: 'estado' },
+        { header: 'Validación', dataKey: 'validacion' },
+        { header: 'Diferencia Total', dataKey: 'diferencia' },
+        { header: 'Cliente', dataKey: 'clientes' },
+        { header: 'Pedido', dataKey: 'ordenes' },
+        { header: 'Monto', dataKey: 'monto' },
+        { header: 'Justificaciones', dataKey: 'justificaciones' }
+      ];
+      const rows = selectedCierres.map(cierre => {
+        const estado = getEstado(cierre).label;
+        const validacion = getValidacionInfo(cierre).label;
+        const diferencia = formatMoney(Number(cierre.grand_difference_total) || 0);
+        let clientes = '-';
+        let ordenes = '-';
+        let monto = '-';
+        let justificaciones = '-';
+        if (cierre.justificaciones && cierre.justificaciones.length > 0) {
+          clientes = [...new Set(cierre.justificaciones.map(j => j.cliente).filter(c => c && c !== '0'))].join(', ');
+          ordenes = [...new Set(cierre.justificaciones.map(j => j.orden).filter(o => o && o !== '0'))].join(', ');
+          monto = formatMoney(cierre.justificaciones.reduce((sum, j) => {
+            let m = j.monto_dif;
+            if (typeof m === 'string') {
+              m = m.replace(/\$/g, '').trim();
+              if (m.includes(',')) {
+                const partes = m.split(',');
+                const entero = partes[0].replace(/\./g, '');
+                const decimal = partes[1] || '0';
+                m = entero + '.' + decimal;
+              } else {
+                m = m.replace(/\./g, '');
+              }
+            }
+            const numeroMonto = Number(m);
+            return sum + (isNaN(numeroMonto) ? 0 : numeroMonto);
+          }, 0));
+          justificaciones = cierre.justificaciones.map(j => j.motivo).join(' | ');
+        }
+        return {
+          id: cierre.id,
+          fecha: cierre.fecha ? cierre.fecha.format('DD/MM/YYYY') : '',
+          usuario: cierre.usuario || '',
+          estado,
+          validacion,
+          diferencia,
+          clientes,
+          ordenes,
+          monto,
+          justificaciones
+        };
+      });
+      // @ts-ignore
+      window.jspdf.autoTable(doc, {
+        columns,
+        body: rows,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [209, 109, 109] },
+        margin: { top: 20 },
+        theme: 'grid',
+      });
+      doc.save(`cierres_${selectedTienda || 'todas'}_${months[selectedMonth]}_${selectedYear}.pdf`);
+    } catch (err) {
+      showSnackbar('Error al exportar a PDF.', 'error');
+    }
   };
 
   return (
@@ -545,8 +845,8 @@ export default function ControlMensual() {
         <Box sx={{ mb: 4 }}>
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel sx={{ color: '#ffffff' }}>Mes</InputLabel>
+              <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
+                <InputLabel sx={{ color: '#ffffff', fontSize: '0.95rem', top: '-4px' }}>Mes</InputLabel>
                 <Select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
@@ -555,21 +855,25 @@ export default function ControlMensual() {
                     color: '#ffffff',
                     '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
                     '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                    '.MuiSvgIcon-root': { color: '#ffffff' }
+                    '.MuiSvgIcon-root': { color: '#ffffff' },
+                    borderRadius: 2,
+                    minHeight: 32,
+                    fontSize: '0.95rem',
+                    height: 36,
                   }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
                 >
                   {months.map((month, index) => (
-                    <MenuItem key={index} value={index}>
+                    <MenuItem key={index} value={index} sx={{ fontSize: '0.95rem', minHeight: 32 }}>
                       {month}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
             </Grid>
-
             <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel sx={{ color: '#ffffff' }}>Año</InputLabel>
+              <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
+                <InputLabel sx={{ color: '#ffffff', fontSize: '0.95rem', top: '-4px' }}>Año</InputLabel>
                 <Select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
@@ -578,18 +882,22 @@ export default function ControlMensual() {
                     color: '#ffffff',
                     '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
                     '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                    '.MuiSvgIcon-root': { color: '#ffffff' }
+                    '.MuiSvgIcon-root': { color: '#ffffff' },
+                    borderRadius: 2,
+                    minHeight: 32,
+                    fontSize: '0.95rem',
+                    height: 36,
                   }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
                 >
                   {years.map((year) => (
-                    <MenuItem key={year} value={year}>
+                    <MenuItem key={year} value={year} sx={{ fontSize: '0.95rem', minHeight: 32 }}>
                       {year}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
             </Grid>
-
             <Grid item xs={12} sm={6} md={3}>
               <Button
                 variant="outlined"
@@ -600,11 +908,23 @@ export default function ControlMensual() {
                   color: '#ffffff',
                   borderColor: '#444',
                   '&:hover': { borderColor: '#888' },
-                  height: '40px',
+                  height: '32px',
+                  minWidth: 110,
+                  fontSize: '0.95rem',
+                  borderRadius: 2,
+                  px: 1.5,
                 }}
               >
                 {loading ? 'Cargando...' : 'Actualizar'}
               </Button>
+            </Grid>
+            {/* Botones de descarga */}
+            <Grid item xs={12} sm={6} md={3}>
+              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', alignItems: 'center', height: '32px' }}>
+                <Button variant="outlined" size="small" sx={{ borderRadius: 2, minWidth: 40, px: 1, fontSize: '0.85rem', color: '#fff', borderColor: '#fff', bgcolor: '#222', '&:hover': { bgcolor: '#444', borderColor: '#fff' } }} onClick={handleExportCSV}>CSV</Button>
+                <Button variant="outlined" size="small" sx={{ borderRadius: 2, minWidth: 40, px: 1, fontSize: '0.85rem', color: '#D16D6D', borderColor: '#D16D6D', bgcolor: '#222', '&:hover': { bgcolor: '#3a2323', borderColor: '#D16D6D' } }} onClick={handleExportPDF}>PDF</Button>
+                <Button variant="outlined" size="small" sx={{ borderRadius: 2, minWidth: 40, px: 1, fontSize: '0.85rem', color: '#4CAF50', borderColor: '#4CAF50', bgcolor: '#222', '&:hover': { bgcolor: '#233a23', borderColor: '#4CAF50' } }} onClick={handleExportXLSX}>Excel</Button>
+              </Box>
             </Grid>
           </Grid>
         </Box>
@@ -645,78 +965,217 @@ export default function ControlMensual() {
         </Box>
 
         {/* Switch para filtrar tabla y botones de acción */}
-        <Box sx={{ mt: 3, mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-          {/* Botones de acción */}
-          {selectedTienda && selectedCierres.length > 0 ? (
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <Button
-                variant="contained"
-                onClick={handleValidarDiferencias}
-                disabled={selectedCierresIds.size === 0}
-                sx={{
-                  backgroundColor: '#4CAF50', // Verde más vivo
-                  color: '#ffffff',
-                  '&:hover': {
-                    backgroundColor: '#45A049',
-                  },
-                  '&:disabled': {
-                    backgroundColor: '#3a3a3a',
-                    color: '#666666',
-                  },
-                  borderRadius: 1,
-                  px: 2,
-                  fontSize: '0.8rem',
-                }}
-              >
-                Validar ({selectedCierresIds.size})
-              </Button>
-              <Button
-                variant="contained"
-                onClick={handlePasarRevision}
-                disabled={selectedCierresIds.size === 0}
-                sx={{
-                  backgroundColor: '#F44336', // Rojo
-                  color: '#ffffff',
-                  '&:hover': {
-                    backgroundColor: '#D32F2F',
-                  },
-                  '&:disabled': {
-                    backgroundColor: '#3a3a3a',
-                    color: '#666666',
-                  },
-                  borderRadius: 1,
-                  px: 2,
-                  fontSize: '0.8rem',
-                }}
-              >
-                Revisar ({selectedCierresIds.size})
-              </Button>
-            </Box>
-          ) : (
-            <Box /> // Espacio vacío cuando no hay botones
-          )}
-          
-          <FormControlLabel
-            control={
-              <Switch
-                checked={showWithoutErrors}
-                onChange={(e) => setShowWithoutErrors(e.target.checked)}
-                sx={{
-                  '& .MuiSwitch-switchBase.Mui-checked': {
-                    color: '#A3BE8C',
-                  },
-                  '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                    backgroundColor: '#A3BE8C',
-                  },
-                }}
-              />
-            }
-            label={
-              <Typography sx={{ color: '#ffffff', fontSize: '0.9rem' }}>
-                Incluir cierres sin errores en la tabla
-              </Typography>
-            }
-          />
+        <Box sx={{ mt: 3, mb: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+            <Button
+              variant="contained"
+              onClick={handleValidarDiferencias}
+              disabled={selectedCierresIds.size === 0}
+              sx={{
+                backgroundColor: '#4CAF50',
+                color: '#ffffff',
+                '&:hover': { backgroundColor: '#45A049' },
+                '&:disabled': { backgroundColor: '#3a3a3a', color: '#666666' },
+                borderRadius: 2,
+                px: 2,
+                fontSize: '0.8rem',
+                minHeight: 32,
+                minWidth: 110,
+              }}
+            >
+              Validar ({selectedCierresIds.size})
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handlePasarRevision}
+              disabled={selectedCierresIds.size === 0}
+              sx={{
+                backgroundColor: '#F44336',
+                color: '#ffffff',
+                '&:hover': { backgroundColor: '#D32F2F' },
+                '&:disabled': { backgroundColor: '#3a3a3a', color: '#666666' },
+                borderRadius: 2,
+                px: 2,
+                fontSize: '0.8rem',
+                minHeight: 32,
+                minWidth: 110,
+              }}
+            >
+              Revisar ({selectedCierresIds.size})
+            </Button>
+            {/* Switches */}
+            <FormControlLabel
+              sx={{ ml: 2, mr: 0, alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32 }}
+              control={
+                <Switch
+                  checked={showWithoutErrors}
+                  onChange={(e) => setShowWithoutErrors(e.target.checked)}
+                  size="small"
+                  disabled={showTodos}
+                  sx={{
+                    width: 38,
+                    height: 22,
+                    p: 0.5,
+                    '& .MuiSwitch-switchBase': {
+                      color: showTodos ? '#888' : (showWithoutErrors ? '#4caf50' : '#f44336'),
+                      padding: 0.5,
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: showTodos ? '#888' : '#4caf50',
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                      backgroundColor: showTodos ? '#888' : '#4caf50',
+                      opacity: 0.7,
+                    },
+                    '& .MuiSwitch-switchBase + .MuiSwitch-track': {
+                      backgroundColor: showTodos ? '#888' : '#f44336',
+                      opacity: 0.7,
+                    },
+                    '& .MuiSwitch-track': {
+                      backgroundColor: showTodos ? '#888' : (showWithoutErrors ? '#4caf50' : '#f44336'),
+                      borderRadius: 11,
+                      opacity: 0.5,
+                    },
+                    '& .MuiSwitch-thumb': {
+                      boxShadow: 'none',
+                      width: 16,
+                      height: 16,
+                    },
+                  }}
+                />
+              }
+              label={
+                <Typography sx={{ color: showTodos ? '#888' : (showWithoutErrors ? '#4caf50' : '#f44336'), fontSize: '0.85rem', fontWeight: 500 }}>
+                  {showWithoutErrors ? 'Sin errores' : 'Con errores'}
+                </Typography>
+              }
+            />
+            {/* Switch de validación */}
+            <FormControlLabel
+              sx={{ ml: 0, mr: 0, alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32 }}
+              control={
+                <Switch
+                  checked={showValidados}
+                  onChange={(e) => setShowValidados(e.target.checked)}
+                  size="small"
+                  disabled={showTodos}
+                  sx={{
+                    width: 38,
+                    height: 22,
+                    p: 0.5,
+                    '& .MuiSwitch-switchBase': {
+                      color: showTodos ? '#888' : (showValidados ? '#4caf50' : '#FFD700'),
+                      padding: 0.5,
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: showTodos ? '#888' : '#4caf50',
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                      backgroundColor: showTodos ? '#888' : '#4caf50',
+                      opacity: 0.7,
+                    },
+                    '& .MuiSwitch-switchBase + .MuiSwitch-track': {
+                      backgroundColor: showTodos ? '#888' : '#FFD700',
+                      opacity: 0.7,
+                    },
+                    '& .MuiSwitch-track': {
+                      backgroundColor: showTodos ? '#888' : (showValidados ? '#4caf50' : '#FFD700'),
+                      borderRadius: 11,
+                      opacity: 0.5,
+                    },
+                    '& .MuiSwitch-thumb': {
+                      boxShadow: 'none',
+                      width: 16,
+                      height: 16,
+                    },
+                  }}
+                />
+              }
+              label={
+                <Typography sx={{ color: showTodos ? '#888' : (showValidados ? '#4caf50' : '#FFD700'), fontSize: '0.85rem', fontWeight: 500 }}>
+                  {showValidados ? 'Validados' : 'Sin validar'}
+                </Typography>
+              }
+            />
+            {/* Switch para mostrar todos los cierres */}
+            <FormControlLabel
+              sx={{ ml: 0, mr: 0, alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32 }}
+              control={
+                <Switch
+                  checked={showTodos}
+                  onChange={(e) => setShowTodos(e.target.checked)}
+                  size="small"
+                  sx={{
+                    width: 38,
+                    height: 22,
+                    p: 0.5,
+                    '& .MuiSwitch-switchBase': {
+                      color: showTodos ? '#2196f3' : '#888',
+                      padding: 0.5,
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked': {
+                      color: '#2196f3',
+                    },
+                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                      backgroundColor: '#2196f3',
+                      opacity: 0.7,
+                    },
+                    '& .MuiSwitch-track': {
+                      backgroundColor: showTodos ? '#2196f3' : '#888',
+                      borderRadius: 11,
+                      opacity: 0.5,
+                    },
+                    '& .MuiSwitch-thumb': {
+                      boxShadow: 'none',
+                      width: 16,
+                      height: 16,
+                    },
+                  }}
+                />
+              }
+              label={
+                <Typography sx={{ color: showTodos ? '#2196f3' : '#888', fontSize: '0.85rem', fontWeight: 500 }}>
+                  Mostrar todos
+                </Typography>
+              }
+            />
+          </Box>
+          {/* Caja de totales - invertido: Diferencia general primero, luego Total Validado */}
+          {selectedTienda && (() => {
+            let totalMonto = 0;
+            let totalValidado = 0;
+            selectedCierres.forEach(cierre => {
+              if (Array.isArray(cierre.justificaciones)) {
+                cierre.justificaciones.forEach(j => {
+                  let monto = j.monto_dif;
+                  if (typeof monto === 'string') {
+                    monto = monto.replace(/\$/g, '').trim();
+                    if (monto.includes(',')) {
+                      const partes = monto.split(',');
+                      const entero = partes[0].replace(/\./g, '');
+                      const decimal = partes[1] || '0';
+                      monto = entero + '.' + decimal;
+                    } else {
+                      monto = monto.replace(/\./g, '');
+                    }
+                  }
+                  const numeroMonto = Number(monto);
+                  if (!isNaN(numeroMonto)) totalMonto += numeroMonto;
+                  if (cierre.validado && !isNaN(numeroMonto)) totalValidado += numeroMonto;
+                });
+              }
+            });
+            return (
+              <Box sx={{ mt: 1, p: 1.5, bgcolor: '#232323', borderRadius: 3, display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'flex-start', minWidth: 260, maxWidth: 320 }}>
+                <Typography variant="subtitle1" sx={{ color: '#D16D6D', fontWeight: 'bold', fontSize: '1rem' }}>
+                  Diferencia general: {formatMoney(totalMonto)}
+                </Typography>
+                <Typography variant="subtitle1" sx={{ color: '#A3BE8C', fontWeight: 'bold', fontSize: '1rem' }}>
+                  Total Validado: {formatMoney(totalValidado)}
+                </Typography>
+              </Box>
+            );
+          })()}
         </Box>
 
         {/* Mensaje si no hay tiendas */}
@@ -769,33 +1228,14 @@ export default function ControlMensual() {
                       borderBottom: '2px solid #A3BE8C'
                     }
                   }}>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}>
-                      <Checkbox
-                        sx={{
-                          color: '#A3BE8C',
-                          '&.Mui-checked': { color: '#A3BE8C' },
-                        }}
-                        checked={selectedCierres.length > 0 && selectedCierresIds.size === selectedCierres.length}
-                        indeterminate={selectedCierresIds.size > 0 && selectedCierresIds.size < selectedCierres.length}
-                        onChange={(e) => handleSelectAll(e.target.checked)}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}>Ver</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>ID</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Fecha</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Usuario</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Estado</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Diferencia Total</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Cliente</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Pedido</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Monto</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Justificaciones</TableCell>
+                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}><Checkbox sx={{ color: '#A3BE8C', '&.Mui-checked': { color: '#A3BE8C' } }} checked={selectedCierres.length > 0 && selectedCierresIds.size === selectedCierres.filter(c => !c.validado).length} indeterminate={selectedCierresIds.size > 0 && selectedCierresIds.size < selectedCierres.filter(c => !c.validado).length} onChange={(e) => handleSelectAll(e.target.checked)} /></TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}>Ver</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>ID</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Fecha</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Usuario</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Estado</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Validación</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Diferencia Total</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Cliente</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Pedido</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Monto</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Justificaciones</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {selectedCierres.map((cierre) => {
                     const estado = getEstado(cierre);
                     const diferencia = Number(cierre.grand_difference_total) || 0;
+                    const validacion = getValidacionInfo(cierre);
                     
                     // Calcular información agregada de justificaciones
                     const infoJustificaciones = cierre.justificaciones && cierre.justificaciones.length > 0 
@@ -862,6 +1302,8 @@ export default function ControlMensual() {
                             }}
                             checked={selectedCierresIds.has(cierre.id)}
                             onChange={(e) => handleCheckboxChange(cierre.id, e.target.checked)}
+                            // Solo deshabilitar si está en estado de revisión, no si está validado
+                            disabled={cierre.revisar}
                           />
                         </TableCell>
                         <TableCell>
@@ -902,6 +1344,19 @@ export default function ControlMensual() {
                             <Typography variant="body2" sx={{ ml: 1, color: estado.color }}>
                               {estado.label}
                             </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {validacion.icon}
+                            <Typography variant="body2" sx={{ ml: 1, color: validacion.color }}>
+                              {cierre.revisar ? 'Revisar' : validacion.label}
+                            </Typography>
+                            {validacion.usuario && !cierre.revisar && (
+                              <Tooltip title={`Validado por ${validacion.usuario} el ${validacion.fecha}`}>
+                                <Chip label={validacion.usuario} size="small" sx={{ ml: 1, bgcolor: '#4caf50', color: '#fff' }} />
+                              </Tooltip>
+                            )}
                           </Box>
                         </TableCell>
                         <TableCell sx={{ 
@@ -952,7 +1407,7 @@ export default function ControlMensual() {
                               {/* Lista simple de todas las justificaciones */}
                               {infoJustificaciones.justificaciones.map((justif, idx) => (
                                 <Typography 
-                                  key={idx}
+                                  key={justif.id ? justif.id : `${justif.motivo}-${justif.cliente}-${justif.orden}-${idx}`}
                                   variant="body2" 
                                   sx={{ 
                                     color: '#ffffff',
@@ -1053,9 +1508,25 @@ export default function ControlMensual() {
                 </Grid>
                 <Grid item xs={12} md={6}>
                   <Typography variant="h6" sx={{ mb: 2, color: '#ffffff' }}>Totales</Typography>
-                  <Typography variant="body1" sx={{ color: '#ffffff' }}><strong>Facturado:</strong> <ExactValue value={modalDetalle.total_facturado} /></Typography>
-                  <Typography variant="body1" sx={{ color: '#ffffff' }}><strong>Cobrado:</strong> <ExactValue value={modalDetalle.total_cobrado} /></Typography>
+                  <Typography variant="body1" sx={{ color: '#ffffff' }}><strong>Facturado:</strong> <ExactValue value={processNumericValue(modalDetalle.total_facturado)} /></Typography>
+                  <Typography variant="body1" sx={{ color: '#ffffff' }}><strong>Cobrado:</strong> <ExactValue value={processNumericValue(modalDetalle.total_cobrado)} /></Typography>
                   <Typography variant="body1" sx={{ color: '#ffffff' }}><strong>Diferencia:</strong> <ExactValue value={modalDetalle.grand_difference_total} /></Typography>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Typography variant="h6" sx={{ mb: 2, color: '#ffffff' }}>Validación</Typography>
+                  {modalDetalle.validado ? (
+                    <Box>
+                      <Chip icon={<CheckCircleIcon />} label="Validado" color="success" sx={{ mb: 1 }} />
+                      <Typography variant="body2" sx={{ color: '#4caf50' }}>
+                        Usuario: {modalDetalle.usuario_validacion}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: '#4caf50' }}>
+                        Fecha: {modalDetalle.fecha_validacion}
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Chip icon={<ErrorIcon />} label="Sin validar" color="error" />
+                  )}
                 </Grid>
               </Grid>
             )}
@@ -1074,14 +1545,16 @@ export default function ControlMensual() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {modalDetalle.medios_pago.map((m, i) => (
-                        <TableRow key={i} sx={{ bgcolor: '#2a2a2a' }}>
-                          <TableCell sx={{ color: '#ffffff' }}>{m.medio}</TableCell>
-                          <TableCell align="right" sx={{ color: '#ffffff' }}><ExactValue value={m.facturado} /></TableCell>
-                          <TableCell align="right" sx={{ color: '#ffffff' }}><ExactValue value={m.cobrado} /></TableCell>
-                          <TableCell align="right" sx={{ color: '#ffffff' }}><ExactValue value={m.differenceVal} /></TableCell>
-                        </TableRow>
-                      ))}
+                      {modalDetalle.medios_pago.map((m, i) => {
+                        return (
+                          <TableRow key={m.medio ? m.medio + '-' + i : i} sx={{ bgcolor: '#2a2a2a' }}>
+                            <TableCell sx={{ color: '#ffffff' }}>{m.medio}</TableCell>
+                            <TableCell align="right" sx={{ color: '#ffffff' }}>$ {m.facturado}</TableCell>
+                            <TableCell align="right" sx={{ color: '#ffffff' }}>$ {m.cobrado}</TableCell>
+                            <TableCell align="right" sx={{ color: '#ffffff' }}>$ {m.differenceVal}</TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </TableContainer>
@@ -1125,7 +1598,7 @@ export default function ControlMensual() {
                         const montoValido = !isNaN(numeroMonto) ? numeroMonto : 0;
                         
                         return (
-                          <TableRow key={i} sx={{ bgcolor: '#2a2a2a' }}>
+                          <TableRow key={j.id ? j.id : `${j.motivo}-${j.cliente}-${j.orden}-${i}`} sx={{ bgcolor: '#2a2a2a' }}>
                             <TableCell sx={{ color: '#ffffff' }}><Typography variant="body2">{j.motivo}</Typography></TableCell>
                             <TableCell align="right" sx={{ color: '#ffffff' }}><ExactValue value={montoValido} /></TableCell>
                             <TableCell sx={{ color: '#ffffff' }}>{j.cliente || '-'}</TableCell>

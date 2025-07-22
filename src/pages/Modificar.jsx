@@ -14,6 +14,8 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Switch,
+  FormControlLabel,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon, Save as SaveIcon } from '@mui/icons-material';
 import { axiosWithFallback } from '../config';
@@ -25,6 +27,8 @@ export default function Modificar({ cierre, onClose, onSave }) {
   const [error, setError] = useState('');
   const [config, setConfig] = useState({ motivos_error_pago: [] });
   const [justificaciones, setJustificaciones] = useState([]);
+  const [modificarJustificaciones, setModificarJustificaciones] = useState(false); // Nueva opción
+  const [justificacionesOriginales, setJustificacionesOriginales] = useState([]); // Backup de originales
   const [totales, setTotales] = useState({
     totalFacturado: 0,
     totalCobrado: 0,
@@ -61,12 +65,42 @@ export default function Modificar({ cierre, onClose, onSave }) {
         let fecha = d.fecha;
         if (/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
           fecha = moment(fecha, 'DD/MM/YYYY').format('YYYY-MM-DD');
-        }
-        setForm({ ...d, medios_pago: medios, fecha });
-        const js = (d.justificaciones || []).filter(j =>
-          j && (j.motivo || j.ajuste || j.monto_dif || j.orden || j.cliente)
-        );
+        }        setForm({ ...d, medios_pago: medios, fecha });
+        
+        // Procesar justificaciones con logging para debug
+        const justificacionesOriginales = d.justificaciones || [];
+        console.log('📋 Justificaciones originales cargadas:', justificacionesOriginales.length);
+          const js = justificacionesOriginales.filter(j => {
+          // Si la justificación tiene ID (viene de la DB), SIEMPRE es válida
+          if (j && j.id) {
+            return true;
+          }
+          
+          // Para justificaciones nuevas (sin ID), aplicar filtro más estricto
+          const esValida = j && (
+            (j.motivo && j.motivo.trim()) || 
+            (j.ajuste && parseFloat(j.ajuste) !== 0) || 
+            (j.monto_dif && j.monto_dif !== '0' && j.monto_dif !== '') || 
+            (j.orden && j.orden.trim()) || 
+            (j.cliente && j.cliente.trim())
+          );
+          
+          if (!esValida && j) {
+            console.log('⚠️ Justificación nueva sin contenido filtrada:', {
+              id: j.id,
+              motivo: j.motivo,
+              ajuste: j.ajuste,
+              monto_dif: j.monto_dif,
+              orden: j.orden,
+              cliente: j.cliente
+            });
+          }
+          
+          return esValida;
+        });
+          console.log('✅ Justificaciones válidas después del filtro:', js.length);
         setJustificaciones(js);
+        setJustificacionesOriginales(js); // Guardar backup de las originales
       })
       .catch(err => setError('No se pudo cargar: ' + err.message))
       .finally(() => setLoading(false));
@@ -101,11 +135,14 @@ export default function Modificar({ cierre, onClose, onSave }) {
       return { ...f, medios_pago: list };
     });
   }, []);
-
   const handleJustChange = useCallback((i, field, value) => {
     setJustificaciones(js => {
       const arr = [...js];
       arr[i] = { ...arr[i], [field]: value };
+      // Marcar como modificada si ya tiene ID (viene de la DB)
+      if (arr[i].id) {
+        arr[i]._modificada = true;
+      }
       return arr;
     });
   }, []);
@@ -115,58 +152,128 @@ export default function Modificar({ cierre, onClose, onSave }) {
       ...js,
       { cierre_id: form.id, fecha: form.fecha, orden: '', cliente: '', monto_dif: 0, ajuste: 0, motivo: '' },
     ]);
-  }, [form]);
-
-  const delJust = useCallback(
+  }, [form]);  const delJust = useCallback(
     async i => {
-      const j = justificaciones[i];
       if (window.confirm('¿Eliminar justificación?')) {
-        if (j.id) {
-          try {
-            await axiosWithFallback(`/api/justificaciones/${j.id}`, { method: 'DELETE' });
-          } catch {}
+        const justificacion = justificaciones[i];
+        
+        try {
+          // Si la justificación tiene ID (existe en la DB), eliminarla del servidor INMEDIATAMENTE
+          if (justificacion.id) {
+            console.log(`🗑️ Eliminando justificación ID ${justificacion.id} del servidor...`);
+            await axiosWithFallback(`/api/justificaciones/${justificacion.id}`, { method: 'delete' });
+            console.log(`✅ Justificación ID ${justificacion.id} eliminada del servidor`);
+            
+            // También eliminar de las justificaciones originales
+            setJustificacionesOriginales(orig => orig.filter(j => j.id !== justificacion.id));
+          }
+          
+          // Eliminar del estado local (tanto para justificaciones con ID como nuevas)
+          setJustificaciones(js => js.filter((_, idx) => idx !== i));
+          
+        } catch (error) {
+          console.error('Error eliminando justificación:', error);
+          setError('Error al eliminar la justificación: ' + (error.response?.data?.error || error.message));
+          return; // No eliminar del estado local si falló la eliminación del servidor
         }
-        setJustificaciones(js => js.filter((_, idx) => idx !== i));
       }
     },
     [justificaciones]
-  );
-  const handleSave = useCallback(async () => {
+  );const handleSave = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const cleanJs = justificaciones.filter(
-        j => j.motivo || j.ajuste || j.monto_dif || j.orden || j.cliente
-      );
-      const fechaEnv = moment(form.fecha, 'YYYY-MM-DD').format('DD/MM/YYYY');
-      const payload = {
+      // Validar que tenemos un ID de cierre
+      if (!form.id) {
+        setError('No se encontró el ID del cierre');
+        return;
+      }      // Validar y formatear fecha correctamente
+      let fechaEnv;
+      if (!form.fecha) {
+        setError('La fecha del cierre es requerida');
+        return;
+      }
+        console.log('🔍 Validando fecha original:', form.fecha);
+      
+      // Intentar múltiples formatos de fecha
+      let momentDate;
+      if (moment(form.fecha, 'YYYY-MM-DD', true).isValid()) {
+        momentDate = moment(form.fecha, 'YYYY-MM-DD');
+        console.log('✅ Fecha válida formato YYYY-MM-DD');
+      } else if (moment(form.fecha, 'DD/MM/YYYY', true).isValid()) {
+        momentDate = moment(form.fecha, 'DD/MM/YYYY');
+        console.log('✅ Fecha válida formato DD/MM/YYYY');
+      } else if (moment(form.fecha).isValid()) {
+        momentDate = moment(form.fecha);
+        console.log('✅ Fecha válida formato automático');
+      } else {
+        console.error('❌ Fecha inválida:', form.fecha);
+        setError('La fecha del cierre no es válida: ' + form.fecha);
+        return;
+      }
+      
+      fechaEnv = momentDate.format('DD/MM/YYYY');
+      console.log('📅 Fecha formateada para envío:', fechaEnv);// Filtrar justificaciones válidas y formatear fecha con logging detallado
+      console.log('💾 Preparando guardado...');
+      console.log('📝 Justificaciones antes del filtro de guardado:', justificaciones.length);
+        const cleanJs = justificaciones.filter(j => {
+        // Si la justificación tiene ID (viene de la DB), SIEMPRE preservar
+        if (j && j.id) {
+          return true;
+        }
+        
+        // Para justificaciones nuevas (sin ID), aplicar filtro estricto
+        const esValida = j && (
+          (j.motivo && j.motivo.trim()) || 
+          (j.ajuste && parseFloat(j.ajuste) !== 0) || 
+          (j.monto_dif && j.monto_dif !== '0' && j.monto_dif !== '') || 
+          (j.orden && j.orden.trim()) || 
+          (j.cliente && j.cliente.trim())
+        );
+        
+        if (!esValida && j) {
+          console.log('⚠️ Justificación nueva sin contenido excluida del guardado:', {
+            id: j.id,
+            motivo: j.motivo,
+            ajuste: j.ajuste,
+            monto_dif: j.monto_dif,
+            orden: j.orden,
+            cliente: j.cliente
+          });
+        }
+        
+        return esValida;
+      }).map(j => ({
+        ...j,
+        fecha: fechaEnv, // Usar la misma fecha del cierre
+        cierre_id: form.id // Asegurar que tienen el cierre_id correcto
+      }));
+      
+      console.log('Guardando cierre:', {
+        id: form.id,
+        fecha: fechaEnv,
+        fechaOriginal: form.fecha,
+        justificaciones: cleanJs.length,
+        justificacionesData: cleanJs
+      });      const payload = {
         ...form,
         medios_pago: JSON.stringify(form.medios_pago),
         grand_difference_total: totales.diferenciaTotal,
         balance_sin_justificar: totales.balanceFinal,
         fecha: fechaEnv,
+        // Solo incluir justificaciones si el usuario eligió modificarlas Y solo las nuevas/modificadas
+        ...(modificarJustificaciones ? { 
+          justificaciones: cleanJs.filter(j => !j.id || j._modificada) // Solo nuevas o marcadas como modificadas
+        } : {})
       };
       
-      // Guardar cierre
-      await axiosWithFallback(`/api/cierres-completo/${form.id}`, { method: 'PUT', data: payload });
+      console.log('📤 Payload final:', {
+        incluirJustificaciones: modificarJustificaciones,
+        cantidadJustificaciones: modificarJustificaciones ? cleanJs.length : 'NO MODIFICAR'
+      });
       
-      // Guardar justificaciones
-      for (const j of cleanJs) {
-        const jData = { ...j, fecha: fechaEnv };
-        try {
-          if (j.id) {
-            await axiosWithFallback(`/api/justificaciones/${j.id}`, { method: 'PUT', data: jData });
-          } else {
-            await axiosWithFallback(`/api/justificaciones`, {
-              method: 'POST',
-              data: { ...jData, cierre_id: form.id },
-            });
-          }
-        } catch (justError) {
-          console.error('Error en justificación:', justError);
-          // Continuar con las demás justificaciones
-        }
-      }
+      // Guardar cierre y justificaciones en una sola operación
+      await axiosWithFallback(`/api/cierres-completo/${form.id}`, { method: 'PUT', data: payload });
       
       // Callback de éxito
       onSave?.({
@@ -175,17 +282,19 @@ export default function Modificar({ cierre, onClose, onSave }) {
         medios_pago: form.medios_pago,
         grand_difference_total: totales.diferenciaTotal,
         balance_sin_justificar: totales.balanceFinal,
+        justificaciones: cleanJs,
       });
       
       // Cerrar automáticamente
       onClose?.();
       
     } catch (e) {
+      console.error('Error al guardar:', e);
       setError('Error al guardar: ' + (e.response?.data?.error || e.message || e));
     } finally {
       setLoading(false);
     }
-  }, [form, justificaciones, totales, onSave, onClose]);
+  }, [form, justificaciones, totales, modificarJustificaciones, onSave, onClose]);
 
   const formatMoney = v =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(v || 0);
@@ -294,27 +403,131 @@ export default function Modificar({ cierre, onClose, onSave }) {
             </Box>
           </Paper>
         ))}
-      </Box>      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-        <Typography variant="h6" sx={{ flex: 1, fontSize: '1rem' }}>
-          Justificaciones
+      </Box>      <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', mb: 1, p: 1, bgcolor: '#1A1A1A', borderRadius: 2, border: '1px solid #333' }}>
+        <Typography variant="h6" sx={{ fontSize: '1rem' }}>
+          Justificaciones ({justificacionesOriginales.length} originales)
         </Typography>
-        <Button
-          startIcon={<AddIcon />}
-          size="small"
-          variant="outlined"
-          onClick={addJust}
-          sx={{ borderRadius: 2, borderColor: '#444', fontSize: '0.8rem' }}
-        >
-          Nueva
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={modificarJustificaciones}
+                onChange={(e) => setModificarJustificaciones(e.target.checked)}
+                size="small"
+                sx={{
+                  '& .MuiSwitch-thumb': {
+                    backgroundColor: modificarJustificaciones ? '#4caf50' : '#666',
+                  },
+                  '& .MuiSwitch-track': {
+                    backgroundColor: modificarJustificaciones ? 'rgba(76, 175, 80, 0.5)' : 'rgba(255, 255, 255, 0.3)',
+                  },
+                }}
+              />
+            }
+            label={
+              <Typography variant="body2" sx={{ fontSize: '0.8rem', color: modificarJustificaciones ? '#4caf50' : '#888' }}>
+                {modificarJustificaciones ? 'Modificando justificaciones' : 'Preservar justificaciones originales'}
+              </Typography>
+            }
+            sx={{ mr: 2 }}
+          />
+          {modificarJustificaciones && (
+            <Button
+              startIcon={<AddIcon />}
+              size="small"
+              variant="outlined"
+              onClick={addJust}
+              sx={{ borderRadius: 2, borderColor: '#444', fontSize: '0.8rem' }}
+            >
+              Nueva
+            </Button>
+          )}
+        </Box>
       </Box>
-      {justificaciones.length === 0 && (
-        <Typography color="text.secondary" sx={{ mb: 1, fontSize: '0.8rem' }}>
-          No hay justificaciones registradas
-        </Typography>
+        {/* Mostrar advertencia si no se van a modificar las justificaciones */}
+      {!modificarJustificaciones && justificacionesOriginales.length > 0 && (
+        <Alert severity="info" sx={{ mb: 1.5, bgcolor: '#1a2332', borderColor: '#2196f3' }}>
+          <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+            Las justificaciones se mantendrán sin cambios. Active la modificación si desea editarlas.
+          </Typography>
+        </Alert>
       )}
-      <Box sx={{ display: 'grid', gap: 1, mb: 1.5 }}>
-        {justificaciones.map((j, i) => (
+
+      {/* Mostrar justificaciones originales en modo solo lectura */}
+      {!modificarJustificaciones && justificacionesOriginales.length > 0 && (
+        <Box sx={{ mb: 1.5 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontSize: '0.9rem', color: '#A0A0A0' }}>
+            Justificaciones actuales (solo lectura):
+          </Typography>
+          <Box sx={{ display: 'grid', gap: 1 }}>
+            {justificacionesOriginales.map((j, i) => (
+              <Paper
+                key={i}
+                elevation={0}
+                sx={{
+                  p: 1.5,
+                  display: 'flex',
+                  gap: 1.5,
+                  alignItems: 'center',
+                  bgcolor: '#1A1A1A',
+                  borderRadius: 2,
+                  border: '1px solid #333',
+                  opacity: 0.8,
+                }}
+              >
+                <Box sx={{ 
+                  width: 80, 
+                  fontSize: '0.8rem', 
+                  color: '#A0A0A0',
+                  textAlign: 'center',
+                  fontFamily: 'monospace'
+                }}>
+                  {j.orden || '-'}
+                </Box>
+                <Box sx={{ 
+                  width: 120, 
+                  fontSize: '0.8rem', 
+                  color: '#E0E0E0',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {j.cliente || '-'}
+                </Box>
+                <Box sx={{ 
+                  width: 80, 
+                  fontSize: '0.8rem', 
+                  color: j.ajuste > 0 ? '#4caf50' : j.ajuste < 0 ? '#f44336' : '#A0A0A0',
+                  textAlign: 'right',
+                  fontFamily: 'monospace'
+                }}>
+                  {formatMoney(j.ajuste || 0)}
+                </Box>
+                <Box sx={{ 
+                  flex: 1, 
+                  fontSize: '0.8rem', 
+                  color: '#A0A0A0',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap'
+                }}>
+                  {j.motivo || '-'}
+                </Box>
+              </Paper>
+            ))}
+          </Box>
+        </Box>
+      )}
+      
+      {modificarJustificaciones && (
+        <Box>
+          {justificaciones.length === 0 && (
+            <Typography color="text.secondary" sx={{ mb: 1, fontSize: '0.8rem' }}>
+              No hay justificaciones registradas
+            </Typography>
+          )}
+          <Box sx={{ display: 'grid', gap: 1, mb: 1.5 }}>
+            {justificaciones.map((j, i) => (
           <Paper
             key={i}
             elevation={0}
@@ -398,10 +611,13 @@ export default function Modificar({ cierre, onClose, onSave }) {
                   </MenuItem>
                 ))}
               </Select>
-            </FormControl>
-          </Paper>
+            </FormControl>          </Paper>
         ))}
-      </Box>      <Typography variant="h6" sx={{ mb: 0.5, fontSize: '1rem' }}>
+      </Box>
+        </Box>
+      )}
+
+      <Typography variant="h6" sx={{ mb: 0.5, fontSize: '1rem' }}>
         Comentarios
       </Typography>
       <TextField

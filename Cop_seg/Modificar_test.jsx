@@ -30,7 +30,7 @@ import {
   Edit as EditIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import { API_BASE_URL } from '../src/config';
 import moment from 'moment';
 
 export default function Modificar({ cierre, onClose, onSave }) {

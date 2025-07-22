@@ -30,27 +30,76 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 // ── MODIFICADO: Crear la tabla 'cierres' con las nuevas columnas ──
-const createTableQuery = `
-  CREATE TABLE IF NOT EXISTS cierres (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    fecha TEXT,
-    tienda TEXT,
-    usuario TEXT,
-    total_billetes REAL,
-    final_balance REAL,
-    brinks_total REAL,
-    grand_difference_total REAL,
-    medios_pago TEXT,
-    balance_sin_justificar REAL,
-    responsable TEXT,
-    comentarios TEXT
-  )
-`;
+const createTableQuery = [
+  'CREATE TABLE IF NOT EXISTS cierres (',
+  '  id INTEGER PRIMARY KEY AUTOINCREMENT,',
+  '  fecha TEXT,',
+  '  tienda TEXT,',
+  '  usuario TEXT,',
+  '  total_billetes REAL,',
+  '  final_balance REAL,',
+  '  brinks_total REAL,',
+  '  grand_difference_total REAL,',
+  '  medios_pago TEXT,',
+  '  balance_sin_justificar REAL,',
+  '  responsable TEXT,',
+  '  comentarios TEXT,',
+  '  fondo REAL,',
+  '  validado INTEGER DEFAULT 0,',
+  '  usuario_validacion TEXT,',
+  '  fecha_validacion TEXT,',
+  '  revisar INTEGER DEFAULT 0', // <-- Asegura que la columna existe
+  ')'
+].join('\n');
+
 db.run(createTableQuery, (err) => {
   if (err) {
-    console.error("Error al crear la tabla cierres:", err.message);
+    console.error('Error creando tabla cierres:', err.message);
   } else {
     console.log("Tabla 'cierres' lista.");
+    
+    // Verificar y agregar las columnas de validación si no existen
+    db.all('PRAGMA table_info(cierres)', [], (err, columns) => {
+      if (err) {
+        console.error("Error verificando columnas:", err.message);
+        return;
+      }
+      
+      const columnNames = columns.map(col => col.name);
+      
+      // Agregar columna 'validado' si no existe
+      if (!columnNames.includes('validado')) {
+        db.run('ALTER TABLE cierres ADD COLUMN validado INTEGER DEFAULT 0', (err) => {
+          if (err) {
+            console.error("Error agregando columna 'validado':", err.message);
+          } else {
+            console.log("Columna 'validado' agregada exitosamente.");
+          }
+        });
+      }
+      
+      // Agregar columna 'usuario_validacion' si no existe
+      if (!columnNames.includes('usuario_validacion')) {
+        db.run('ALTER TABLE cierres ADD COLUMN usuario_validacion TEXT', (err) => {
+          if (err) {
+            console.error("Error agregando columna 'usuario_validacion':", err.message);
+          } else {
+            console.log("Columna 'usuario_validacion' agregada exitosamente.");
+          }
+        });
+      }
+      
+      // Agregar columna 'fecha_validacion' si no existe
+      if (!columnNames.includes('fecha_validacion')) {
+        db.run('ALTER TABLE cierres ADD COLUMN fecha_validacion TEXT', (err) => {
+          if (err) {
+            console.error("Error agregando columna 'fecha_validacion':", err.message);
+          } else {
+            console.log("Columna 'fecha_validacion' agregada exitosamente.");
+          }
+        });
+      }
+    });
   }
 });
 
@@ -118,7 +167,7 @@ app.get('/', (req, res) => {
 // ── GET /api/cierres-completo ──
 app.get('/api/cierres-completo', (req, res) => {
   const { fechaDesde, fechaHasta, tienda, usuario } = req.query;
-  
+  console.log('API cierres-completo - recibido:', { fechaDesde, fechaHasta, tienda, usuario });
   // Construir la consulta con filtros opcionales
   let cierresQuery = `
     SELECT 
@@ -133,7 +182,10 @@ app.get('/api/cierres-completo', (req, res) => {
       medios_pago,
       balance_sin_justificar,
       responsable,
-      comentarios
+      comentarios,
+      validado,
+      usuario_validacion,
+      fecha_validacion
     FROM cierres WHERE 1=1
   `;
   
@@ -142,12 +194,13 @@ app.get('/api/cierres-completo', (req, res) => {
   // Agregar filtros de fecha si se proporcionan (convertir DD/MM/YYYY a YYYY-MM-DD)
   if (fechaDesde) {
     const fechaDesdeFormatted = moment(fechaDesde, 'DD/MM/YYYY').format('YYYY-MM-DD');
+    console.log('API cierres-completo - fechaDesde convertido:', fechaDesdeFormatted);
     cierresQuery += ` AND fecha >= ?`;
     queryParams.push(fechaDesdeFormatted);
   }
-  
   if (fechaHasta) {
     const fechaHastaFormatted = moment(fechaHasta, 'DD/MM/YYYY').format('YYYY-MM-DD');
+    console.log('API cierres-completo - fechaHasta convertido:', fechaHastaFormatted);
     cierresQuery += ` AND fecha <= ?`;
     queryParams.push(fechaHastaFormatted);
   }
@@ -175,6 +228,8 @@ app.get('/api/cierres-completo', (req, res) => {
     FROM justificaciones
   `;
 
+  console.log('API cierres-completo - SQL:', cierresQuery);
+  console.log('API cierres-completo - params:', queryParams);
   db.all(cierresQuery, queryParams, (err, cierres) => {
     if (err) {
       console.error("Error al obtener cierres:", err.message);
@@ -249,7 +304,10 @@ app.get('/api/cierres-completo/:id', (req, res) => {
       medios_pago,
       balance_sin_justificar,
       responsable,
-      comentarios
+      comentarios,
+      validado,
+      usuario_validacion,
+      fecha_validacion
     FROM cierres 
     WHERE id = ?
   `;
@@ -626,10 +684,46 @@ app.put('/api/cierres-completo/:id', (req, res) => {
     responsable,
     comentarios
   } = req.body;
+  console.log(`PUT /api/cierres-completo/${cierreId} - Iniciando actualización...`);
+  console.log('📋 Datos recibidos:', {
+    cierreId,
+    fecha,
+    tienda,
+    usuario,
+    justificaciones: justificaciones?.length || 0,
+    justificacionesPresentes: justificaciones !== undefined,
+    comentarios: comentarios?.substring(0, 50) + (comentarios?.length > 50 ? '...' : '')
+  });
+  
+  // Log detallado de justificaciones si están presentes
+  if (justificaciones !== undefined) {
+    console.log('📝 Detalles de justificaciones recibidas:');
+    if (Array.isArray(justificaciones)) {
+      justificaciones.forEach((j, index) => {
+        console.log(`   ${index + 1}. ID:${j.id || 'NUEVO'} - Motivo:${j.motivo || 'Sin motivo'} - Ajuste:${j.ajuste || 0}`);
+      });
+    } else {
+      console.log('   ⚠️ justificaciones no es un array:', typeof justificaciones);
+    }
+  } else {
+    console.log('📝 No se enviaron justificaciones en el request (se mantendrán las existentes)');
+  }
+
+  // Validar parámetros requeridos
+  if (!cierreId) {
+    console.error('ID de cierre faltante');
+    return res.status(400).json({ error: 'ID de cierre requerido' });
+  }
+
+  // Validar que la fecha sea válida
+  if (!fecha || !moment(fecha, 'DD/MM/YYYY').isValid()) {
+    console.error('Fecha inválida recibida:', fecha);
+    return res.status(400).json({ error: 'Fecha inválida: ' + fecha });
+  }
 
   // Formatear la fecha a YYYY-MM-DD antes de guardarla
-  // La fecha viene en formato DD/MM/YYYY desde el frontend
   const fechaFormateada = moment(fecha, 'DD/MM/YYYY').format('YYYY-MM-DD');
+  console.log(`Fecha formateada: ${fecha} -> ${fechaFormateada}`);
 
   const updateCierre = `
     UPDATE cierres SET
@@ -648,7 +742,7 @@ app.put('/api/cierres-completo/:id', (req, res) => {
   `;
 
   db.run(updateCierre, [
-    fechaFormateada, // Usar la fecha formateada
+    fechaFormateada,
     tienda,
     usuario,
     total_billetes,
@@ -666,39 +760,119 @@ app.put('/api/cierres-completo/:id', (req, res) => {
       return res.status(500).json({ error: 'Error actualizando cierre' });
     }
     if (this.changes === 0) {
+      console.error(`Cierre ${cierreId} no encontrado`);
       return res.status(404).json({ error: 'Cierre no encontrado' });
     }
-    // Actualizar justificaciones: eliminar las existentes y agregar las nuevas
-    db.run('DELETE FROM justificaciones WHERE cierre_id = ?', [cierreId], (err2) => {
-      if (err2) {
-        console.error('Error eliminando justificaciones:', err2.message);
-        return res.status(500).json({ error: 'Error actualizando justificaciones' });
-      }
-      if (Array.isArray(justificaciones) && justificaciones.length > 0) {
-        const insertJust = `INSERT INTO justificaciones (cierre_id, fecha, orden, cliente, monto_dif, ajuste, motivo) VALUES (?, ?, ?, ?, ?, ?, ?)`;
-        const stmt = db.prepare(insertJust);
-        justificaciones.forEach(j => {
-          stmt.run([
-            cierreId,
-            j.fecha,
-            j.orden,
-            j.cliente,
-            j.monto_dif,
-            j.ajuste,
-            j.motivo
-          ]);
-        });
-        stmt.finalize((finalErr) => {
-          if (finalErr) {
-            console.error('Error insertando justificaciones:', finalErr.message);
-            return res.status(500).json({ error: 'Error insertando justificaciones' });
+      console.log(`Cierre ${cierreId} actualizado correctamente`);
+      // Solo actualizar justificaciones si se envían explícitamente en el request
+    if (justificaciones !== undefined) {
+      console.log(`Actualizando justificaciones para cierre ${cierreId}...`);
+      
+      // Validación de seguridad: verificar si tenemos justificaciones existentes
+      db.get('SELECT COUNT(*) as count FROM justificaciones WHERE cierre_id = ?', [cierreId], (errCount, countResult) => {
+        if (errCount) {
+          console.error('Error contando justificaciones existentes:', errCount.message);
+          return res.status(500).json({ error: 'Error verificando justificaciones existentes' });
+        }
+        
+        const justificacionesExistentes = countResult.count;
+        const justificacionesNuevas = Array.isArray(justificaciones) ? justificaciones.length : 0;
+        
+        console.log(`📊 Justificaciones existentes: ${justificacionesExistentes}, nuevas: ${justificacionesNuevas}`);
+        
+        // Advertencia si se están eliminando justificaciones sin reemplazo
+        if (justificacionesExistentes > 0 && justificacionesNuevas === 0) {
+          console.log('⚠️ ATENCIÓN: Se eliminarán todas las justificaciones sin reemplazo');
+        }
+        
+        // Proceder con la actualización
+        db.run('DELETE FROM justificaciones WHERE cierre_id = ?', [cierreId], (err2) => {
+          if (err2) {
+            console.error('Error eliminando justificaciones:', err2.message);
+            return res.status(500).json({ error: 'Error actualizando justificaciones' });
           }
-          res.json({ message: 'Cierre y justificaciones actualizados correctamente' });
+          
+          console.log(`✅ ${justificacionesExistentes} justificaciones eliminadas para cierre ${cierreId}`);
+          
+          if (Array.isArray(justificaciones) && justificaciones.length > 0) {
+            console.log(`📝 Insertando ${justificaciones.length} nuevas justificaciones`);
+            const insertJust = `INSERT INTO justificaciones (cierre_id, fecha, orden, cliente, monto_dif, ajuste, motivo) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+            const stmt = db.prepare(insertJust);
+            
+            let insertedCount = 0;
+            justificaciones.forEach((j, index) => {
+              console.log(`   ${index + 1}. Insertando: Orden:${j.orden || 'N/A'} - Cliente:${j.cliente || 'N/A'} - Motivo:${j.motivo || 'N/A'} - Ajuste:${j.ajuste || 0}`);
+              
+              stmt.run([
+                cierreId,
+                j.fecha,
+                j.orden,
+                j.cliente,
+                j.monto_dif,
+                j.ajuste,
+                j.motivo
+              ], function(insertErr) {
+                if (insertErr) {
+                  console.error(`Error insertando justificación ${index + 1}:`, insertErr.message);
+                } else {
+                  insertedCount++;
+                  console.log(`   ✅ Justificación ${index + 1} insertada con ID ${this.lastID}`);
+                }
+              });
+            });
+            
+            stmt.finalize((finalErr) => {
+              if (finalErr) {
+                console.error('Error finalizando inserción de justificaciones:', finalErr.message);
+                return res.status(500).json({ error: 'Error insertando justificaciones' });
+              }
+              console.log(`🎉 Cierre ${cierreId} y ${insertedCount} justificaciones actualizados correctamente`);
+              res.json({ 
+                message: 'Cierre y justificaciones actualizados correctamente',
+                justificacionesInsertadas: insertedCount,
+                justificacionesEliminadas: justificacionesExistentes
+              });
+            });
+          } else {
+            console.log(`📭 Array de justificaciones vacío para cierre ${cierreId} (${justificacionesExistentes} eliminadas)`);
+            res.json({ 
+              message: 'Cierre actualizado correctamente (justificaciones eliminadas)',
+              justificacionesEliminadas: justificacionesExistentes
+            });
+          }
         });
-      } else {
-        res.json({ message: 'Cierre actualizado correctamente (sin justificaciones)' });
-      }
-    });
+      });
+    } else {
+      console.log(`🔒 No se enviaron justificaciones en el request, manteniendo las existentes para cierre ${cierreId}`);
+      res.json({ message: 'Cierre actualizado correctamente (justificaciones sin cambios)' });
+    }
+  });
+});
+
+// ── PUT /api/cierres-completo/:id/revisar ──
+app.put('/api/cierres-completo/:id/revisar', (req, res) => {
+  const cierreId = req.params.id;
+  if (!cierreId) {
+    return res.status(400).json({ error: 'Falta el parámetro id' });
+  }
+  
+  console.log(`Intentando marcar cierre ${cierreId} para revisión...`);
+  
+  // Marcar el cierre como "revisar" reemplazando la validación
+  const updateQuery = 'UPDATE cierres SET validado = ?, usuario_validacion = ?, fecha_validacion = ? WHERE id = ?';
+  const params = [0, null, null, cierreId];
+  
+  db.run(updateQuery, params, function (err) {
+    if (err) {
+      console.error('Error actualizando estado revisar:', err.message);
+      return res.status(500).json({ error: 'Error actualizando estado revisar', details: err.message });
+    }
+    if (this.changes === 0) {
+      console.log(`No se encontró cierre con ID ${cierreId}`);
+      return res.status(404).json({ error: 'Cierre no encontrado' });
+    }
+    console.log(`Cierre ${cierreId} marcado para revisión exitosamente. Filas afectadas: ${this.changes}`);
+    res.json({ message: 'Cierre marcado para revisión correctamente' });
   });
 });
 
@@ -945,6 +1119,24 @@ app.delete('/api/justificaciones/:id', (req, res) => {
     }
     
     res.json({ message: 'Justificación eliminada correctamente' });
+  });
+});
+
+// ── PUT /api/cierres-validar ──
+app.put('/api/cierres-validar', (req, res) => {
+  const { ids, usuario_validacion } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'Faltan IDs para validar' });
+  }
+  const fecha_validacion = moment().format('YYYY-MM-DD HH:mm:ss');
+  const placeholders = ids.map(() => '?').join(',');
+  const sql = `UPDATE cierres SET validado = 1, usuario_validacion = ?, fecha_validacion = ? WHERE id IN (${placeholders})`;
+  db.run(sql, [usuario_validacion, fecha_validacion, ...ids], function (err) {
+    if (err) {
+      console.error('Error validando cierres:', err.message);
+      return res.status(500).json({ error: 'Error validando cierres' });
+    }
+    res.json({ message: 'Cierres validados correctamente', count: this.changes });
   });
 });
 
