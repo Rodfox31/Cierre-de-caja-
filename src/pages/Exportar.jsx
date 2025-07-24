@@ -127,6 +127,43 @@ const processNumericValue = (value) => {
   return 0;
 };
 
+// Función específica para procesar valores de ajuste y monto_dif
+const processAjusteValue = (ajuste, monto_dif) => {
+  // Con la nueva implementación, los valores deberían venir como números desde la DB
+  // Pero mantenemos compatibilidad por si hay valores legacy
+  
+  // Intentar procesar ajuste primero
+  if (ajuste !== null && ajuste !== undefined && ajuste !== '') {
+    if (typeof ajuste === 'number') return ajuste;
+    if (typeof ajuste === 'string') {
+      // Limpiar string: remover espacios, convertir puntos de miles y comas decimales
+      const cleaned = ajuste
+        .trim()
+        .replace(/\s+/g, '') // Remover espacios
+        .replace(/\./g, '')  // Remover puntos de miles (formato español)
+        .replace(',', '.');   // Convertir coma decimal a punto
+      const parsed = parseFloat(cleaned);
+      if (!isNaN(parsed)) return parsed;
+    }
+  }
+  
+  // Si ajuste no es válido, intentar con monto_dif (campo legacy)
+  if (monto_dif !== null && monto_dif !== undefined && monto_dif !== '') {
+    if (typeof monto_dif === 'number') return monto_dif;
+    if (typeof monto_dif === 'string') {
+      const cleaned = monto_dif
+        .trim()
+        .replace(/\s+/g, '')
+        .replace(/\./g, '')
+        .replace(',', '.');
+      const parsed = parseFloat(cleaned);
+      if (!isNaN(parsed)) return parsed;
+    }
+  }
+  
+  return 0; // Valor por defecto
+};
+
 // NUEVO: función para mostrar estado de validación
 function getValidacionInfo(cierre) {
   if (cierre.validado) {
@@ -389,6 +426,7 @@ export default function ControlMensual() {
               validado: cierre.validado || false, // Información de validación del cierre
               usuario_validacion: cierre.usuario_validacion || null,
               fecha_validacion: cierre.fecha_validacion || null,
+              medio_pago: justificacion.medio_pago || '', // Agregado para asegurar que se incluya medio_pago
             });
           });
         }
@@ -472,7 +510,7 @@ export default function ControlMensual() {
         justificacion.cliente || '',
         justificacion.orden || '',
         justificacion.motivo || '',
-        justificacion.ajuste || justificacion.monto_dif || '',
+        processAjusteValue(justificacion.ajuste, justificacion.monto_dif),
         justificacion.validado ? 'Sí' : 'No'
       ];
     });
@@ -514,7 +552,7 @@ export default function ControlMensual() {
           Cliente: justificacion.cliente || '',
           Orden: justificacion.orden || '',
           Motivo: justificacion.motivo || '',
-          'Ajuste ($)': justificacion.ajuste || justificacion.monto_dif || '',
+          'Ajuste ($)': processAjusteValue(justificacion.ajuste, justificacion.monto_dif),
           Validado: justificacion.validado ? 'Sí' : 'No'
         };
       });
@@ -568,7 +606,7 @@ export default function ControlMensual() {
           cliente: justificacion.cliente || '',
           orden: justificacion.orden || '',
           motivo: justificacion.motivo || '',
-          ajuste: justificacion.ajuste || justificacion.monto_dif || '',
+          ajuste: processAjusteValue(justificacion.ajuste, justificacion.monto_dif),
           validado: justificacion.validado ? 'Sí' : 'No'
         };
       });
@@ -884,7 +922,7 @@ export default function ControlMensual() {
                       fontWeight: 600,
                       fontFamily: 'monospace'
                     }}>
-                      {formatCurrency(justificacion.ajuste || justificacion.monto_dif || 0)}
+                      {formatCurrency(processAjusteValue(justificacion.ajuste, justificacion.monto_dif))}
                     </TableCell>
                     <TableCell sx={{ color: '#ffffff' }}>
                       {justificacion.medio_pago || 'N/A'}
@@ -914,7 +952,7 @@ export default function ControlMensual() {
                     </TableCell>
                     <TableCell sx={{ 
                       color: filteredJustificaciones.reduce((total, justificacion) => 
-                        total + (justificacion.ajuste || justificacion.monto_dif || 0), 0
+                        total + processAjusteValue(justificacion.ajuste, justificacion.monto_dif), 0
                       ) >= 0 ? '#4caf50' : '#f44336',
                       fontWeight: 700,
                       fontFamily: 'monospace',
@@ -922,7 +960,7 @@ export default function ControlMensual() {
                     }}>
                       {formatCurrency(
                         filteredJustificaciones.reduce((total, justificacion) => 
-                          total + (justificacion.ajuste || justificacion.monto_dif || 0), 0
+                          total + processAjusteValue(justificacion.ajuste, justificacion.monto_dif), 0
                         )
                       )}
                     </TableCell>

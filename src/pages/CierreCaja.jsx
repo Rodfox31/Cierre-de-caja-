@@ -59,9 +59,14 @@ function parseCurrency(valueStr) {
     if (typeof valueStr === "number") return valueStr;
     try {
         const str = String(valueStr).trim();
+        if (str === '' || str === '-') return 0; // Devolver 0 si está vacío o es solo un guion
+
         const isNegative = str.startsWith('-');
-        const cleanStr = str.replace(/^-/, ''); // Remover el signo negativo temporalmente
-        const normalized = cleanStr.replace(/\./g, "").replace(",", ".");
+        // Limpiar el string: quitar el signo negativo para el procesamiento, remover espacios, y luego quitar los puntos de miles.
+        const cleanStr = str.replace(/^-/, '').replace(/\s+/g, '').replace(/\./g, '');
+        // Reemplazar la coma decimal por un punto para el parseo.
+        const normalized = cleanStr.replace(",", ".");
+        
         const result = parseFloat(normalized) || 0;
         return isNegative ? -result : result;
     } catch {
@@ -512,7 +517,7 @@ function JustificacionesPanel({ paymentEntries, ajustesMotivos, fecha, selectedU
                 orden: "",
                 cliente: "",
                 medio_pago: "",
-                ajuste: 0,
+                ajuste: "",
                 motivo: ajustesMotivos && ajustesMotivos.length > 0 ? ajustesMotivos[0] : ""
             }
         ]);
@@ -529,7 +534,7 @@ function JustificacionesPanel({ paymentEntries, ajustesMotivos, fecha, selectedU
 
     const updateJustificacion = (index, field, value) => {
         const newJustificaciones = [...justificaciones];
-        newJustificaciones[index][field] = field === "ajuste" ? parseCurrency(value) : value;
+        newJustificaciones[index][field] = value;
         setJustificaciones(newJustificaciones);
     };
 
@@ -842,6 +847,13 @@ function CierreCaja() {
             ...entry,
             facturado: parseSumExpression(entry.facturado || "0")
         }));
+        
+        // Procesar justificaciones para convertir valores de ajuste a números
+        const justificacionesProcessed = justificacionesData.map(justificacion => ({
+            ...justificacion,
+            ajuste: parseCurrency(justificacion.ajuste || "0") // Convertir string a número
+        }));
+        
         // Fecha en formato DD/MM/YYYY
         const pad = (n) => n.toString().padStart(2, '0');
         const fechaStr = `${pad(fecha.getDate())}/${pad(fecha.getMonth() + 1)}/${fecha.getFullYear()}`;
@@ -853,7 +865,7 @@ function CierreCaja() {
             final_balance: parseFloat(finalTotal.toFixed(2)),
             brinks_total: parseFloat(brinksTotal.toFixed(2)),
             medios_pago: JSON.stringify(mediosPagoExport),
-            justificaciones: justificacionesData,
+            justificaciones: justificacionesProcessed, // Usar las justificaciones procesadas
             grand_difference_total: parseFloat(getGrandPaymentTotal().toFixed(2)),
             balance_sin_justificar: parseFloat(balanceSinJustificar.toFixed(2)),
             responsable: responsable,

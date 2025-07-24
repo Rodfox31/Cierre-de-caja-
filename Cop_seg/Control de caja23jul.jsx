@@ -55,6 +55,7 @@ import {
   Info as InfoIcon
 } from '@mui/icons-material';
 import moment from 'moment';
+import axios from 'axios';
 import { fetchWithFallback, axiosWithFallback } from '../config';
 
 // Función para formatear moneda
@@ -300,189 +301,6 @@ const TiendaCard = React.memo(function TiendaCard({
     </Card>
   );
 });
-
-// Componente para renderizar cada fila de cierre con opción desplegable
-function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevisar, formatMoney, setModalDetalle }) {
-  const [open, setOpen] = useState(false);
-  const theme = useTheme();
-  const estado = getEstado(cierre);
-  const validacionInfo = getValidacionInfo(cierre);
-  const diferencia = Number(cierre.grand_difference_total) || 0;
-
-  // Calcular diferencia justificada
-  const diferenciaJustificada = cierre.justificaciones?.reduce((sum, j) => {
-    return sum + (Number(j.ajuste) || 0);
-  }, 0) || 0;
-  
-  const saldoSinJustificar = diferencia - diferenciaJustificada;
-  const numJustificaciones = cierre.justificaciones?.length || 0;
-
-  return (
-    <React.Fragment>
-      <TableRow
-        sx={{
-          '& > *': { borderBottom: 'unset' },
-          backgroundColor: isSelected ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
-          '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.05) },
-        }}
-      >
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
-          <Checkbox
-            size="small"
-            checked={isSelected}
-            onChange={(e) => handleCheckboxChange(cierre.id, e.target.checked)}
-            disabled={cierre.validado}
-          />
-        </TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
-          <IconButton
-            aria-label="expand row"
-            size="small"
-            onClick={() => setOpen(!open)}
-            disabled={numJustificaciones === 0}
-            sx={{ 
-              color: numJustificaciones > 0 ? '#A3BE8C' : '#666',
-              '&:disabled': { color: '#333' }
-            }}
-          >
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
-        </TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
-          <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
-            {cierre.id}
-          </Typography>
-        </TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
-          <Typography variant="body2">{cierre.fecha.format('DD/MM/YYYY')}</Typography>
-        </TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>{cierre.usuario}</TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
-          <Chip
-            icon={estado.icon}
-            label={estado.label}
-            size="small"
-            sx={{
-              backgroundColor: estado.bgColor,
-              color: estado.color,
-              fontWeight: 'bold',
-            }}
-          />
-        </TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
-          <Tooltip
-            title={
-              validacionInfo.usuario
-                ? `Validado por ${validacionInfo.usuario} el ${moment(validacionInfo.fecha).format('DD/MM/YYYY HH:mm')}`
-                : 'Sin validar'
-            }
-            arrow
-          >
-            <Chip
-              icon={validacionInfo.icon}
-              label={validacionInfo.label}
-              size="small"
-              sx={{
-                backgroundColor: alpha(validacionInfo.color, 0.1),
-                color: validacionInfo.color,
-                fontWeight: 'bold',
-                cursor: 'pointer',
-              }}
-              onClick={() => {
-                if (cierre.validado) {
-                  handleMarcarRevisar(cierre.id);
-                }
-              }}
-            />
-          </Tooltip>
-        </TableCell>
-        <TableCell align="right" sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
-          <ExactValue value={diferencia} />
-        </TableCell>
-        <TableCell align="right" sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
-          <ExactValue value={diferenciaJustificada} />
-        </TableCell>
-        <TableCell align="right" sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
-          <ExactValue value={saldoSinJustificar} />
-        </TableCell>
-        <TableCell align="center" sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Chip 
-              label={numJustificaciones} 
-              size="small"
-              sx={{
-                backgroundColor: numJustificaciones > 0 ? '#A3BE8C20' : '#66666620',
-                color: numJustificaciones > 0 ? '#A3BE8C' : '#666',
-                fontWeight: 'bold',
-              }}
-            />
-            {numJustificaciones > 0 && (
-              <Typography variant="caption" sx={{ color: '#A3BE8C', fontSize: '0.7rem' }}>
-                justif.
-              </Typography>
-            )}
-          </Box>
-        </TableCell>
-        <TableCell align="center" sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
-          <IconButton size="small" onClick={() => setModalDetalle(cierre)}>
-            <VisibilityIcon />
-          </IconButton>
-        </TableCell>
-      </TableRow>
-      <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={12}>
-          <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 1, padding: 2, backgroundColor: '#2E3440', borderRadius: 2 }}>
-              <Typography variant="h6" gutterBottom component="div" sx={{ color: '#ECEFF4', fontSize: '1rem' }}>
-                Justificaciones ({numJustificaciones})
-              </Typography>
-              {numJustificaciones > 0 ? (
-                <Table size="small" aria-label="justificaciones">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Fecha</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Usuario</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Cliente</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Orden</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Medio de Pago</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Motivo</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }} align="right">Ajuste</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {cierre.justificaciones.map((justificacion, index) => (
-                      <TableRow key={justificacion.id || index}>
-                        <TableCell sx={{ color: '#E5E9F0' }}>
-                          {justificacion.fecha ? moment(justificacion.fecha).format('DD/MM/YYYY') : '-'}
-                        </TableCell>
-                        <TableCell sx={{ color: '#E5E9F0' }}>{justificacion.usuario || '-'}</TableCell>
-                        <TableCell sx={{ color: '#E5E9F0' }}>{justificacion.cliente || '-'}</TableCell>
-                        <TableCell sx={{ color: '#E5E9F0' }}>{justificacion.orden || '-'}</TableCell>
-                        <TableCell sx={{ color: '#E5E9F0' }}>{justificacion.medio_pago || '-'}</TableCell>
-                        <TableCell sx={{ color: '#E5E9F0', maxWidth: 300 }}>
-                          <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
-                            {justificacion.motivo || 'Sin motivo'}
-                          </Typography>
-                        </TableCell>
-                        <TableCell align="right" sx={{ color: '#EBCB8B', fontWeight: 'bold' }}>
-                          {formatMoney(justificacion.ajuste || 0)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <Typography variant="body2" sx={{ color: '#D8DEE9', fontStyle: 'italic' }}>
-                  No hay justificaciones para este cierre
-                </Typography>
-              )}
-            </Box>
-          </Collapse>
-        </TableCell>
-      </TableRow>
-    </React.Fragment>
-  );
-}
 
 export default function ControlMensual() {
   const theme = useTheme();
@@ -1423,63 +1241,291 @@ export default function ControlMensual() {
                       borderBottom: '2px solid #A3BE8C'
                     }
                   }}>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}>
-                      <Checkbox 
-                        sx={{ 
-                          color: '#A3BE8C', 
-                          '&.Mui-checked': { color: '#A3BE8C' } 
-                        }} 
-                        checked={selectedCierres.length > 0 && selectedCierresIds.size === selectedCierres.filter(c => !c.validado).length} 
-                        indeterminate={selectedCierresIds.size > 0 && selectedCierresIds.size < selectedCierres.filter(c => !c.validado).length} 
-                        onChange={(e) => handleSelectAll(e.target.checked)} 
-                      />
-                    </TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}>Ver</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>ID</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Fecha</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Usuario</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Estado</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Validación</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
-                      <Tooltip title="Diferencia total del cierre antes de ajustes" arrow>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <span>Diferencia Total</span>
-                          <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
-                        </Box>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
-                      <Tooltip title="Total de todas las justificaciones realizadas" arrow>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <span>Diferencia Justificada</span>
-                          <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
-                        </Box>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
-                      <Tooltip title="Saldo sin justificar (Diferencia Total - Justificaciones)" arrow>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <span>Saldo Sin Justificar</span>
-                          <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
-                        </Box>
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }} align="center">Justif.</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }} align="center">Acciones</TableCell>
+                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}><Checkbox sx={{ color: '#A3BE8C', '&.Mui-checked': { color: '#A3BE8C' } }} checked={selectedCierres.length > 0 && selectedCierresIds.size === selectedCierres.filter(c => !c.validado).length} indeterminate={selectedCierresIds.size > 0 && selectedCierresIds.size < selectedCierres.filter(c => !c.validado).length} onChange={(e) => handleSelectAll(e.target.checked)} /></TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}>Ver</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>ID</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Fecha</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Usuario</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Estado</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Validación</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
+                          <Tooltip title="Diferencia total del cierre antes de ajustes" arrow>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <span>Diferencia Total</span>
+                              <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
+                            </Box>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
+                          <Tooltip title="Total de todas las justificaciones realizadas" arrow>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <span>Diferencia Justificada</span>
+                              <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
+                            </Box>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
+                          <Tooltip title="Saldo sin justificar (Diferencia Total - Justificaciones)" arrow>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <span>Saldo Sin Justificar</span>
+                              <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
+                            </Box>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: '300px' }}>Justificaciones</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {selectedCierres.map((cierre) => (
-                    <CierreRow
-                      key={cierre.id}
-                      cierre={cierre}
-                      isSelected={selectedCierresIds.has(cierre.id)}
-                      handleCheckboxChange={handleCheckboxChange}
-                      handleMarcarRevisar={handleMarcarRevisar}
-                      formatMoney={formatMoney}
-                      setModalDetalle={setModalDetalle}
-                    />
-                  ))}
+                  {selectedCierres.map((cierre) => {
+                    const estado = getEstado(cierre);
+                    const diferencia = Number(cierre.grand_difference_total) || 0;
+                    const validacion = getValidacionInfo(cierre);
+                    
+                    // Calcular información agregada de justificaciones
+                    const infoJustificaciones = cierre.justificaciones && cierre.justificaciones.length > 0 
+                      ? (() => {
+                          const justifs = cierre.justificaciones;
+                          const totalJustifs = justifs.length;
+                          
+                          // Agrupar por cliente y orden únicos
+                          const clientesUnicos = [...new Set(justifs.map(j => j.cliente).filter(c => c && c !== '0'))];
+                          const ordenesUnicas = [...new Set(justifs.map(j => j.orden).filter(o => o && o !== '0'))];
+                          
+                          // Calcular monto total de justificaciones
+                          const montoTotal = justifs.reduce((sum, j) => {
+                            // Preferir usar el campo ajuste cuando esté disponible (más preciso)
+                            if (j.ajuste != null) {
+                              const ajusteNum = Number(j.ajuste);
+                              return sum + (isNaN(ajusteNum) ? 0 : ajusteNum);
+                            }
+                            // Si no hay ajuste, intentar procesar monto_dif
+                            else if (j.monto_dif != null) {
+                              let monto = j.monto_dif;
+                              if (typeof monto === 'string') {
+                                // Limpiar el string: remover $ y espacios, luego procesar formato argentino
+                                monto = monto.replace(/\$/g, '').trim();
+                                // En formato argentino: punto = separador de miles, coma = separador decimal
+                                // Ej: "20.500" = 20500, "20.500,50" = 20500.50, "20,50" = 20.50
+                                if (monto.includes(',')) {
+                                  // Tiene coma decimal: "20.500,50" -> partes: ["20.500", "50"]
+                                  const partes = monto.split(',');
+                                  const entero = partes[0].replace(/\./g, ''); // Remover puntos de miles
+                                  const decimal = partes[1] || '0';
+                                  monto = entero + '.' + decimal;
+                                } else {
+                                  // No tiene coma decimal: "20.500" -> 20500 (punto como separador de miles)
+                                  monto = monto.replace(/\./g, '');
+                                }
+                              }
+                              const numeroMonto = Number(monto);
+                              return sum + (isNaN(numeroMonto) ? 0 : numeroMonto);
+                            }
+                            return sum;
+                          }, 0);
+                          
+                          return {
+                            total: totalJustifs,
+                            clientes: clientesUnicos,
+                            ordenes: ordenesUnicas,
+                            montoTotal,
+                            justificaciones: justifs
+                          };
+                        })()
+                      : null;
+                    
+                    return (
+                      <TableRow 
+                        key={cierre.id} 
+                        sx={{ 
+                          '&:hover': { bgcolor: '#3a3a3a' },
+                          bgcolor: '#2a2a2a',
+                          ...(diferencia !== 0 && {
+                            borderLeft: `3px solid ${estado.color}`
+                          })
+                        }}
+                      >
+                        <TableCell>
+                          <Checkbox
+                            sx={{
+                              color: '#A3BE8C',
+                              '&.Mui-checked': { color: '#A3BE8C' },
+                            }}
+                            checked={selectedCierresIds.has(cierre.id)}
+                            onChange={(e) => handleCheckboxChange(cierre.id, e.target.checked)}
+                            // Solo deshabilitar si está en estado de revisión, no si está validado
+                            disabled={cierre.revisar}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Tooltip title="Ver detalles del cierre" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setModalDetalle(cierre);
+                              }}
+                              sx={{ color: '#A3BE8C' }}
+                            >
+                              <VisibilityIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ 
+                              color: '#ffffff',
+                              fontFamily: 'monospace',
+                              fontSize: '0.8rem'
+                            }}
+                          >
+                            {cierre.id || 'N/A'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell sx={{ color: '#ffffff' }}>
+                          {cierre.fecha ? cierre.fecha.format('DD/MM') : cierre.fecha}
+                        </TableCell>
+                        <TableCell sx={{ color: '#ffffff' }}>
+                          {cierre.usuario || 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            {estado.icon}
+                            <Typography variant="body2" sx={{ ml: 1, color: estado.color }}>
+                              {estado.label}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {validacion.icon}
+                            <Typography variant="body2" sx={{ ml: 1, color: validacion.color }}>
+                              {cierre.revisar ? 'Revisar' : validacion.label}
+                            </Typography>
+                            {validacion.usuario && !cierre.revisar && (
+                              <Tooltip title={`Validado por ${validacion.usuario} el ${validacion.fecha}`}>
+                                <Chip label={validacion.usuario} size="small" sx={{ ml: 1, bgcolor: '#4caf50', color: '#fff' }} />
+                              </Tooltip>
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell sx={{ 
+                          color: diferencia === 0 ? '#A3BE8C' : diferencia > 0 ? '#BF616A' : '#EBCB8B',
+                          fontWeight: 600,
+                          fontFamily: 'monospace'
+                        }}>
+                          {formatMoney(diferencia)}
+                        </TableCell>
+                        <TableCell sx={{ 
+                          color: infoJustificaciones && infoJustificaciones.montoTotal !== 0 
+                            ? infoJustificaciones.montoTotal > 0 ? '#A3BE8C' : '#EBCB8B'
+                            : '#ffffff',
+                          fontWeight: 600,
+                          fontFamily: 'monospace'
+                        }}>
+                          {infoJustificaciones ? (
+                            <Tooltip 
+                              title="Total de todas las justificaciones realizadas" 
+                              arrow
+                            >
+                              <span>{formatMoney(infoJustificaciones.montoTotal)}</span>
+                            </Tooltip>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell sx={{ 
+                          color: infoJustificaciones && infoJustificaciones.montoTotal !== 0 
+                            ? (diferencia - infoJustificaciones.montoTotal) > 0 ? '#BF616A' : '#A3BE8C'
+                            : diferencia > 0 ? '#BF616A' : '#A3BE8C',
+                          fontWeight: 600,
+                          fontFamily: 'monospace'
+                        }}>
+                          {infoJustificaciones ? (
+                            <Tooltip 
+                              title="Saldo sin justificar: Diferencia Total menos Total de Justificaciones" 
+                              arrow
+                            >
+                              <span>{formatMoney(diferencia - infoJustificaciones.montoTotal)}</span>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip 
+                              title="No hay justificaciones, el saldo sin justificar es igual a la diferencia total" 
+                              arrow
+                            >
+                              <span>{formatMoney(diferencia)}</span>
+                            </Tooltip>
+                          )}
+                        </TableCell>
+                        <TableCell sx={{ color: '#ffffff', maxWidth: 400 }}>
+                          {infoJustificaciones ? (
+                            <Box>
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  color: '#EBCB8B',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 'bold',
+                                  mb: 1
+                                }}
+                              >
+                                {infoJustificaciones.total} justificación{infoJustificaciones.total > 1 ? 'es' : ''}:
+                              </Typography>
+                              
+                              {/* Lista mejorada de todas las justificaciones con información de ajustes */}
+                              {infoJustificaciones.justificaciones.map((justif, idx) => (
+                                <Typography 
+                                  key={justif.id ? justif.id : `${justif.motivo}-${justif.cliente}-${justif.orden}-${idx}`}
+                                  variant="body2" 
+                                  sx={{ 
+                                    color: '#ffffff',
+                                    fontSize: '0.8rem',
+                                    mb: 0.5,
+                                    pl: 1,
+                                    borderLeft: '2px solid #555',
+                                    wordBreak: 'break-word'
+                                  }}
+                                >
+                                  <strong>#{idx + 1}:</strong> {justif.motivo || 'Sin motivo'}
+                                  {(justif.cliente && justif.cliente !== '0') && (
+                                    <Typography component="span" sx={{ color: '#88C0D0', fontSize: '0.7rem', ml: 1 }}>
+                                      (Cliente: {justif.cliente})
+                                    </Typography>
+                                  )}
+                                  {(justif.orden && justif.orden !== '0') && (
+                                    <Typography component="span" sx={{ color: '#D8DEE9', fontSize: '0.7rem', ml: 1 }}>
+                                      (Orden: {justif.orden})
+                                    </Typography>
+                                  )}
+                                  <Typography 
+                                    component="div" 
+                                    sx={{ 
+                                      color: '#EBCB8B', 
+                                      fontSize: '0.7rem', 
+                                      mt: 0.5, 
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 0.5
+                                    }}
+                                  >
+                                    <span>
+                                      Monto: <strong>{justif.monto_dif || '$ 0'}</strong>
+                                    </span>
+                                    {justif.ajuste && (
+                                      <Tooltip 
+                                        title="Valor numérico del monto utilizado en los cálculos" 
+                                        arrow
+                                        placement="bottom-start"
+                                      >
+                                        <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                                          (valor: {justif.ajuste})
+                                        </span>
+                                      </Tooltip>
+                                    )}
+                                  </Typography>
+                                </Typography>
+                              ))}
+                            </Box>
+                          ) : (
+                            <Typography variant="caption" sx={{ color: '#BF616A', fontStyle: 'italic' }}>
+                              Sin justificaciones
+                            </Typography>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>

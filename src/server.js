@@ -253,8 +253,10 @@ app.get('/api/cierres-completo', (req, res) => {
       id,
       cierre_id,
       fecha,
+      usuario,
       orden,
       cliente,
+      medio_pago,
       monto_dif,
       ajuste,
       motivo
