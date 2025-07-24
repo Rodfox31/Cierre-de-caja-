@@ -27,6 +27,7 @@ import {
     CardContent,
     Fade,
     Slide,
+    InputAdornment,
     useTheme,
     alpha,
 } from '@mui/material';
@@ -57,8 +58,12 @@ function formatCurrency(value) {
 function parseCurrency(valueStr) {
     if (typeof valueStr === "number") return valueStr;
     try {
-        const normalized = String(valueStr).replace(/\./g, "").replace(",", ".");
-        return parseFloat(normalized) || 0;
+        const str = String(valueStr).trim();
+        const isNegative = str.startsWith('-');
+        const cleanStr = str.replace(/^-/, ''); // Remover el signo negativo temporalmente
+        const normalized = cleanStr.replace(/\./g, "").replace(",", ".");
+        const result = parseFloat(normalized) || 0;
+        return isNegative ? -result : result;
     } catch {
         return 0.0;
     }
@@ -92,10 +97,18 @@ const initialBills = [
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function HeaderControls({
     fecha, setFecha, tiendas, selectedTienda, setSelectedTienda,
-    usuarios, selectedUsuario, setSelectedUsuario, onCerrarCaja
+    usuarios, selectedUsuario, setSelectedUsuario, onCerrarCaja, resetHeader
 }) {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+
+    // Resetear el header cuando se complete un cierre
+    useEffect(() => {
+        if (resetHeader) {
+            setIsCollapsed(false);
+            setIsButtonDisabled(false);
+        }
+    }, [resetHeader]);
 
     const handleCerrarCajaClick = () => {
         setIsButtonDisabled(true);
@@ -470,61 +483,59 @@ function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, d
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // BLOQUE 4.1: JustificacionesPanel
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-function JustificacionesPanel({ paymentEntries, ajustesMotivos, fecha, onSumChange, onJustificacionesChange }) {
-    const rowsWithDifference = paymentEntries.filter((row) => Math.abs(row.differenceVal) > 0.01);
+
+/******************************************************
+ * PANEL DE JUSTIFICACIONES
+ * - Muestra campos: fecha, usuario, cliente, orden, medio de pago, motivo, ajuste
+ * - La fecha y usuario son campos fijos no modificables
+ * - Mantiene funcionalidad para agregar justificación manual
+ ******************************************************/
+function JustificacionesPanel({ paymentEntries, ajustesMotivos, fecha, selectedUsuario, onSumChange, onJustificacionesChange }) {
+
     const [justificaciones, setJustificaciones] = useState([]);
+    const [selectedIndex, setSelectedIndex] = useState(null);
 
-    // Controla si se muestra la línea de justificación manual
-    const [showManual, setShowManual] = useState(false);
-    const [nuevaJustificacion, setNuevaJustificacion] = useState({
-        fecha: fecha.toLocaleDateString("es-CL"),
-        orden: "",
-        cliente: "",
-        medio_pago: "",
-        monto_dif: "",
-        ajuste: 0,
-        motivo: ajustesMotivos && ajustesMotivos.length > 0 ? ajustesMotivos[0] : ""
-    });
+    // Formatea la fecha a DD/MM/YYYY
+    const formatFechaDDMMYYYY = (date) => {
+        if (!date) return '';
+        const d = typeof date === 'string' ? new Date(date) : date;
+        const pad = (n) => n.toString().padStart(2, '0');
+        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+    };
+    // Agrega una nueva justificación vacía
+    const handleAddJustificacion = () => {
+        setJustificaciones([
+            ...justificaciones,
+            {
+                fecha: formatFechaDDMMYYYY(fecha),
+                usuario: selectedUsuario || "",
+                orden: "",
+                cliente: "",
+                medio_pago: "",
+                ajuste: 0,
+                motivo: ajustesMotivos && ajustesMotivos.length > 0 ? ajustesMotivos[0] : ""
+            }
+        ]);
+    };
 
-    useEffect(() => {
-        const initialJustificaciones = rowsWithDifference.map(row => ({
-            fecha: fecha.toLocaleDateString("es-CL"),
-            orden: "", cliente: "",
-            medio_pago: row.medio,
-            monto_dif: row.difference || "0",
-            ajuste: 0,
-            motivo: ajustesMotivos && ajustesMotivos.length > 0 ? ajustesMotivos[0] : ""
-        }));
-        setJustificaciones(initialJustificaciones);
-    }, [paymentEntries, ajustesMotivos, fecha]);
+    // Elimina la justificación seleccionada
+    const handleRemoveJustificacion = () => {
+        if (selectedIndex !== null && selectedIndex >= 0 && selectedIndex < justificaciones.length) {
+            const newJustificaciones = justificaciones.filter((_, idx) => idx !== selectedIndex);
+            setJustificaciones(newJustificaciones);
+            setSelectedIndex(null);
+        }
+    };
 
     const updateJustificacion = (index, field, value) => {
         const newJustificaciones = [...justificaciones];
-        newJustificaciones[index][field] = field === "ajuste" ? parseFloat(value) || 0 : value;
+        newJustificaciones[index][field] = field === "ajuste" ? parseCurrency(value) : value;
         setJustificaciones(newJustificaciones);
     };
 
-    // Muestra la línea manual al presionar +
-    const handleShowManual = () => setShowManual(true);
-
-    // Agrega la justificación manual y oculta la línea
-    const agregarJustificacionManual = () => {
-        setJustificaciones([...justificaciones, { ...nuevaJustificacion }]);
-        setNuevaJustificacion({
-            fecha: fecha.toLocaleDateString("es-CL"),
-            orden: "",
-            cliente: "",
-            medio_pago: "",
-            monto_dif: "",
-            ajuste: 0,
-            motivo: ajustesMotivos && ajustesMotivos.length > 0 ? ajustesMotivos[0] : ""
-        });
-        setShowManual(false);
-    };
-
     useEffect(() => {
-        // Suma todos los ajustes, incluyendo los manuales
-        const sum = justificaciones.reduce((acc, j) => acc + (parseFloat(j.ajuste) || 0), 0);
+        // Suma todos los ajustes
+        const sum = justificaciones.reduce((acc, j) => acc + (parseCurrency(j.ajuste) || 0), 0);
         if (typeof onSumChange === 'function') onSumChange(sum);
         if (typeof onJustificacionesChange === 'function') onJustificacionesChange(justificaciones);
     }, [justificaciones, onSumChange, onJustificacionesChange]);
@@ -533,111 +544,102 @@ function JustificacionesPanel({ paymentEntries, ajustesMotivos, fecha, onSumChan
     return (
         <Card elevation={0} sx={{ borderRadius: 1, width: '100%', backgroundColor: '#1e1e1e', border: '1px solid #333' }}>
             <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <ReceiptIcon sx={{ color: '#ffffff', fontSize: 20 }} />
-                    <Typography variant="h6" sx={{ color: '#ffffff', fontSize: '1rem' }}>Justificaciones de Diferencias</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, justifyContent: 'space-between' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <ReceiptIcon sx={{ color: '#ffffff', fontSize: 20 }} />
+                        <Typography variant="h6" sx={{ color: '#ffffff', fontSize: '1rem' }}>Justificaciones de Diferencias</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <IconButton color="warning" size="small" onClick={handleAddJustificacion} sx={{ borderRadius: '50%' }}>
+                            <AddCircleOutlineIcon />
+                        </IconButton>
+                        <IconButton color="error" size="small" onClick={handleRemoveJustificacion} sx={{ borderRadius: '50%' }} disabled={selectedIndex === null}>
+                            <span style={{fontWeight:'bold', fontSize:'1.2rem'}}>×</span>
+                        </IconButton>
+                    </Box>
                 </Box>
-                {rowsWithDifference.length > 0 || justificaciones.length > 0 ? (
-                    <Stack spacing={0.7}>
-                        <Grid container spacing={0.5} sx={{ color: 'text.secondary', textAlign: 'center', px: 0.2 }}>
-                            <Grid item xs={1.5}><Typography variant="caption" fontWeight="bold">N° Orden</Typography></Grid>
-                            <Grid item xs={2}><Typography variant="caption" fontWeight="bold">Cliente</Typography></Grid>
-                            <Grid item xs={2}><Typography variant="caption" fontWeight="bold">Monto Dif.</Typography></Grid>
-                            <Grid item xs={2}><Typography variant="caption" fontWeight="bold">Ajuste</Typography></Grid>
-                            <Grid item xs={2.5}><Typography variant="caption" fontWeight="bold">Motivo</Typography></Grid>
-                            <Grid item xs={2}><Typography variant="caption" fontWeight="bold">Medio de Pago</Typography></Grid>
-                        </Grid>
-                        <Divider sx={{ my: 0.3 }} />
-                        {justificaciones.map((just, idx) => (
-                            <Fade in={true} timeout={300 + idx * 50} key={idx}>
-                                <Grid container spacing={0.5} alignItems="center" sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 0.5, minHeight: 0, transition: 'all 0.2s', '&:hover': { backgroundColor: alpha(theme.palette.warning.main, 0.04), transform: 'translateX(2px)' } }}>
-                                    <Grid item xs={12} sx={{ mb: 0.5 }}>
-                                        <Typography variant="overline">Diferencia en: <strong>{just.medio_pago}</strong></Typography>
-                                    </Grid>
-                                    <Grid item xs={1.5}>
-                                        <TextField fullWidth size="small" placeholder="Orden" value={just.orden || ""} onChange={(e) => updateJustificacion(idx, "orden", e.target.value)} />
-                                    </Grid>
-                                    <Grid item xs={2}>
-                                        <TextField fullWidth size="small" placeholder="Cliente" value={just.cliente || ""} onChange={(e) => updateJustificacion(idx, "cliente", e.target.value)} />
-                                    </Grid>
-                                    <Grid item xs={2} textAlign="center">
-                                        <TextField fullWidth size="small" placeholder="Monto Dif." value={just.monto_dif || ""} onChange={(e) => updateJustificacion(idx, "monto_dif", e.target.value)} />
-                                    </Grid>
-                                    <Grid item xs={2}>
-                                        <TextField fullWidth size="small" type="number" placeholder="0" value={just.ajuste || ""} onChange={(e) => updateJustificacion(idx, "ajuste", e.target.value)} />
-                                    </Grid>
-                                    <Grid item xs={2.5}>
-                                        <FormControl fullWidth size="small">
-                                            <Select value={just.motivo || ""} onChange={(e) => updateJustificacion(idx, "motivo", e.target.value)}>
-                                                {ajustesMotivos?.map((motivo, i) => <MenuItem key={i} value={motivo}>{motivo}</MenuItem>)}
-                                            </Select>
-                                        </FormControl>
-                                    </Grid>
-                                    <Grid item xs={2}>
-                                        <FormControl fullWidth size="small">
-                                            <Select value={just.medio_pago || ""} onChange={(e) => updateJustificacion(idx, "medio_pago", e.target.value)}>
-                                                <MenuItem value="">Seleccionar</MenuItem>
-                                                {paymentEntries?.map((p, i) => <MenuItem key={i} value={p.medio}>{p.medio}</MenuItem>)}
-                                            </Select>
-                                        </FormControl>
-                                    </Grid>
+                <Stack spacing={0.7}>
+                    <Grid container spacing={0.5} sx={{ color: 'text.secondary', textAlign: 'center', px: 0.2 }}>
+                        <Grid item xs={1.5}><Typography variant="caption" fontWeight="bold">Fecha</Typography></Grid>
+                        <Grid item xs={1.5}><Typography variant="caption" fontWeight="bold">Usuario</Typography></Grid>
+                        <Grid item xs={1.5}><Typography variant="caption" fontWeight="bold">Cliente</Typography></Grid>
+                        <Grid item xs={1.5}><Typography variant="caption" fontWeight="bold">N° Orden</Typography></Grid>
+                        <Grid item xs={2}><Typography variant="caption" fontWeight="bold">Medio de Pago</Typography></Grid>
+                        <Grid item xs={2}><Typography variant="caption" fontWeight="bold">Motivo</Typography></Grid>
+                        <Grid item xs={2}><Typography variant="caption" fontWeight="bold">Ajuste ($)</Typography></Grid>
+                    </Grid>
+                    <Divider sx={{ my: 0.3 }} />
+                    {justificaciones.length === 0 && (
+                        <Typography sx={{ mt: 2, textAlign: 'center', color: 'text.secondary', fontStyle: 'italic' }}>
+                            No hay justificaciones registradas. Agrega una usando el botón +.
+                        </Typography>
+                    )}
+                    {justificaciones.map((just, idx) => (
+                        <Fade in={true} timeout={300 + idx * 50} key={idx}>
+                            <Grid container spacing={0.5} alignItems="center"
+                                sx={{
+                                    border: 1,
+                                    borderColor: selectedIndex === idx ? theme.palette.warning.main : 'divider',
+                                    borderRadius: 2,
+                                    p: 0.5,
+                                    minHeight: 0,
+                                    transition: 'all 0.2s',
+                                    backgroundColor: selectedIndex === idx ? alpha(theme.palette.warning.main, 0.08) : undefined,
+                                    '&:hover': { backgroundColor: alpha(theme.palette.warning.main, 0.04), cursor: 'pointer' }
+                                }}
+                                onClick={() => setSelectedIndex(idx)}
+                            >
+                                {/* Fecha - Campo no modificable */}
+                                <Grid item xs={1.5}>
+                                    <Typography variant="body2" sx={{ color: '#ffffff' }}>{just.fecha}</Typography>
                                 </Grid>
-                            </Fade>
-                        ))}
-                        {/* Botón + para mostrar la línea de justificación manual */}
-                        {!showManual && (
-                            <Box sx={{ width: '100%', mt: 0.5, mb: 0.2, display: 'flex', alignItems: 'center', gap: 1 }}>
-                                <Typography variant="subtitle2" sx={{ mb: 0.2, fontSize: '0.95rem', fontWeight: 'bold' }}>Agregar Justificación Manual</Typography>
-                                <IconButton color="warning" size="small" onClick={handleShowManual} sx={{ borderRadius: '50%', ml: 1 }}>
-                                    <AddCircleOutlineIcon />
-                                </IconButton>
-                            </Box>
-                        )}
-                        {/* Línea de justificación manual solo si showManual es true */}
-                        {showManual && (
-                            <Box sx={{ mt: 0.5, mb: 0.2 }}>
-                                <Grid container spacing={0.5} alignItems="center" sx={{ border: 1, borderColor: 'divider', borderRadius: 2, p: 0.3, bgcolor: 'background.paper', minHeight: 0 }}>
-                                    <Grid item xs={1.5}>
-                                        <TextField fullWidth size="small" placeholder="Orden" value={nuevaJustificacion.orden} onChange={(e) => setNuevaJustificacion({ ...nuevaJustificacion, orden: e.target.value })} />
-                                    </Grid>
-                                    <Grid item xs={2}>
-                                        <TextField fullWidth size="small" placeholder="Cliente" value={nuevaJustificacion.cliente} onChange={(e) => setNuevaJustificacion({ ...nuevaJustificacion, cliente: e.target.value })} />
-                                    </Grid>
-                                    <Grid item xs={2}>
-                                        <TextField fullWidth size="small" placeholder="Monto Dif." value={nuevaJustificacion.monto_dif} onChange={(e) => setNuevaJustificacion({ ...nuevaJustificacion, monto_dif: e.target.value })} />
-                                    </Grid>
-                                    <Grid item xs={2}>
-                                        <TextField fullWidth size="small" type="number" placeholder="0" value={nuevaJustificacion.ajuste} onChange={(e) => setNuevaJustificacion({ ...nuevaJustificacion, ajuste: e.target.value })} />
-                                    </Grid>
-                                    <Grid item xs={2.5}>
-                                        <FormControl fullWidth size="small">
-                                            <Select value={nuevaJustificacion.motivo} onChange={(e) => setNuevaJustificacion({ ...nuevaJustificacion, motivo: e.target.value })}>
-                                                {ajustesMotivos?.map((motivo, i) => <MenuItem key={i} value={motivo}>{motivo}</MenuItem>)}
-                                            </Select>
-                                        </FormControl>
-                                    </Grid>
-                                    <Grid item xs={2}>
-                                        <FormControl fullWidth size="small">
-                                            <Select value={nuevaJustificacion.medio_pago} onChange={(e) => setNuevaJustificacion({ ...nuevaJustificacion, medio_pago: e.target.value })}>
-                                                <MenuItem value="">Seleccionar</MenuItem>
-                                                {paymentEntries?.map((p, i) => <MenuItem key={i} value={p.medio}>{p.medio}</MenuItem>)}
-                                            </Select>
-                                        </FormControl>
-                                    </Grid>
+                                {/* Usuario - Campo no modificable */}
+                                <Grid item xs={1.5}>
+                                    <Typography variant="body2" sx={{ color: '#ffffff' }}>{just.usuario}</Typography>
                                 </Grid>
-                                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                                    <Button variant="contained" color="warning" size="small" onClick={agregarJustificacionManual}>
-                                        Agregar justificación
-                                    </Button>
-                                </Box>
-                            </Box>
-                        )}
-                    </Stack>
-                ) : (
-                    <Typography sx={{ mt: 2, textAlign: 'center', color: 'text.secondary', fontStyle: 'italic' }}>
-                        No hay diferencias que requieran justificación.
-                    </Typography>
-                )}
+                                {/* Cliente */}
+                                <Grid item xs={1.5}>
+                                    <TextField fullWidth size="small" placeholder="Cliente" value={just.cliente || ""} onChange={(e) => updateJustificacion(idx, "cliente", e.target.value)} />
+                                </Grid>
+                                {/* Orden */}
+                                <Grid item xs={1.5}>
+                                    <TextField fullWidth size="small" placeholder="Orden" value={just.orden || ""} onChange={(e) => updateJustificacion(idx, "orden", e.target.value)} />
+                                </Grid>
+                                {/* Medio de Pago */}
+                                <Grid item xs={2}>
+                                    <FormControl fullWidth size="small">
+                                        <Select value={just.medio_pago || ""} onChange={(e) => updateJustificacion(idx, "medio_pago", e.target.value)}>
+                                            <MenuItem value="">Seleccionar</MenuItem>
+                                            {paymentEntries?.map((p, i) => <MenuItem key={i} value={p.medio}>{p.medio}</MenuItem>)}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                {/* Motivo */}
+                                <Grid item xs={2}>
+                                    <FormControl fullWidth size="small">
+                                        <Select value={just.motivo || ""} onChange={(e) => updateJustificacion(idx, "motivo", e.target.value)}>
+                                            {ajustesMotivos?.map((motivo, i) => <MenuItem key={i} value={motivo}>{motivo}</MenuItem>)}
+                                        </Select>
+                                    </FormControl>
+                                </Grid>
+                                {/* Ajuste */}
+                                <Grid item xs={2}>
+                                    <TextField 
+                                        fullWidth 
+                                        size="small" 
+                                        placeholder="0" 
+                                        value={just.ajuste || ""} 
+                                        onChange={(e) => updateJustificacion(idx, "ajuste", e.target.value)} 
+                                        onInput={(e) => e.target.value = e.target.value.replace(/[^0-9.,\s-]/g, "")}
+                                        InputProps={{
+                                            startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                                        }}
+                                    />
+                                </Grid>
+                            </Grid>
+                        </Fade>
+                    ))}
+                </Stack>
             </CardContent>
         </Card>
     );
@@ -752,6 +754,7 @@ function CierreCaja() {
     const [justificacionesData, setJustificacionesData] = useState([]);
     const [mostrarResumen, setMostrarResumen] = useState(false);
     const [resumenData, setResumenData] = useState(null);
+    const [resetHeader, setResetHeader] = useState(false);
 
     useEffect(() => {
         async function fetchAjustes() {
@@ -865,21 +868,40 @@ function CierreCaja() {
             if (!response.ok) throw new Error(`Error ${response.status}: ${await response.text()}`);
             await response.json();
             alert("Información enviada a la DB correctamente.");
+            
+            // Resetear todos los estados para permitir un nuevo cierre
             setPanelVisible(false);
             setBillEntries(JSON.parse(JSON.stringify(initialBills)));
             setBrinksEntries([{ codigo: "", monto: 0 }]);
             setPaymentEntries([]);
             setResponsable("");
             setComentarios("");
+            setSumJustificaciones(0);
+            setJustificacionesData([]);
+            
+            // Resetear la fecha a hoy para el próximo cierre
+            setFecha(new Date());
+            
+            // Activar el reset del header
+            setResetHeader(true);
+            setTimeout(() => setResetHeader(false), 100); // Reset después de un breve delay
         } catch (err) {
             console.error("Error guardando el cierre:", err);
             alert(`Error al enviar cierre: ${err.message}`);
         }
     };
 
+    // Formatea la fecha a DD/MM/YYYY
+    const formatFechaDDMMYYYY = (date) => {
+        if (!date) return '';
+        const d = typeof date === 'string' ? new Date(date) : date;
+        const pad = (n) => n.toString().padStart(2, '0');
+        return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+    };
+
     const handleImprimir = () => {
         const data = {
-            fecha: fecha.toLocaleDateString("es-CL"),
+            fecha: formatFechaDDMMYYYY(fecha),
             tienda: selectedTienda,
             usuario: selectedUsuario,
             mediosPago: paymentEntries,
@@ -903,6 +925,7 @@ function CierreCaja() {
                 tiendas={tiendas} selectedTienda={selectedTienda} setSelectedTienda={setSelectedTienda}
                 usuarios={usuarios} selectedUsuario={selectedUsuario} setSelectedUsuario={setSelectedUsuario}
                 onCerrarCaja={togglePanelCierre}
+                resetHeader={resetHeader}
             />
             
             <Collapse in={panelVisible} timeout={500}>
@@ -934,6 +957,7 @@ function CierreCaja() {
                                 paymentEntries={paymentEntries}
                                 ajustesMotivos={dataAjustes.motivos_error_pago}
                                 fecha={fecha}
+                                selectedUsuario={selectedUsuario}
                                 onSumChange={setSumJustificaciones}
                                 onJustificacionesChange={setJustificacionesData}
                             />

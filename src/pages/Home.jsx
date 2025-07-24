@@ -25,17 +25,10 @@ import {
   Storefront,
   WarningAmber,
   CheckCircleOutline,
-  EmojiEvents,
-  TrendingDown,
-  Timeline,
-  FilterList,
   InfoOutlined,
   TrendingUp,
   Assessment,
-  PieChart,
-  BarChart,
   Person,
-  Today,
   AttachMoney,
   Error,
 } from '@mui/icons-material';
@@ -47,8 +40,8 @@ const MetricCard = ({ title, value, icon, trend, color = '#ffffff' }) => {
     <Card sx={{ 
       p: 2, 
       height: '100%',
-      backgroundColor: '#1e1e1e',
-      border: '1px solid #333',
+      backgroundColor: (theme) => theme.palette.background.paper,
+      border: (theme) => `1px solid ${theme.palette.custom?.tableBorder || '#333'}`,
       borderRadius: 1,
     }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -62,17 +55,32 @@ const MetricCard = ({ title, value, icon, trend, color = '#ffffff' }) => {
           {icon}
         </Avatar>
         <Box sx={{ flex: 1 }}>
-          <Typography variant="h4" fontWeight="bold" sx={{ color: '#ffffff' }}>
+          <Typography 
+            variant="h4" 
+            fontWeight="bold" 
+            sx={(theme) => ({ 
+              color: theme.palette.text.primary, 
+              fontFamily: theme.typography.fontFamily,
+              fontSize: `calc(${theme.typography.h4.fontSize} + 0.25rem)` // h4 +2px aprox
+            })}
+          >
             {value}
           </Typography>
-          <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+          <Typography 
+            variant="body2" 
+            sx={(theme) => ({ 
+              color: theme.palette.text.secondary, 
+              fontFamily: theme.typography.fontFamily,
+              fontSize: `calc(${theme.typography.body2.fontSize} + 0.05rem)` // body2 +1px aprox
+            })}
+          >
             {title}
           </Typography>
         </Box>
       </Box>
       {trend && (
         <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-          <Typography variant="caption" sx={{ color: '#888888' }}>
+          <Typography variant="caption" sx={{ color: (theme) => theme.palette.text.disabled }}>
             {trend}
           </Typography>
         </Box>
@@ -86,22 +94,45 @@ const ProgressCard = ({ title, current, total, color = '#4caf50', compact }) => 
   return (
     <Card sx={{ 
       p: compact ? 3 : 2,
-      backgroundColor: '#1e1e1e',
-      border: '1px solid #333',
+      backgroundColor: (theme) => theme.palette.background.paper,
+      border: (theme) => `1px solid ${theme.palette.custom?.tableBorder || '#333'}`,
       borderRadius: 1,
-      height: compact ? 240 : '100%', // Ajuste de altura para igualar a Estado de Cierres
+      height: compact ? 240 : '100%',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'space-between',
     }}>
-      <Typography variant="h6" sx={{ color: '#ffffff', mb: 1 }}>
+      <Typography 
+        variant="h6" 
+        sx={(theme) => ({ 
+          color: theme.palette.text.primary, 
+          mb: 1, 
+          fontFamily: theme.typography.fontFamily,
+          fontSize: `calc(${theme.typography.h6.fontSize} + 0.1rem)` // h6 +1.5px aprox
+        })}
+      >
         {title}
       </Typography>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-        <Typography variant="h4" sx={{ color: '#ffffff', mr: 1 }}>
+        <Typography 
+          variant="h4" 
+          sx={(theme) => ({ 
+            color: theme.palette.text.primary, 
+            mr: 1, 
+            fontFamily: theme.typography.fontFamily,
+            fontSize: `calc(${theme.typography.h4.fontSize} + 0.15rem)` // h4 +1.5px aprox
+          })}
+        >
           {current}
         </Typography>
-        <Typography variant="body2" sx={{ color: '#b0b0b0' }}>
+        <Typography 
+          variant="body2" 
+          sx={(theme) => ({ 
+            color: theme.palette.text.secondary, 
+            fontFamily: theme.typography.fontFamily,
+            fontSize: `calc(${theme.typography.body2.fontSize} + 0.05rem)` // body2 +1px aprox
+          })}
+        >
           de {total}
         </Typography>
       </Box>
@@ -111,49 +142,21 @@ const ProgressCard = ({ title, current, total, color = '#4caf50', compact }) => 
         sx={{
           height: 8,
           borderRadius: 4,
-          backgroundColor: '#333',
+          backgroundColor: (theme) => theme.palette.custom?.tableBorder || '#333',
           '& .MuiLinearProgress-bar': {
             backgroundColor: color,
             borderRadius: 4,
           },
         }}
       />
-      <Typography variant="caption" sx={{ color: '#888888', mt: 1 }}>
+      <Typography variant="caption" sx={{ color: (theme) => theme.palette.text.disabled, mt: 1 }}>
         {percentage.toFixed(1)}%
       </Typography>
     </Card>
   );
 };
 
-// --- NUEVA TARJETA: Resumen de Validaciones ---
-const ValidationSummaryCard = ({ allClosures, compact }) => {
-  const total = allClosures.length;
-  const validados = allClosures.filter(c => c.validado === 1).length;
-  const sinValidar = total - validados;
-  const porcentaje = total > 0 ? (validados / total) * 100 : 0;
-  return (
-    <Card sx={{
-      p: compact ? 3 : 2,
-      backgroundColor: '#1e1e1e',
-      border: '1px solid #333',
-      borderRadius: 1,
-      height: compact ? 220 : '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      justifyContent: 'space-between',
-    }}>
-      <Typography variant="h6" sx={{ color: '#ffffff', mb: 1 }}>
-        Validaciones
-      </Typography>
-      <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
-        <Chip label={`Validados: ${validados}`} color="success" size="small" />
-        <Chip label={`Sin validar: ${sinValidar}`} color="warning" size="small" />
-      </Box>
-      <LinearProgress variant="determinate" value={porcentaje} sx={{ height: 8, borderRadius: 4, backgroundColor: '#333', '& .MuiLinearProgress-bar': { backgroundColor: '#4caf50' } }} />
-      <Typography variant="caption" sx={{ color: '#888' }}>{porcentaje.toFixed(1)}% validados</Typography>
-    </Card>
-  );
-};
+// (Eliminado ValidationSummaryCard: no se usa)
 
 const StatusOverview = ({ stats, compact }) => {
   const data = [
@@ -417,24 +420,9 @@ function parseMediosPago(medios_pago) {
   try {
     if (typeof medios_pago === 'string') {
       const mp = JSON.parse(medios_pago);
-      return Array.isArray(mp)
-        ? mp
-        : Object.keys(mp).map((key) => ({
-            medio: key,
-            facturado: mp[key].facturado,
-            cobrado: mp[key].cobrado,
-            differenceVal: mp[key].differenceVal,
-          }));
+      return Array.isArray(mp) ? mp : [];
     }
     if (Array.isArray(medios_pago)) return medios_pago;
-    if (typeof medios_pago === 'object' && medios_pago !== null) {
-      return Object.keys(medios_pago).map((key) => ({
-        medio: key,
-        facturado: medios_pago[key].facturado,
-        cobrado: medios_pago[key].cobrado,
-        differenceVal: medios_pago[key].differenceVal,
-      }));
-    }
     return [];
   } catch {
     return [];
@@ -467,21 +455,7 @@ const HomePage = ({ allClosures, setAllClosures }) => {
   const [criticalAnomalies, setCriticalAnomalies] = useState([]);
   const [recentClosures, setRecentClosures] = useState([]);
 
-  // Limpiar datos al cargar para evitar mostrar datos viejos
-  useEffect(() => {
-    setStats({
-      totalDiferencias: 0,
-      totalTiendas: 0,
-      promedioDiferencias: 0,
-      totalCierres: 0,
-      totalCorrectos: 0,
-      totalAdvertencias: 0,
-      totalGraves: 0,
-    });
-    setPodiumUsers([]);
-    setCriticalAnomalies([]);
-    setRecentClosures([]);
-  }, []);
+  // (Eliminado useEffect de limpieza inicial: innecesario)
 
   // Fetch sin filtros, siempre toda la base
   const fetchData = async () => {
@@ -586,14 +560,7 @@ const HomePage = ({ allClosures, setAllClosures }) => {
     setRecentClosures(recentSorted);
   };
 
-  // DEBUG: Mostrar datos crudos y procesados
-  useEffect(() => {
-    // console.log('API cierres-completo (allClosures):', allClosures);
-    // console.log('Panel: StatCard', stats);
-    // console.log('Panel: CriticalAnomalies', criticalAnomalies);
-    // console.log('Panel: RecentClosures', recentClosures);
-    // console.log('Panel: PrecisionPodium', podiumUsers);
-  }, [allClosures, stats, criticalAnomalies, recentClosures, podiumUsers]);
+  // (Eliminado useEffect de debug: innecesario)
 
   // Agrupar cierres por tienda para dashboard (usa tiendas reales)
   const tiendasStats = React.useMemo(() => {

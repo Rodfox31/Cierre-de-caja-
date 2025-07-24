@@ -1,519 +1,962 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
-  Typography,
   Paper,
+  Typography,
+  Grid,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Button,
+  Card,
+  CardContent,
+  Alert,
+  Snackbar,
+  Chip,
+  Divider,
+  useTheme,
+  Switch,
+  FormControlLabel,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Button,
-  Chip,
-  Autocomplete,
-  Alert,
-  Snackbar,
-  Card,
-  CardContent,
-  CardActions,
-  Grid,
-  LinearProgress,
+  Checkbox,
+  Collapse,
   IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Tooltip
+  Modal,
+  Fade,
+  Tabs,
+  Tab,
+  Tooltip,
+  Stack,
+  Avatar,
+  alpha
 } from '@mui/material';
 import {
-  GetApp as GetAppIcon,
-  FileDownload as FileDownloadIcon,
-  Search as SearchIcon,
-  FilterList as FilterListIcon,
-  Clear as ClearIcon,
-  TableChart as TableChartIcon
+  Store as StoreIcon,
+  Refresh as RefreshIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon,
+  CheckCircle as CheckCircleIcon,
+  KeyboardArrowDown as KeyboardArrowDownIcon,
+  KeyboardArrowUp as KeyboardArrowUpIcon,
+  Visibility as VisibilityIcon,
+  Person as PersonIcon,
+  Receipt as ReceiptIcon,
+  AccountBalance as AccountBalanceIcon,
+  DateRange as DateRangeIcon,
+  Assignment as AssignmentIcon,
+  TrendingUp as TrendingUpIcon,
+  TrendingDown as TrendingDownIcon,
+  Info as InfoIcon
 } from '@mui/icons-material';
 import moment from 'moment';
-import 'moment/locale/es';
-import { axiosWithFallback } from '../config';
+import axios from 'axios';
+import { fetchWithFallback, axiosWithFallback } from '../config';
 
-// Configurar locale de moment
-moment.locale('es');
+// Función para formatear moneda
+function formatCurrency(value) {
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency',
+    currency: 'ARS',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  }).format(value || 0);
+}
 
-const Exportar = () => {
-  // Estados principales
-  const [year, setYear] = useState(moment().year());
-  const [month, setMonth] = useState(moment().month() + 1);
+// Componente ExactValue
+const ExactValue = React.memo(function ExactValue({ value, currency = true }) {
+  const styles = {
+    exactValue: {
+      fontFamily: 'monospace',
+      fontWeight: 'bold',
+      fontSize: '0.875rem',
+      whiteSpace: 'nowrap',
+    },
+  };
+  
+  return (
+    <Typography component="span" sx={styles.exactValue}>
+      {currency ? formatCurrency(value) : value.toFixed(4)}
+    </Typography>
+  );
+});
+
+// Constantes para estados de cierre (copiadas de Diferencias.jsx)
+const ESTADOS_CIERRE = {
+  CORRECTO: {
+    label: 'Correcto',
+    icon: <CheckCircleIcon color="success" />,
+    color: '#4caf50',
+    bgColor: 'rgba(76, 175, 80, 0.1)',
+  },
+  DIFERENCIA_MENOR: {
+    label: 'Diferencia menor',
+    icon: <WarningIcon color="warning" />,
+    color: '#ff9800',
+    bgColor: 'rgba(255, 152, 0, 0.1)',
+  },
+  DIFERENCIA_GRAVE: {
+    label: 'Diferencia grave',
+    icon: <ErrorIcon color="error" />,
+    color: '#f44336',
+    bgColor: 'rgba(244, 67, 54, 0.1)',
+  },
+};
+
+// Función para obtener el estado de un cierre (copiada de Diferencias.jsx)
+function getEstado(cierre) {
+  const diffVal = Number(cierre.grand_difference_total) || 0;
+  if (diffVal === 0) return ESTADOS_CIERRE.CORRECTO;
+  if (diffVal > 10000 || diffVal < -10000) return ESTADOS_CIERRE.DIFERENCIA_GRAVE;
+  return ESTADOS_CIERRE.DIFERENCIA_MENOR;
+}
+
+// Función para procesar valores numéricos con comas (copiada de Diferencias.jsx)
+const processNumericValue = (value) => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const cleaned = value.replace(/,/g, '.').trim();
+    const parsed = parseFloat(cleaned);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+};
+
+// NUEVO: función para mostrar estado de validación
+function getValidacionInfo(cierre) {
+  if (cierre.validado) {
+    return {
+      label: 'Validado',
+      icon: <CheckCircleIcon color="success" fontSize="small" />,
+      color: '#4caf50',
+      usuario: cierre.usuario_validacion,
+      fecha: cierre.fecha_validacion
+    };
+  }
+  return {
+    label: 'Sin validar',
+    icon: <ErrorIcon color="error" fontSize="small" />,
+    color: '#f44336',
+    usuario: null,
+    fecha: null
+  };
+}
+
+// Componente para la tarjeta de tienda
+const TiendaCard = React.memo(function TiendaCard({ 
+  tienda, 
+  totalCierres, 
+  cierresConErrores, 
+  totalDiferencia,
+  onClick 
+}) {
+  const theme = useTheme();
+  const porcentajeErrores = totalCierres > 0 ? (cierresConErrores / totalCierres) * 100 : 0;
+  
+  // Colores más sutiles y sofisticados
+  const getCardColor = () => {
+    if (porcentajeErrores === 0) return '#2E3440'; // Gris azulado oscuro
+    if (porcentajeErrores <= 20) return '#3B4252'; // Gris medio
+    return '#434C5E'; // Gris más claro
+  };
+
+  const getAccentColor = () => {
+    if (porcentajeErrores === 0) return '#A3BE8C'; // Verde sutil
+    if (porcentajeErrores <= 20) return '#EBCB8B'; // Amarillo sutil
+    return '#BF616A'; // Rojo sutil
+  };
+
+  const getTextColor = () => {
+    if (porcentajeErrores === 0) return '#D8DEE9'; // Texto claro
+    if (porcentajeErrores <= 20) return '#E5E9F0';
+    return '#ECEFF4';
+  };
+
+  const formatMoney = (amount) => {
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Math.abs(amount));
+  };
+
+  return (
+    <Card
+      sx={{
+        cursor: 'pointer',
+        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        backgroundColor: getCardColor(),
+        border: `1px solid ${getAccentColor()}20`,
+        borderRadius: 2,
+        '&:hover': {
+          transform: 'translateY(-1px)',
+          boxShadow: `0 2px 8px ${getAccentColor()}15`,
+          borderColor: `${getAccentColor()}40`,
+        },
+        height: '100px',
+        minWidth: '220px',
+        maxWidth: '300px',
+      }}
+      onClick={onClick}
+    >
+      <CardContent sx={{ 
+        display: 'flex', 
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        py: 1.5, 
+        px: 2,
+        height: '100%',
+        '&:last-child': { pb: 1.5 }
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+            <Box 
+              sx={{ 
+                width: 8, 
+                height: 8, 
+                borderRadius: '50%', 
+                backgroundColor: getAccentColor(),
+                mr: 1.5,
+              }} 
+            />
+            <Typography 
+              variant="body1" 
+              sx={{ 
+                fontWeight: 500, 
+                color: getTextColor(),
+                fontSize: '0.95rem',
+              }}
+            >
+              {tienda}
+            </Typography>
+          </Box>
+          
+          <Typography 
+            variant="caption" 
+            sx={{ 
+              color: `${getTextColor()}80`,
+              fontSize: '0.75rem',
+            }}
+          >
+            {porcentajeErrores.toFixed(0)}%
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <Box>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: getAccentColor(), 
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                lineHeight: 1,
+              }}
+            >
+              {cierresConErrores}/{totalCierres}
+            </Typography>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: `${getTextColor()}60`,
+                fontSize: '0.7rem',
+              }}
+            >
+              errores
+            </Typography>
+          </Box>
+          
+          {totalDiferencia !== 0 && (
+            <Box sx={{ textAlign: 'right' }}>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: totalDiferencia > 0 ? '#BF616A' : '#A3BE8C',
+                  fontWeight: 600,
+                  fontSize: '0.8rem',
+                  lineHeight: 1,
+                }}
+              >
+                {totalDiferencia > 0 ? '+' : ''}{formatMoney(totalDiferencia)}
+              </Typography>
+              <Typography 
+                variant="caption" 
+                sx={{ 
+                  color: `${getTextColor()}60`,
+                  fontSize: '0.7rem',
+                }}
+              >
+                diferencia
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </CardContent>
+    </Card>
+  );
+});
+
+export default function ControlMensual() {
+  const theme = useTheme();
+  
+  // Estados
+  const [selectedMonth, setSelectedMonth] = useState(moment().month());
+  const [selectedYear, setSelectedYear] = useState(moment().year());
   const [tiendas, setTiendas] = useState([]);
-  const [selectedTienda, setSelectedTienda] = useState('');
-  const [cierres, setCierres] = useState([]);
-  const [filteredCierres, setFilteredCierres] = useState([]);
+  const [motivos, setMotivos] = useState([]);
+  const [allJustificaciones, setAllJustificaciones] = useState([]);
+  const [filteredJustificaciones, setFilteredJustificaciones] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
-  // Estados para filtros
-  const [searchText, setSearchText] = useState('');
-  const [estadoFilter, setEstadoFilter] = useState('');
-  const [validacionFilter, setValidacionFilter] = useState('');
-  
-  // Estados para paginación
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
-  
-  // Estados para UI
-  const [showSnackbar, setShowSnackbar] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [exportDialog, setExportDialog] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const [selectedTienda, setSelectedTienda] = useState(null);
+  const [selectedMotivo, setSelectedMotivo] = useState(null);
+  const [modalDetalle, setModalDetalle] = useState(null);
+  const [tabValue, setTabValue] = useState(0);
 
-  // Datos crudos de la respuesta de la API (para debug)
-  const [responseRaw, setResponseRaw] = useState(null);
+  // Funciones auxiliares
+  const showSnackbar = useCallback((message, severity = 'info') => {
+    setSnackbar({ open: true, message, severity });
+  }, []);
 
-  // Funciones utilitarias
-  const formatCurrency = (value) => {
-    if (value === null || value === undefined || value === '') return '$0.00';
-    const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num)) return '$0.00';
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
-    }).format(num);
-  };
+  const handleCloseSnackbar = useCallback((_, reason) => {
+    if (reason === 'clickaway') return;
+    setSnackbar((prev) => ({ ...prev, open: false }));
+  }, []);
 
-  const processNumericValue = (value) => {
-    if (value === null || value === undefined || value === '') return 0;
-    if (typeof value === 'number') return value;
-    const cleanValue = value.toString().replace(/[^0-9.-]/g, '');
-    const numValue = parseFloat(cleanValue);
-    return isNaN(numValue) ? 0 : numValue;
-  };
-
-  const getEstado = (diferencia) => {
-    const diff = processNumericValue(diferencia);
-    if (diff === 0) return { label: 'Cuadrado', color: 'success' };
-    if (diff > 0) return { label: 'Sobrante', color: 'warning' };
-    return { label: 'Faltante', color: 'error' };
-  };
-
-  // Cargar configuración desde localStorage
-  const loadConfig = () => {
-    try {
-      const savedConfig = localStorage.getItem('config');
-      if (savedConfig) {
-        const config = JSON.parse(savedConfig);
-        if (config.tiendas && Array.isArray(config.tiendas)) {
-          setTiendas(config.tiendas);
-        }
+  // Cargar configuración inicial (tiendas)
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const res = await axiosWithFallback('/localStorage');
+        setTiendas(res.data.tiendas || []);
+        // No cargar motivos aquí, se cargarán desde las justificaciones
+      } catch (err) {
+        console.error('Error al cargar configuración:', err);
+        showSnackbar('Error al cargar la configuración inicial.', 'error');
       }
-    } catch (error) {
-      console.error('Error loading config:', error);
-      showMessage('Error cargando configuración de tiendas');
-    }
-  };  // Función para obtener cierres
-  const fetchCierres = async () => {
+    };
+    loadConfig();
+  }, [showSnackbar]);
+
+  // Función para cargar justificaciones del mes seleccionado
+  const fetchJustificaciones = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      // Si quieres todos los datos, usa fechas amplias y no envíes tienda
-      const fechaDesdeStr = '01/01/2000';
-      const fechaHastaStr = moment().format('DD/MM/YYYY');
+      // Calcular el primer y último día del mes seleccionado
+      const firstDay = moment().year(selectedYear).month(selectedMonth).startOf('month');
+      const lastDay = moment().year(selectedYear).month(selectedMonth).endOf('month');
+      const pad = (n) => n.toString().padStart(2, '0');
+      const fechaDesdeStr = `${pad(firstDay.date())}/${pad(firstDay.month() + 1)}/${firstDay.year()}`;
+      const fechaHastaStr = `${pad(lastDay.date())}/${pad(lastDay.month() + 1)}/${lastDay.year()}`;
+      
       const params = {
         fechaDesde: fechaDesdeStr,
-        fechaHasta: fechaHastaStr
-        // No enviar tienda
+        fechaHasta: fechaHastaStr,
       };
-      console.log('Solicitando cierres (toda la DB):', params);
+      
+      console.log('Solicitando cierres completos para extraer justificaciones:', params);
       const response = await axiosWithFallback('/api/cierres-completo', { params });
-      console.log('Respuesta cierres:', response);
-      setResponseRaw(response.data);
-      if (response && response.data) {
-        const cierresData = Array.isArray(response.data) ? response.data : [];
-        // Procesar datos igual que antes
-        const processedCierres = cierresData.map(cierre => {
-          let mediosPago = [];
-          try {
-            const mp = typeof cierre.medios_pago === 'string'
-              ? JSON.parse(cierre.medios_pago)
-              : cierre.medios_pago || {};
-            mediosPago = Array.isArray(mp)
-              ? mp.map(item => ({
-                  medio: item.medio,
-                  facturado: processNumericValue(item.facturado),
-                  cobrado: processNumericValue(item.cobrado),
-                  differenceVal: processNumericValue(item.differenceVal),
-                }))
-              : Object.keys(mp).map((key) => ({
-                  medio: key,
-                  facturado: processNumericValue(mp[key].facturado),
-                  cobrado: processNumericValue(mp[key].cobrado),
-                  differenceVal: processNumericValue(mp[key].differenceVal),
-                }));
-          } catch (parseErr) {
-            console.error('Error parseando medios de pago:', parseErr);
-            mediosPago = [];
-          }
-          const fechaFormateada = typeof cierre.fecha === 'string' 
-            ? cierre.fecha 
-            : moment(cierre.fecha).format('DD/MM/YYYY');
-          return {
-            ...cierre,
-            fecha: fechaFormateada,
-            medios_pago: mediosPago,
-            justificaciones: cierre.justificaciones || [],
-            ventas_efectivo: mediosPago.find(m => m.medio === 'Efectivo')?.facturado || 0,
-            ventas_datafono: mediosPago.find(m => m.medio === 'Datáfono')?.facturado || 0,
-            ventas_transferencias: mediosPago.find(m => m.medio === 'Transferencias')?.facturado || 0,
-            total_ventas: mediosPago.reduce((sum, m) => sum + (processNumericValue(m.facturado) || 0), 0),
-            deposito_banco: 0,
-            gastos: 0,
-            retiros: 0,
-            diferencia: processNumericValue(cierre.grand_difference_total || 0),
-            estado: getEstado(cierre.grand_difference_total || 0)
-          };
-        });
-        setCierres(processedCierres);
-        setFilteredCierres(processedCierres);
-        setPage(0);
-        showMessage(`Se cargaron ${processedCierres.length} registros`);
-      }
-    } catch (error) {
-      console.error('Error fetching cierres:', error);
-      setError('Error al cargar los datos de cierres');
-      showMessage('Error al cargar los datos de cierres');
-      setCierres([]);
-      setFilteredCierres([]);
+      console.log('Respuesta cierres completos:', response);
+      
+      // Extraer todas las justificaciones de los cierres
+      const todasJustificaciones = [];
+      response.data.forEach((cierre) => {
+        if (cierre.justificaciones && Array.isArray(cierre.justificaciones)) {
+          cierre.justificaciones.forEach((justificacion) => {
+            // Procesar fecha del cierre para usar en justificaciones
+            let fechaFormateada = cierre.fecha;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(fechaFormateada)) {
+              const [y, m, d] = fechaFormateada.split('-');
+              fechaFormateada = `${pad(d)}/${pad(m)}/${y}`;
+            } else if (/^\d{2}-\d{2}-\d{4}$/.test(fechaFormateada)) {
+              const [d, m, y] = fechaFormateada.split('-');
+              fechaFormateada = `${pad(d)}/${pad(m)}/${y}`;
+            }
+            
+            todasJustificaciones.push({
+              ...justificacion,
+              fecha: moment(fechaFormateada, 'DD/MM/YYYY'),
+              tienda: cierre.tienda,
+              usuario: justificacion.usuario || cierre.usuario, // Usar usuario de justificación o del cierre
+              validado: cierre.validado || false, // Información de validación del cierre
+              usuario_validacion: cierre.usuario_validacion || null,
+              fecha_validacion: cierre.fecha_validacion || null,
+            });
+          });
+        }
+      });
+      
+      setAllJustificaciones(todasJustificaciones);
+      
+      // Extraer motivos únicos de las justificaciones para el filtro
+      const motivosUnicos = [...new Set(todasJustificaciones.map(j => j.motivo).filter(Boolean))];
+      setMotivos(motivosUnicos);
+      
+      showSnackbar('Datos cargados exitosamente.', 'success');
+    } catch (err) {
+      console.error('Error al cargar justificaciones:', err);
+      setError(`Error al cargar los datos. Intente nuevamente.\n${err?.message || ''}\n${err?.response?.data ? JSON.stringify(err.response.data) : ''}`);
+      showSnackbar('Error al cargar los datos.', 'error');
     } finally {
       setLoading(false);
     }
+  }, [selectedMonth, selectedYear, showSnackbar]);
+
+  // Cargar datos cuando cambian mes/año (actualización automática)
+  useEffect(() => {
+    if (tiendas.length > 0) {
+      fetchJustificaciones();
+    }
+  }, [selectedMonth, selectedYear, tiendas.length, fetchJustificaciones]);
+
+  // Filtrar justificaciones según la tienda y motivo seleccionados
+  useEffect(() => {
+    let filtered = allJustificaciones;
+    
+    if (selectedTienda) {
+      filtered = filtered.filter(justificacion => justificacion.tienda === selectedTienda);
+    }
+    
+    if (selectedMotivo) {
+      filtered = filtered.filter(justificacion => justificacion.motivo === selectedMotivo);
+    }
+    
+    setFilteredJustificaciones(filtered);
+  }, [selectedTienda, selectedMotivo, allJustificaciones]);
+  // Nombres de meses
+  const months = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  const formatMoney = (amount) => {
+    return new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount);
   };
 
-  // Función para mostrar mensajes
-  const showMessage = (message) => {
-    setSnackbarMessage(message);
-    setShowSnackbar(true);
-  };
-  // Aplicar filtros
-  useEffect(() => {
-    let filtered = [...cierres];
-    
-    // Filtro por texto de búsqueda
-    if (searchText) {
-      filtered = filtered.filter(cierre =>
-        (cierre.fecha && cierre.fecha.toLowerCase().includes(searchText.toLowerCase())) ||
-        (cierre.tienda && cierre.tienda.toLowerCase().includes(searchText.toLowerCase())) ||
-        (cierre.usuario && cierre.usuario.toLowerCase().includes(searchText.toLowerCase())) ||
-        (cierre.responsable && cierre.responsable.toLowerCase().includes(searchText.toLowerCase())) ||
-        (cierre.comentarios && cierre.comentarios.toLowerCase().includes(searchText.toLowerCase()))
-      );
-    }
-    
-    // Filtro por estado
-    if (estadoFilter) {
-      filtered = filtered.filter(cierre => cierre.estado.label === estadoFilter);
-    }
-    
-    // Filtro por validación
-    if (validacionFilter) {
-      filtered = filtered.filter(cierre => {
-        if (validacionFilter === 'validado') return cierre.validado === 1 || cierre.validado === true;
-        if (validacionFilter === 'no_validado') return cierre.validado === 0 || cierre.validado === false || !cierre.validado;
-        return true;
-      });
-    }
-    
-    setFilteredCierres(filtered);
-    setPage(0);
-  }, [cierres, searchText, estadoFilter, validacionFilter]);
-  // Función para exportar a CSV
-  const exportToCSV = () => {
-    if (filteredCierres.length === 0) {
-      showMessage('No hay datos para exportar');
+  const years = useMemo(() => {
+    const currentYear = moment().year();
+    return Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
+  }, []);
+
+  // Handlers para exportar datos
+  // Utilidad para exportar CSV
+  const handleExportCSV = () => {
+    if (!filteredJustificaciones || filteredJustificaciones.length === 0) {
+      showSnackbar('No hay datos para exportar.', 'warning');
       return;
     }
-
-    const headers = [
-      'Fecha',
-      'Tienda',
-      'Usuario',
-      'Ventas Efectivo',
-      'Ventas Datáfono',
-      'Ventas Transferencias',
-      'Total Ventas',
-      'Total Billetes',
-      'Balance Final',
-      'Brinks Total',
-      'Diferencia Total',
-      'Balance Sin Justificar',
-      'Responsable',
-      'Comentarios',
-      'Estado',
-      'Validado',
-      'Usuario Validación',
-      'Fecha Validación'
+    // Definir columnas a exportar
+    const columns = [
+      'ID', 'Fecha', 'Tienda', 'Usuario', 'Cliente', 'Orden', 'Motivo', 'Ajuste ($)', 'Validado'
     ];
-
-    const csvContent = [
-      headers.join(','),
-      ...filteredCierres.map(cierre => [
-        cierre.fecha || '',
-        cierre.tienda || '',
-        cierre.usuario || '',
-        processNumericValue(cierre.ventas_efectivo),
-        processNumericValue(cierre.ventas_datafono),
-        processNumericValue(cierre.ventas_transferencias),
-        processNumericValue(cierre.total_ventas),
-        processNumericValue(cierre.total_billetes),
-        processNumericValue(cierre.final_balance),
-        processNumericValue(cierre.brinks_total),
-        processNumericValue(cierre.grand_difference_total),
-        processNumericValue(cierre.balance_sin_justificar),
-        cierre.responsable || '',
-        (cierre.comentarios || '').replace(/,/g, ';'),
-        cierre.estado?.label || '',
-        cierre.validado ? 'Sí' : 'No',
-        cierre.usuario_validacion || '',
-        cierre.fecha_validacion || ''
-      ].join(','))
-    ].join('\n');
-
+    // Mapear datos
+    const rows = filteredJustificaciones.map(justificacion => {
+      return [
+        justificacion.id || '',
+        justificacion.fecha ? justificacion.fecha.format('DD/MM/YYYY') : '',
+        justificacion.tienda || '',
+        justificacion.usuario || '',
+        justificacion.cliente || '',
+        justificacion.orden || '',
+        justificacion.motivo || '',
+        justificacion.ajuste || justificacion.monto_dif || '',
+        justificacion.validado ? 'Sí' : 'No'
+      ];
+    });
+    // Construir CSV
+    let csvContent = columns.join(',') + '\n';
+    rows.forEach(row => {
+      csvContent += row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',') + '\n';
+    });
+    // Descargar
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    
-    const tiendaName = tiendas.find(t => t.id === selectedTienda)?.nombre || selectedTienda;
-    const fileName = `cierres_${tiendaName}_${year}_${month.toString().padStart(2, '0')}.csv`;
-    link.setAttribute('download', fileName);
-    link.style.visibility = 'hidden';
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `justificaciones_${selectedTienda || 'todas'}_${months[selectedMonth]}_${selectedYear}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
-    showMessage(`Archivo ${fileName} descargado exitosamente`);
-    setExportDialog(false);
   };
 
-  // Cargar configuración al montar el componente
-  useEffect(() => {
-    loadConfig();
-  }, []);
-
-  // Seleccionar tienda automáticamente si hay tiendas
-  useEffect(() => {
-    if (tiendas.length > 0 && !selectedTienda) {
-      setSelectedTienda(tiendas[0].id);
+  // Utilidad para exportar Excel (XLSX)
+  const handleExportXLSX = () => {
+    if (!filteredJustificaciones || filteredJustificaciones.length === 0) {
+      showSnackbar('No hay datos para exportar.', 'warning');
+      return;
     }
-  }, [tiendas, selectedTienda]);
-
-  // Datos paginados
-  const paginatedCierres = useMemo(() => {
-    const startIndex = page * rowsPerPage;
-    return filteredCierres.slice(startIndex, startIndex + rowsPerPage);
-  }, [filteredCierres, page, rowsPerPage]);
-
-  // Generar opciones de años
-  const yearOptions = useMemo(() => {
-    const currentYear = moment().year();
-    const years = [];
-    for (let i = currentYear - 2; i <= currentYear + 1; i++) {
-      years.push(i);
+    // Usar SheetJS (xlsx) si está disponible
+    try {
+      // @ts-ignore
+      if (!window.XLSX) {
+        showSnackbar('No se encontró la librería XLSX. Instale SheetJS en el proyecto.', 'error');
+        return;
+      }
+      
+      const rows = filteredJustificaciones.map(justificacion => {
+        return {
+          ID: justificacion.id || '',
+          Fecha: justificacion.fecha ? justificacion.fecha.format('DD/MM/YYYY') : '',
+          Tienda: justificacion.tienda || '',
+          Usuario: justificacion.usuario || '',
+          Cliente: justificacion.cliente || '',
+          Orden: justificacion.orden || '',
+          Motivo: justificacion.motivo || '',
+          'Ajuste ($)': justificacion.ajuste || justificacion.monto_dif || '',
+          Validado: justificacion.validado ? 'Sí' : 'No'
+        };
+      });
+      
+      // @ts-ignore
+      const ws = window.XLSX.utils.json_to_sheet(rows);
+      // @ts-ignore
+      const wb = window.XLSX.utils.book_new();
+      // @ts-ignore
+      window.XLSX.utils.book_append_sheet(wb, ws, 'Justificaciones');
+      // @ts-ignore
+      window.XLSX.writeFile(wb, `justificaciones_${selectedTienda || 'todas'}_${months[selectedMonth]}_${selectedYear}.xlsx`);
+    } catch (err) {
+      showSnackbar('Error al exportar a Excel.', 'error');
     }
-    return years;
-  }, []);
+  };
 
-  // Generar opciones de meses
-  const monthOptions = useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => ({
-      value: i + 1,
-      label: moment().month(i).format('MMMM').charAt(0).toUpperCase() + moment().month(i).format('MMMM').slice(1)
-    }));
-  }, []);
-
-  // Mostrar siempre el total al cargar la página
-  useEffect(() => {
-    fetchCierres();
-  }, []);
+  // Utilidad para exportar PDF
+  const handleExportPDF = () => {
+    if (!filteredJustificaciones || filteredJustificaciones.length === 0) {
+      showSnackbar('No hay datos para exportar.', 'warning');
+      return;
+    }
+    // Usar jsPDF si está disponible
+    try {
+      // @ts-ignore
+      if (!window.jspdf || !window.jspdf.autoTable) {
+        showSnackbar('No se encontró la librería jsPDF. Instale jsPDF y jsPDF-autotable en el proyecto.', 'error');
+        return;
+      }
+      // @ts-ignore
+      const doc = new window.jspdf.jsPDF();
+      const columns = [
+        { header: 'ID', dataKey: 'id' },
+        { header: 'Fecha', dataKey: 'fecha' },
+        { header: 'Tienda', dataKey: 'tienda' },
+        { header: 'Usuario', dataKey: 'usuario' },
+        { header: 'Cliente', dataKey: 'cliente' },
+        { header: 'Orden', dataKey: 'orden' },
+        { header: 'Motivo', dataKey: 'motivo' },
+        { header: 'Ajuste ($)', dataKey: 'ajuste' },
+        { header: 'Validado', dataKey: 'validado' }
+      ];
+      
+      const rows = filteredJustificaciones.map(justificacion => {
+        return {
+          id: justificacion.id || '',
+          fecha: justificacion.fecha ? justificacion.fecha.format('DD/MM/YYYY') : '',
+          tienda: justificacion.tienda || '',
+          usuario: justificacion.usuario || '',
+          cliente: justificacion.cliente || '',
+          orden: justificacion.orden || '',
+          motivo: justificacion.motivo || '',
+          ajuste: justificacion.ajuste || justificacion.monto_dif || '',
+          validado: justificacion.validado ? 'Sí' : 'No'
+        };
+      });
+      
+      // @ts-ignore
+      window.jspdf.autoTable(doc, {
+        columns,
+        body: rows,
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [209, 109, 109] },
+        margin: { top: 20 },
+        theme: 'grid',
+      });
+      doc.save(`justificaciones_${selectedTienda || 'todas'}_${months[selectedMonth]}_${selectedYear}.pdf`);
+    } catch (err) {
+      showSnackbar('Error al exportar a PDF.', 'error');
+    }
+  };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-        <TableChartIcon color="primary" />
-        Exportar Datos de Cierres
-      </Typography>
-
-      {/* Controles principales: Eliminar Tienda, Año, Mes */}
-      {/* Filtros útiles */}
-      {cierres.length > 0 && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <FilterListIcon />
-              Filtros
-            </Typography>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  label="Buscar"
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  placeholder="Buscar por fecha, tienda, usuario, responsable o comentarios..."
-                  InputProps={{
-                    endAdornment: searchText && (
-                      <IconButton onClick={() => setSearchText('')} size="small">
-                        <ClearIcon />
-                      </IconButton>
-                    )
+    <Box
+      p={3}
+      sx={{
+        fontFamily: 'Inter',
+        bgcolor: '#121212',
+        color: '#ffffff',
+        minHeight: '100vh'
+      }}
+    >
+      <Paper
+        elevation={3}
+        sx={{
+          p: 4,
+          borderRadius: 2,
+          bgcolor: '#1e1e1e',
+          color: '#ffffff'
+        }}
+      >
+        {/* Filtros */}
+        <Box sx={{ mb: 4 }}>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} sm={6} md={1.5}>
+              <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
+                <InputLabel sx={{ color: '#ffffff', fontSize: '0.9rem', top: '-4px' }}>Mes</InputLabel>
+                <Select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  label="Mes"
+                  sx={{
+                    color: '#ffffff',
+                    '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
+                    '.MuiSvgIcon-root': { color: '#ffffff' },
+                    borderRadius: 2,
+                    minHeight: 32,
+                    fontSize: '0.9rem',
+                    height: 36,
                   }}
-                />
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <FormControl fullWidth>
-                  <InputLabel>Estado</InputLabel>
-                  <Select
-                    value={estadoFilter}
-                    onChange={(e) => setEstadoFilter(e.target.value)}
-                    label="Estado"
-                  >
-                    <MenuItem value="">Todos</MenuItem>
-                    <MenuItem value="Cuadrado">Cuadrado</MenuItem>
-                    <MenuItem value="Sobrante">Sobrante</MenuItem>
-                    <MenuItem value="Faltante">Faltante</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <FormControl fullWidth>
-                  <InputLabel>Validación</InputLabel>
-                  <Select
-                    value={validacionFilter}
-                    onChange={(e) => setValidacionFilter(e.target.value)}
-                    label="Validación"
-                  >
-                    <MenuItem value="">Todos</MenuItem>
-                    <MenuItem value="validado">Validado</MenuItem>
-                    <MenuItem value="no_validado">No Validado</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
+                >
+                  {months.map((month, index) => (
+                    <MenuItem key={index} value={index} sx={{ fontSize: '0.9rem', minHeight: 32 }}>
+                      {month}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
-          </CardContent>
-        </Card>
-      )}
+            <Grid item xs={12} sm={6} md={1.5}>
+              <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
+                <InputLabel sx={{ color: '#ffffff', fontSize: '0.9rem', top: '-4px' }}>Año</InputLabel>
+                <Select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  label="Año"
+                  sx={{
+                    color: '#ffffff',
+                    '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
+                    '.MuiSvgIcon-root': { color: '#ffffff' },
+                    borderRadius: 2,
+                    minHeight: 32,
+                    fontSize: '0.9rem',
+                    height: 36,
+                  }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
+                >
+                  {years.map((year) => (
+                    <MenuItem key={year} value={year} sx={{ fontSize: '0.9rem', minHeight: 32 }}>
+                      {year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.5}>
+              <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
+                <InputLabel sx={{ color: '#ffffff', fontSize: '0.9rem', top: '-4px' }}>Tienda</InputLabel>
+                <Select
+                  value={selectedTienda || ''}
+                  onChange={(e) => setSelectedTienda(e.target.value || null)}
+                  label="Tienda"
+                  sx={{
+                    color: '#ffffff',
+                    '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
+                    '.MuiSvgIcon-root': { color: '#ffffff' },
+                    borderRadius: 2,
+                    minHeight: 32,
+                    fontSize: '0.9rem',
+                    height: 36,
+                  }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.9rem', minHeight: 32 }}>
+                    Todas las tiendas
+                  </MenuItem>
+                  {tiendas.map((tienda) => (
+                    <MenuItem key={tienda} value={tienda} sx={{ fontSize: '0.9rem', minHeight: 32 }}>
+                      {tienda}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2.5}>
+              <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
+                <InputLabel sx={{ color: '#ffffff', fontSize: '0.9rem', top: '-4px' }}>Motivo</InputLabel>
+                <Select
+                  value={selectedMotivo || ''}
+                  onChange={(e) => setSelectedMotivo(e.target.value || null)}
+                  label="Motivo"
+                  sx={{
+                    color: '#ffffff',
+                    '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
+                    '.MuiSvgIcon-root': { color: '#ffffff' },
+                    borderRadius: 2,
+                    minHeight: 32,
+                    fontSize: '0.9rem',
+                    height: 36,
+                  }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.9rem', minHeight: 32 }}>
+                    Todos los motivos
+                  </MenuItem>
+                  {motivos.map((motivo) => (
+                    <MenuItem key={motivo} value={motivo} sx={{ fontSize: '0.9rem', minHeight: 32 }}>
+                      {motivo}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <Button
+                variant="outlined"
+                onClick={fetchJustificaciones}
+                disabled={loading}
+                startIcon={<RefreshIcon />}
+                sx={{
+                  color: '#ffffff',
+                  borderColor: '#444',
+                  '&:hover': { borderColor: '#888' },
+                  height: '36px',
+                  width: '100%',
+                  fontSize: '0.8rem',
+                  borderRadius: 2,
+                  px: 1,
+                }}
+              >
+                {loading ? 'Cargando...' : 'Actualizar'}
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center', alignItems: 'center', height: '36px' }}>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  sx={{ 
+                    borderRadius: 2, 
+                    minWidth: 35, 
+                    px: 0.5, 
+                    fontSize: '0.75rem', 
+                    color: '#fff', 
+                    borderColor: '#fff', 
+                    bgcolor: '#222', 
+                    '&:hover': { bgcolor: '#444', borderColor: '#fff' } 
+                  }} 
+                  onClick={handleExportCSV}
+                >
+                  CSV
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  sx={{ 
+                    borderRadius: 2, 
+                    minWidth: 35, 
+                    px: 0.5, 
+                    fontSize: '0.75rem', 
+                    color: '#D16D6D', 
+                    borderColor: '#D16D6D', 
+                    bgcolor: '#222', 
+                    '&:hover': { bgcolor: '#3a2323', borderColor: '#D16D6D' } 
+                  }} 
+                  onClick={handleExportPDF}
+                >
+                  PDF
+                </Button>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  sx={{ 
+                    borderRadius: 2, 
+                    minWidth: 35, 
+                    px: 0.5, 
+                    fontSize: '0.75rem', 
+                    color: '#4CAF50', 
+                    borderColor: '#4CAF50', 
+                    bgcolor: '#222', 
+                    '&:hover': { bgcolor: '#233a23', borderColor: '#4CAF50' } 
+                  }} 
+                  onClick={handleExportXLSX}
+                >
+                  Excel
+                </Button>
+              </Box>
+            </Grid>
+          </Grid>
+        </Box>
 
-      {/* Mostrar loading */}
-      {loading && <LinearProgress sx={{ mb: 2 }} />}
+        <Divider sx={{ mb: 3, borderColor: '#444' }} />
 
-      {/* Mostrar error */}
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+        {/* Mensaje de error */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
+            {error}
+          </Alert>
+        )}
 
-      {/* Tabla de resultados */}
-      {filteredCierres.length > 0 && (
-        <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-          <TableContainer sx={{ maxHeight: 600 }}>
-            <Table stickyHeader>              <TableHead>
-                <TableRow>
-                  <TableCell>FECHA</TableCell>
-                  <TableCell>USUARIO</TableCell>
-                  <TableCell>NÚMERO DE CLIENTE</TableCell>
-                  <TableCell>N PEDIDO</TableCell>
-                  <TableCell>MODO DE PAGO</TableCell>
-                  <TableCell>MOTIVO</TableCell>
-                  <TableCell>DIFERENCIA</TableCell>
+        {/* Tabla de justificaciones */}
+        <Box sx={{ mt: 4 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+            <Typography variant="h6" sx={{ color: '#ffffff' }}>
+              Justificaciones {selectedTienda ? `de ${selectedTienda}` : 'de todas las tiendas'}
+            </Typography>
+          </Box>
+          
+          <TableContainer component={Paper} sx={{ 
+            bgcolor: '#2a2a2a', 
+            borderRadius: 3,
+            overflow: 'hidden',
+            border: '1px solid #444'
+          }}>
+            <Table stickyHeader size="small">
+              <TableHead>
+                <TableRow sx={{
+                  bgcolor: '#3a3a3a',
+                  '& th': {
+                    fontWeight: 'bold',
+                    color: '#ffffff',
+                    borderBottom: '2px solid #A3BE8C'
+                  }
+                }}>
+                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>ID</TableCell>
+                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Fecha</TableCell>
+                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Tienda</TableCell>
+                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Usuario</TableCell>
+                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Cliente</TableCell>
+                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Orden</TableCell>
+                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Motivo</TableCell>
+                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Ajuste ($)</TableCell>
+                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Medio de Pago</TableCell>
+                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Validado</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {paginatedCierres.map((cierre, index) => (
-                  <TableRow key={`${cierre.id || index}-${cierre.fecha}`} hover>
-                    <TableCell>{cierre.fecha || 'N/A'}</TableCell>
-                    <TableCell>{cierre.usuario || 'N/A'}</TableCell>
-                    <TableCell>{cierre.numero_cliente || cierre.cliente || 'N/A'}</TableCell>
-                    <TableCell>{cierre.numero_pedido || cierre.n_pedido || 'N/A'}</TableCell>
-                    <TableCell>{Array.isArray(cierre.medios_pago) ? cierre.medios_pago.map(mp => mp.medio).join(', ') : (cierre.modo_pago || 'N/A')}</TableCell>
-                    <TableCell>{Array.isArray(cierre.justificaciones) && cierre.justificaciones.length > 0 ? cierre.justificaciones.map(j => j.motivo).join('; ') : 'Sin justificación'}</TableCell>
-                    <TableCell>{typeof cierre.diferencia !== 'undefined' ? cierre.diferencia : (typeof cierre.grand_difference_total !== 'undefined' ? cierre.grand_difference_total : 'N/A')}</TableCell>
+                {filteredJustificaciones.map((justificacion, index) => (
+                  <TableRow 
+                    key={justificacion.id || index} 
+                    sx={{ 
+                      '&:hover': { bgcolor: '#3a3a3a' },
+                      bgcolor: '#2a2a2a'
+                    }}
+                  >
+                    <TableCell sx={{ color: '#ffffff', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                      {justificacion.id || 'N/A'}
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff' }}>
+                      {justificacion.fecha ? justificacion.fecha.format('DD/MM/YYYY') : 'N/A'}
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff' }}>
+                      {justificacion.tienda || 'N/A'}
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff' }}>
+                      {justificacion.usuario || 'N/A'}
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff' }}>
+                      {justificacion.cliente || '-'}
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff' }}>
+                      {justificacion.orden || '-'}
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff', maxWidth: 300 }}>
+                      <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
+                        {justificacion.motivo || 'Sin motivo'}
+                      </Typography>
+                    </TableCell>
+                    <TableCell sx={{ 
+                      color: '#EBCB8B',
+                      fontWeight: 600,
+                      fontFamily: 'monospace'
+                    }}>
+                      {formatCurrency(justificacion.ajuste || justificacion.monto_dif || 0)}
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff' }}>
+                      {justificacion.medio_pago || 'N/A'}
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff' }}>
+                      <Chip
+                        label={justificacion.validado ? 'Validado' : 'Sin validar'}
+                        size="small"
+                        sx={{
+                          backgroundColor: justificacion.validado ? '#4caf50' : '#f44336',
+                          color: '#ffffff',
+                          fontSize: '0.7rem',
+                          height: 20,
+                        }}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))}
-                {/* Fila de total de diferencia */}
-                <TableRow>
-                  <TableCell colSpan={6} align="right" sx={{ fontWeight: 'bold' }}>TOTAL DIFERENCIA</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>
-                    {(() => {
-                      const total = filteredCierres.reduce((sum, cierre) => {
-                        const val = typeof cierre.diferencia !== 'undefined' ? cierre.diferencia : cierre.grand_difference_total;
-                        return sum + (parseFloat(val) || 0);
-                      }, 0);
-                      return total.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    })()}
-                  </TableCell>
-                </TableRow>
+                {/* Fila de totales */}
+                {filteredJustificaciones.length > 0 && (
+                  <TableRow sx={{ 
+                    bgcolor: '#3a3a3a',
+                    borderTop: '2px solid #A3BE8C'
+                  }}>
+                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }} colSpan={7}>
+                      TOTAL
+                    </TableCell>
+                    <TableCell sx={{ 
+                      color: filteredJustificaciones.reduce((total, justificacion) => 
+                        total + (justificacion.ajuste || justificacion.monto_dif || 0), 0
+                      ) >= 0 ? '#4caf50' : '#f44336',
+                      fontWeight: 700,
+                      fontFamily: 'monospace',
+                      fontSize: '1rem'
+                    }}>
+                      {formatCurrency(
+                        filteredJustificaciones.reduce((total, justificacion) => 
+                          total + (justificacion.ajuste || justificacion.monto_dif || 0), 0
+                        )
+                      )}
+                    </TableCell>
+                    <TableCell sx={{ color: '#ffffff' }}>
+                      {/* Celda vacía para alinear con la columna "Validado" */}
+                    </TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </TableContainer>
           
-          <TablePagination
-            rowsPerPageOptions={[10, 25, 50, 100]}
-            component="div"
-            count={filteredCierres.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={(event, newPage) => setPage(newPage)}
-            onRowsPerPageChange={(event) => {
-              setRowsPerPage(parseInt(event.target.value, 10));
-              setPage(0);
-            }}
-            labelRowsPerPage="Filas por página:"
-            labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
-          />
-        </Paper>
-      )}
+          {filteredJustificaciones.length === 0 && (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="body1" sx={{ color: '#b0b0b0' }}>
+                No se encontraron justificaciones para el período seleccionado
+              </Typography>
+            </Box>
+          )}
+        </Box>
+      </Paper>
 
-      {/* Mensaje cuando no hay datos */}
-      {!loading && filteredCierres.length === 0 && selectedTienda && (
-        <Paper sx={{ p: 4, textAlign: 'center' }}>
-          <Typography variant="h6" color="textSecondary">
-            No se encontraron registros para los criterios seleccionados
-          </Typography>
-        </Paper>
-      )}
-
-      {/* Diálogo de confirmación de exportación */}
-      <Dialog open={exportDialog} onClose={() => setExportDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontSize: 18, py: 1 }}>Confirmar Exportación</DialogTitle>
-        <DialogContent sx={{ fontSize: 14, py: 1 }}>
-          <Typography>
-            ¿Exportar {filteredCierres.length} registros a CSV?
-          </Typography>
-        </DialogContent>
-        <DialogActions sx={{ py: 1 }}>
-          <Button onClick={() => setExportDialog(false)} size="small">Cancelar</Button>
-          <Button onClick={exportToCSV} variant="contained" startIcon={<FileDownloadIcon />} size="small">
-            Exportar
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Snackbar para mensajes */}
+      {/* Snackbar */}
       <Snackbar
-        open={showSnackbar}
-        autoHideDuration={4000}
-        onClose={() => setShowSnackbar(false)}
-        message={snackbarMessage}
-      />
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%', borderRadius: 1 }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
-};
+}
 
-export default Exportar;

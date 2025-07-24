@@ -606,7 +606,7 @@ export default function ControlMensual() {
     }
     // Definir columnas a exportar
     const columns = [
-      'ID', 'Fecha', 'Usuario', 'Estado', 'Validación', 'Diferencia Total', 'Cliente', 'Pedido', 'Monto', 'Justificaciones'
+      'ID', 'Fecha', 'Usuario', 'Estado', 'Validación', 'Diferencia Total', 'Diferencia Justificada', 'Saldo Sin Justificar', 'Justificaciones'
     ];
     // Mapear datos
     const rows = selectedCierres.map(cierre => {
@@ -614,31 +614,36 @@ export default function ControlMensual() {
       const validacion = getValidacionInfo(cierre).label;
       const diferencia = formatMoney(Number(cierre.grand_difference_total) || 0);
       // Justificaciones resumidas
-      let clientes = '-';
-      let ordenes = '-';
-      let monto = '-';
+      let diferenciaJustificada = 0;
       let justificaciones = '-';
       if (cierre.justificaciones && cierre.justificaciones.length > 0) {
-        clientes = [...new Set(cierre.justificaciones.map(j => j.cliente).filter(c => c && c !== '0'))].join(', ');
-        ordenes = [...new Set(cierre.justificaciones.map(j => j.orden).filter(o => o && o !== '0'))].join(', ');
-        monto = formatMoney(cierre.justificaciones.reduce((sum, j) => {
-          let m = j.monto_dif;
-          if (typeof m === 'string') {
-            m = m.replace(/\$/g, '').trim();
-            if (m.includes(',')) {
-              const partes = m.split(',');
-              const entero = partes[0].replace(/\./g, '');
-              const decimal = partes[1] || '0';
-              m = entero + '.' + decimal;
-            } else {
-              m = m.replace(/\./g, '');
+        // Calcular diferencia justificada
+        diferenciaJustificada = cierre.justificaciones.reduce((sum, j) => {
+          if (j.ajuste != null) {
+            const ajusteNum = Number(j.ajuste);
+            return sum + (isNaN(ajusteNum) ? 0 : ajusteNum);
+          } else if (j.monto_dif != null) {
+            let monto = j.monto_dif;
+            if (typeof monto === 'string') {
+              monto = monto.replace(/\$/g, '').trim();
+              if (monto.includes(',')) {
+                const partes = monto.split(',');
+                const entero = partes[0].replace(/\./g, '');
+                const decimal = partes[1] || '0';
+                monto = entero + '.' + decimal;
+              } else {
+                monto = monto.replace(/\./g, '');
+              }
             }
+            const numeroMonto = Number(monto);
+            return sum + (isNaN(numeroMonto) ? 0 : numeroMonto);
           }
-          const numeroMonto = Number(m);
-          return sum + (isNaN(numeroMonto) ? 0 : numeroMonto);
-        }, 0));
-        justificaciones = cierre.justificaciones.map(j => j.motivo).join(' | ');
+          return sum;
+        }, 0);
+        justificaciones = cierre.justificaciones.map(j => j.motivo || 'Sin motivo').join(' | ');
       }
+      const saldoSinJustificar = (Number(cierre.grand_difference_total) || 0) - diferenciaJustificada;
+      
       return [
         cierre.id,
         cierre.fecha ? cierre.fecha.format('DD/MM/YYYY') : '',
@@ -646,9 +651,8 @@ export default function ControlMensual() {
         estado,
         validacion,
         diferencia,
-        clientes,
-        ordenes,
-        monto,
+        formatMoney(diferenciaJustificada),
+        formatMoney(saldoSinJustificar),
         justificaciones
       ];
     });
@@ -681,37 +685,42 @@ export default function ControlMensual() {
         return;
       }
       const columns = [
-        'ID', 'Fecha', 'Usuario', 'Estado', 'Validación', 'Diferencia Total', 'Cliente', 'Pedido', 'Monto', 'Justificaciones'
+        'ID', 'Fecha', 'Usuario', 'Estado', 'Validación', 'Diferencia Total', 'Diferencia Justificada', 'Saldo Sin Justificar', 'Justificaciones'
       ];
       const rows = selectedCierres.map(cierre => {
         const estado = getEstado(cierre).label;
         const validacion = getValidacionInfo(cierre).label;
         const diferencia = Number(cierre.grand_difference_total) || 0;
-        let clientes = '-';
-        let ordenes = '-';
-        let monto = '-';
+        let diferenciaJustificada = 0;
         let justificaciones = '-';
         if (cierre.justificaciones && cierre.justificaciones.length > 0) {
-          clientes = [...new Set(cierre.justificaciones.map(j => j.cliente).filter(c => c && c !== '0'))].join(', ');
-          ordenes = [...new Set(cierre.justificaciones.map(j => j.orden).filter(o => o && o !== '0'))].join(', ');
-          monto = cierre.justificaciones.reduce((sum, j) => {
-            let m = j.monto_dif;
-            if (typeof m === 'string') {
-              m = m.replace(/\$/g, '').trim();
-              if (m.includes(',')) {
-                const partes = m.split(',');
-                const entero = partes[0].replace(/\./g, '');
-                const decimal = partes[1] || '0';
-                m = entero + '.' + decimal;
-              } else {
-                m = m.replace(/\./g, '');
+          // Calcular diferencia justificada
+          diferenciaJustificada = cierre.justificaciones.reduce((sum, j) => {
+            if (j.ajuste != null) {
+              const ajusteNum = Number(j.ajuste);
+              return sum + (isNaN(ajusteNum) ? 0 : ajusteNum);
+            } else if (j.monto_dif != null) {
+              let monto = j.monto_dif;
+              if (typeof monto === 'string') {
+                monto = monto.replace(/\$/g, '').trim();
+                if (monto.includes(',')) {
+                  const partes = monto.split(',');
+                  const entero = partes[0].replace(/\./g, '');
+                  const decimal = partes[1] || '0';
+                  monto = entero + '.' + decimal;
+                } else {
+                  monto = monto.replace(/\./g, '');
+                }
               }
+              const numeroMonto = Number(monto);
+              return sum + (isNaN(numeroMonto) ? 0 : numeroMonto);
             }
-            const numeroMonto = Number(m);
-            return sum + (isNaN(numeroMonto) ? 0 : numeroMonto);
+            return sum;
           }, 0);
-          justificaciones = cierre.justificaciones.map(j => j.motivo).join(' | ');
+          justificaciones = cierre.justificaciones.map(j => j.motivo || 'Sin motivo').join(' | ');
         }
+        const saldoSinJustificar = diferencia - diferenciaJustificada;
+        
         return {
           ID: cierre.id,
           Fecha: cierre.fecha ? cierre.fecha.format('DD/MM/YYYY') : '',
@@ -719,9 +728,8 @@ export default function ControlMensual() {
           Estado: estado,
           Validación: validacion,
           'Diferencia Total': diferencia,
-          Cliente: clientes,
-          Pedido: ordenes,
-          Monto: monto,
+          'Diferencia Justificada': diferenciaJustificada,
+          'Saldo Sin Justificar': saldoSinJustificar,
           Justificaciones: justificaciones
         };
       });
@@ -760,40 +768,44 @@ export default function ControlMensual() {
         { header: 'Estado', dataKey: 'estado' },
         { header: 'Validación', dataKey: 'validacion' },
         { header: 'Diferencia Total', dataKey: 'diferencia' },
-        { header: 'Cliente', dataKey: 'clientes' },
-        { header: 'Pedido', dataKey: 'ordenes' },
-        { header: 'Monto', dataKey: 'monto' },
+        { header: 'Diferencia Justificada', dataKey: 'diferenciaJustificada' },
+        { header: 'Saldo Sin Justificar', dataKey: 'saldoSinJustificar' },
         { header: 'Justificaciones', dataKey: 'justificaciones' }
       ];
       const rows = selectedCierres.map(cierre => {
         const estado = getEstado(cierre).label;
         const validacion = getValidacionInfo(cierre).label;
         const diferencia = formatMoney(Number(cierre.grand_difference_total) || 0);
-        let clientes = '-';
-        let ordenes = '-';
-        let monto = '-';
+        let diferenciaJustificada = 0;
         let justificaciones = '-';
         if (cierre.justificaciones && cierre.justificaciones.length > 0) {
-          clientes = [...new Set(cierre.justificaciones.map(j => j.cliente).filter(c => c && c !== '0'))].join(', ');
-          ordenes = [...new Set(cierre.justificaciones.map(j => j.orden).filter(o => o && o !== '0'))].join(', ');
-          monto = formatMoney(cierre.justificaciones.reduce((sum, j) => {
-            let m = j.monto_dif;
-            if (typeof m === 'string') {
-              m = m.replace(/\$/g, '').trim();
-              if (m.includes(',')) {
-                const partes = m.split(',');
-                const entero = partes[0].replace(/\./g, '');
-                const decimal = partes[1] || '0';
-                m = entero + '.' + decimal;
-              } else {
-                m = m.replace(/\./g, '');
+          // Calcular diferencia justificada
+          diferenciaJustificada = cierre.justificaciones.reduce((sum, j) => {
+            if (j.ajuste != null) {
+              const ajusteNum = Number(j.ajuste);
+              return sum + (isNaN(ajusteNum) ? 0 : ajusteNum);
+            } else if (j.monto_dif != null) {
+              let monto = j.monto_dif;
+              if (typeof monto === 'string') {
+                monto = monto.replace(/\$/g, '').trim();
+                if (monto.includes(',')) {
+                  const partes = monto.split(',');
+                  const entero = partes[0].replace(/\./g, '');
+                  const decimal = partes[1] || '0';
+                  monto = entero + '.' + decimal;
+                } else {
+                  monto = monto.replace(/\./g, '');
+                }
               }
+              const numeroMonto = Number(monto);
+              return sum + (isNaN(numeroMonto) ? 0 : numeroMonto);
             }
-            const numeroMonto = Number(m);
-            return sum + (isNaN(numeroMonto) ? 0 : numeroMonto);
-          }, 0));
-          justificaciones = cierre.justificaciones.map(j => j.motivo).join(' | ');
+            return sum;
+          }, 0);
+          justificaciones = cierre.justificaciones.map(j => j.motivo || 'Sin motivo').join(' | ');
         }
+        const saldoSinJustificar = (Number(cierre.grand_difference_total) || 0) - diferenciaJustificada;
+        
         return {
           id: cierre.id,
           fecha: cierre.fecha ? cierre.fecha.format('DD/MM/YYYY') : '',
@@ -801,9 +813,8 @@ export default function ControlMensual() {
           estado,
           validacion,
           diferencia,
-          clientes,
-          ordenes,
-          monto,
+          diferenciaJustificada: formatMoney(diferenciaJustificada),
+          saldoSinJustificar: formatMoney(saldoSinJustificar),
           justificaciones
         };
       });
@@ -1212,6 +1223,8 @@ export default function ControlMensual() {
               </Button>
             </Box>
             
+
+            
             <TableContainer component={Paper} sx={{ 
               bgcolor: '#2a2a2a', 
               borderRadius: 3,
@@ -1228,7 +1241,31 @@ export default function ControlMensual() {
                       borderBottom: '2px solid #A3BE8C'
                     }
                   }}>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}><Checkbox sx={{ color: '#A3BE8C', '&.Mui-checked': { color: '#A3BE8C' } }} checked={selectedCierres.length > 0 && selectedCierresIds.size === selectedCierres.filter(c => !c.validado).length} indeterminate={selectedCierresIds.size > 0 && selectedCierresIds.size < selectedCierres.filter(c => !c.validado).length} onChange={(e) => handleSelectAll(e.target.checked)} /></TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}>Ver</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>ID</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Fecha</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Usuario</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Estado</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Validación</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Diferencia Total</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Cliente</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Pedido</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Monto</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Justificaciones</TableCell>
+                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}><Checkbox sx={{ color: '#A3BE8C', '&.Mui-checked': { color: '#A3BE8C' } }} checked={selectedCierres.length > 0 && selectedCierresIds.size === selectedCierres.filter(c => !c.validado).length} indeterminate={selectedCierresIds.size > 0 && selectedCierresIds.size < selectedCierres.filter(c => !c.validado).length} onChange={(e) => handleSelectAll(e.target.checked)} /></TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}>Ver</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>ID</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Fecha</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Usuario</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Estado</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Validación</TableCell><TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
+                          <Tooltip title="Diferencia total del cierre antes de ajustes" arrow>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <span>Diferencia Total</span>
+                              <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
+                            </Box>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
+                          <Tooltip title="Total de todas las justificaciones realizadas" arrow>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <span>Diferencia Justificada</span>
+                              <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
+                            </Box>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
+                          <Tooltip title="Saldo sin justificar (Diferencia Total - Justificaciones)" arrow>
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <span>Saldo Sin Justificar</span>
+                              <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
+                            </Box>
+                          </Tooltip>
+                        </TableCell>
+                        <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: '300px' }}>Justificaciones</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -1249,7 +1286,13 @@ export default function ControlMensual() {
                           
                           // Calcular monto total de justificaciones
                           const montoTotal = justifs.reduce((sum, j) => {
-                            if (j.monto_dif != null) {
+                            // Preferir usar el campo ajuste cuando esté disponible (más preciso)
+                            if (j.ajuste != null) {
+                              const ajusteNum = Number(j.ajuste);
+                              return sum + (isNaN(ajusteNum) ? 0 : ajusteNum);
+                            }
+                            // Si no hay ajuste, intentar procesar monto_dif
+                            else if (j.monto_dif != null) {
                               let monto = j.monto_dif;
                               if (typeof monto === 'string') {
                                 // Limpiar el string: remover $ y espacios, luego procesar formato argentino
@@ -1366,28 +1409,44 @@ export default function ControlMensual() {
                         }}>
                           {formatMoney(diferencia)}
                         </TableCell>
-                        <TableCell sx={{ color: '#ffffff' }}>
-                          {infoJustificaciones ? (
-                            infoJustificaciones.clientes.length > 0 
-                              ? infoJustificaciones.clientes.slice(0, 2).join(', ') + 
-                                (infoJustificaciones.clientes.length > 2 ? '...' : '')
-                              : '-'
-                          ) : '-'}
-                        </TableCell>
-                        <TableCell sx={{ color: '#ffffff' }}>
-                          {infoJustificaciones ? (
-                            infoJustificaciones.ordenes.length > 0
-                              ? infoJustificaciones.ordenes.slice(0, 2).join(', ') +
-                                (infoJustificaciones.ordenes.length > 2 ? '...' : '')
-                              : '-'
-                          ) : '-'}
-                        </TableCell>
                         <TableCell sx={{ 
-                          color: '#ffffff',
+                          color: infoJustificaciones && infoJustificaciones.montoTotal !== 0 
+                            ? infoJustificaciones.montoTotal > 0 ? '#A3BE8C' : '#EBCB8B'
+                            : '#ffffff',
                           fontWeight: 600,
                           fontFamily: 'monospace'
                         }}>
-                          {infoJustificaciones ? formatMoney(infoJustificaciones.montoTotal) : '-'}
+                          {infoJustificaciones ? (
+                            <Tooltip 
+                              title="Total de todas las justificaciones realizadas" 
+                              arrow
+                            >
+                              <span>{formatMoney(infoJustificaciones.montoTotal)}</span>
+                            </Tooltip>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell sx={{ 
+                          color: infoJustificaciones && infoJustificaciones.montoTotal !== 0 
+                            ? (diferencia - infoJustificaciones.montoTotal) > 0 ? '#BF616A' : '#A3BE8C'
+                            : diferencia > 0 ? '#BF616A' : '#A3BE8C',
+                          fontWeight: 600,
+                          fontFamily: 'monospace'
+                        }}>
+                          {infoJustificaciones ? (
+                            <Tooltip 
+                              title="Saldo sin justificar: Diferencia Total menos Total de Justificaciones" 
+                              arrow
+                            >
+                              <span>{formatMoney(diferencia - infoJustificaciones.montoTotal)}</span>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip 
+                              title="No hay justificaciones, el saldo sin justificar es igual a la diferencia total" 
+                              arrow
+                            >
+                              <span>{formatMoney(diferencia)}</span>
+                            </Tooltip>
+                          )}
                         </TableCell>
                         <TableCell sx={{ color: '#ffffff', maxWidth: 400 }}>
                           {infoJustificaciones ? (
@@ -1404,7 +1463,7 @@ export default function ControlMensual() {
                                 {infoJustificaciones.total} justificación{infoJustificaciones.total > 1 ? 'es' : ''}:
                               </Typography>
                               
-                              {/* Lista simple de todas las justificaciones */}
+                              {/* Lista mejorada de todas las justificaciones con información de ajustes */}
                               {infoJustificaciones.justificaciones.map((justif, idx) => (
                                 <Typography 
                                   key={justif.id ? justif.id : `${justif.motivo}-${justif.cliente}-${justif.orden}-${idx}`}
@@ -1429,6 +1488,32 @@ export default function ControlMensual() {
                                       (Orden: {justif.orden})
                                     </Typography>
                                   )}
+                                  <Typography 
+                                    component="div" 
+                                    sx={{ 
+                                      color: '#EBCB8B', 
+                                      fontSize: '0.7rem', 
+                                      mt: 0.5, 
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: 0.5
+                                    }}
+                                  >
+                                    <span>
+                                      Monto: <strong>{justif.monto_dif || '$ 0'}</strong>
+                                    </span>
+                                    {justif.ajuste && (
+                                      <Tooltip 
+                                        title="Valor numérico del monto utilizado en los cálculos" 
+                                        arrow
+                                        placement="bottom-start"
+                                      >
+                                        <span style={{ fontSize: '0.65rem', opacity: 0.8 }}>
+                                          (valor: {justif.ajuste})
+                                        </span>
+                                      </Tooltip>
+                                    )}
+                                  </Typography>
                                 </Typography>
                               ))}
                             </Box>

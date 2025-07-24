@@ -109,11 +109,12 @@ const createJustificacionesTable = `
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     cierre_id INTEGER,
     fecha TEXT,
+    usuario TEXT,
     orden TEXT,
     cliente TEXT,
-    monto_dif REAL,
-    ajuste REAL,
+    medio_pago TEXT,
     motivo TEXT,
+    ajuste REAL,
     FOREIGN KEY (cierre_id) REFERENCES cierres(id)
   )
 `;
@@ -122,6 +123,38 @@ db.run(createJustificacionesTable, (err) => {
     console.error("Error al crear la tabla justificaciones:", err.message);
   } else {
     console.log("Tabla 'justificaciones' lista.");
+    
+    // Verificar y modificar las columnas en justificaciones si es necesario
+    db.all('PRAGMA table_info(justificaciones)', [], (err, columns) => {
+      if (err) {
+        console.error("Error verificando columnas de justificaciones:", err.message);
+        return;
+      }
+      
+      const columnNames = columns.map(col => col.name);
+      
+      // Agregar columna 'usuario' si no existe
+      if (!columnNames.includes('usuario')) {
+        db.run('ALTER TABLE justificaciones ADD COLUMN usuario TEXT', (err) => {
+          if (err) {
+            console.error("Error agregando columna 'usuario' a justificaciones:", err.message);
+          } else {
+            console.log("Columna 'usuario' agregada exitosamente a justificaciones.");
+          }
+        });
+      }
+      
+      // Agregar columna 'medio_pago' si no existe
+      if (!columnNames.includes('medio_pago')) {
+        db.run('ALTER TABLE justificaciones ADD COLUMN medio_pago TEXT', (err) => {
+          if (err) {
+            console.error("Error agregando columna 'medio_pago' a justificaciones:", err.message);
+          } else {
+            console.log("Columna 'medio_pago' agregada exitosamente a justificaciones.");
+          }
+        });
+      }
+    });
   }
 });
 
@@ -324,7 +357,7 @@ app.get('/api/cierres-completo/:id', (req, res) => {
 
     // Obtener justificaciones asociadas
     const justificacionesQuery = `
-      SELECT id, cierre_id, fecha, orden, cliente, monto_dif, ajuste, motivo
+      SELECT id, cierre_id, fecha, usuario, orden, cliente, medio_pago, motivo, ajuste
       FROM justificaciones 
       WHERE cierre_id = ?
       ORDER BY fecha DESC
@@ -535,17 +568,18 @@ app.post('/api/cierres-completo', (req, res) => {
     const cierreId = this.lastID;
     // Insertar justificaciones si existen
     if (Array.isArray(justificaciones) && justificaciones.length > 0) {
-      const insertJust = `INSERT INTO justificaciones (cierre_id, fecha, orden, cliente, monto_dif, ajuste, motivo) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+      const insertJust = `INSERT INTO justificaciones (cierre_id, fecha, usuario, orden, cliente, medio_pago, motivo, ajuste) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
       const stmt = db.prepare(insertJust);
       justificaciones.forEach(j => {
         stmt.run([
           cierreId,
           j.fecha,
-          j.orden,
-          j.cliente,
-          j.monto_dif,
-          j.ajuste,
-          j.motivo
+          j.usuario || '',
+          j.orden || '',
+          j.cliente || '',
+          j.medio_pago || '',
+          j.motivo || '',
+          j.ajuste || 0
         ]);
       });
       stmt.finalize();
@@ -796,21 +830,22 @@ app.put('/api/cierres-completo/:id', (req, res) => {
           
           if (Array.isArray(justificaciones) && justificaciones.length > 0) {
             console.log(`📝 Insertando ${justificaciones.length} nuevas justificaciones`);
-            const insertJust = `INSERT INTO justificaciones (cierre_id, fecha, orden, cliente, monto_dif, ajuste, motivo) VALUES (?, ?, ?, ?, ?, ?, ?)`;
+            const insertJust = `INSERT INTO justificaciones (cierre_id, fecha, usuario, orden, cliente, medio_pago, motivo, ajuste) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
             const stmt = db.prepare(insertJust);
             
             let insertedCount = 0;
             justificaciones.forEach((j, index) => {
-              console.log(`   ${index + 1}. Insertando: Orden:${j.orden || 'N/A'} - Cliente:${j.cliente || 'N/A'} - Motivo:${j.motivo || 'N/A'} - Ajuste:${j.ajuste || 0}`);
+              console.log(`   ${index + 1}. Insertando: Usuario:${j.usuario || 'N/A'} - Orden:${j.orden || 'N/A'} - Cliente:${j.cliente || 'N/A'} - Medio:${j.medio_pago || 'N/A'} - Motivo:${j.motivo || 'N/A'} - Ajuste:${j.ajuste || 0}`);
               
               stmt.run([
                 cierreId,
                 j.fecha,
-                j.orden,
-                j.cliente,
-                j.monto_dif,
-                j.ajuste,
-                j.motivo
+                j.usuario || '',
+                j.orden || '',
+                j.cliente || '',
+                j.medio_pago || '',
+                j.motivo || '',
+                j.ajuste || 0
               ], function(insertErr) {
                 if (insertErr) {
                   console.error(`Error insertando justificación ${index + 1}:`, insertErr.message);
@@ -1004,7 +1039,12 @@ app.get('/api/random', async (req, res) => {
 app.get('/api/justificaciones/:cierreId', (req, res) => {
   const cierreId = req.params.cierreId;
   
-  const query = 'SELECT * FROM justificaciones WHERE cierre_id = ? ORDER BY fecha DESC';
+  const query = `
+    SELECT id, cierre_id, fecha, usuario, orden, cliente, medio_pago, motivo, ajuste 
+    FROM justificaciones 
+    WHERE cierre_id = ? 
+    ORDER BY fecha DESC
+  `;
   
   db.all(query, [cierreId], (err, rows) => {
     if (err) {
@@ -1031,13 +1071,17 @@ app.post('/api/justificaciones', (req, res) => {
   // La fecha viene en formato DD/MM/YYYY desde el frontend
   const fechaFormateada = moment(fecha, 'DD/MM/YYYY').format('YYYY-MM-DD');
 
+  // Obtener el usuario actual desde la base de datos o desde la sesión
+  const usuario = req.body.usuario || '';
+  const medio_pago = req.body.medio_pago || '';
+
   const insertQuery = `
-    INSERT INTO justificaciones (cierre_id, fecha, orden, cliente, monto_dif, ajuste, motivo)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO justificaciones (cierre_id, fecha, usuario, orden, cliente, medio_pago, motivo, ajuste)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `;
 
   db.run(insertQuery, 
-    [cierre_id, fechaFormateada, orden, cliente, monto_dif, ajuste, motivo],
+    [cierre_id, fechaFormateada, usuario, orden, cliente, medio_pago, motivo, ajuste],
     function(err) {
       if (err) {
         console.error('Error insertando justificación:', err.message);

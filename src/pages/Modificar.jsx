@@ -65,11 +65,17 @@ export default function Modificar({ cierre, onClose, onSave }) {
         let fecha = d.fecha;
         if (/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
           fecha = moment(fecha, 'DD/MM/YYYY').format('YYYY-MM-DD');
-        }        setForm({ ...d, medios_pago: medios, fecha });
+        }
+        setForm({ ...d, medios_pago: medios, fecha });
         
         // Procesar justificaciones con logging para debug
         const justificacionesOriginales = d.justificaciones || [];
         console.log('📋 Justificaciones originales cargadas:', justificacionesOriginales.length);
+        
+        // Log detallado para depuración
+        console.log('🔍 DEBUG - Estructura exacta de justificaciones:', JSON.stringify(d.justificaciones, null, 2));
+        console.log('🔍 DEBUG - Ejemplo de primera justificación:', justificacionesOriginales[0] ? 
+          JSON.stringify(justificacionesOriginales[0], null, 2) : 'No hay justificaciones');
           const js = justificacionesOriginales.filter(j => {
           // Si la justificación tiene ID (viene de la DB), SIEMPRE es válida
           if (j && j.id) {
@@ -139,10 +145,18 @@ export default function Modificar({ cierre, onClose, onSave }) {
     setJustificaciones(js => {
       const arr = [...js];
       arr[i] = { ...arr[i], [field]: value };
+      
+      // Si se cambia el ajuste, actualizar también monto_dif para mantener sincronizado
+      if (field === 'ajuste') {
+        const ajusteNum = parseFloat(value) || 0;
+        arr[i].monto_dif = formatMoney(ajusteNum).replace(/\s+/g, ' ');
+      }
+      
       // Marcar como modificada si ya tiene ID (viene de la DB)
       if (arr[i].id) {
         arr[i]._modificada = true;
       }
+      
       return arr;
     });
   }, []);
@@ -150,7 +164,15 @@ export default function Modificar({ cierre, onClose, onSave }) {
   const addJust = useCallback(() => {
     setJustificaciones(js => [
       ...js,
-      { cierre_id: form.id, fecha: form.fecha, orden: '', cliente: '', monto_dif: 0, ajuste: 0, motivo: '' },
+      { 
+        cierre_id: form.id, 
+        fecha: form.fecha, 
+        orden: '', 
+        cliente: '', 
+        monto_dif: '$ 0', // Formato consistente con DB
+        ajuste: 0, 
+        motivo: '' 
+      },
     ]);
   }, [form]);  const delJust = useCallback(
     async i => {
@@ -243,19 +265,37 @@ export default function Modificar({ cierre, onClose, onSave }) {
         }
         
         return esValida;
-      }).map(j => ({
-        ...j,
-        fecha: fechaEnv, // Usar la misma fecha del cierre
-        cierre_id: form.id // Asegurar que tienen el cierre_id correcto
-      }));
+      }).map(j => {
+        // Asegurarse de que monto_dif tenga el formato adecuado basado en ajuste
+        const ajusteNum = parseFloat(j.ajuste) || 0;
+        const montoFormatted = formatMoney(ajusteNum).replace(/\s+/g, ' ');
+        
+        return {
+          ...j,
+          fecha: fechaEnv, // Usar la misma fecha del cierre
+          cierre_id: form.id, // Asegurar que tienen el cierre_id correcto
+          monto_dif: montoFormatted, // Actualizar monto_dif con formato consistente
+          ajuste: ajusteNum // Asegurar que ajuste es un número
+        };
+      });
       
-      console.log('Guardando cierre:', {
+              console.log('Guardando cierre:', {
         id: form.id,
         fecha: fechaEnv,
         fechaOriginal: form.fecha,
         justificaciones: cleanJs.length,
         justificacionesData: cleanJs
-      });      const payload = {
+      });
+      
+      // Log detallado de los valores monto_dif y ajuste para verificar sincronización
+      console.log('🔍 DEBUG - Valores de monto_dif y ajuste en justificaciones:', 
+        cleanJs.map(j => ({
+          id: j.id,
+          monto_dif: j.monto_dif,
+          ajuste: j.ajuste,
+          diferencia: j.monto_dif !== formatMoney(j.ajuste).replace(/\s+/g, ' ') ? 'INCONSISTENTE' : 'OK'
+        }))
+      );      const payload = {
         ...form,
         medios_pago: JSON.stringify(form.medios_pago),
         grand_difference_total: totales.diferenciaTotal,
@@ -330,15 +370,24 @@ export default function Modificar({ cierre, onClose, onSave }) {
     >
       <Typography variant="h5" align="center" sx={{ mb: 1.5, fontWeight: 600 }}>
         Modificar Cierre #{form.id}
-      </Typography>      <Paper elevation={1} sx={{ p: 1, mb: 1.5, bgcolor: '#1E1E1E', borderRadius: 2 }}>
+      </Typography>
+      <Alert severity="info" sx={{ mb: 1.5, bgcolor: '#1a2332', borderColor: '#2196f3' }}>
+        <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
+          <strong>Diferencia Total:</strong> Suma de todas las diferencias entre cobrado y facturado.
+          <br />
+          <strong>Total Ajustes:</strong> Suma de todos los ajustes aplicados en las justificaciones.
+          <br />
+          <strong>Balance Final:</strong> Diferencia Total - Total Ajustes.
+        </Typography>
+      </Alert>      <Paper elevation={1} sx={{ p: 1, mb: 1.5, bgcolor: '#1E1E1E', borderRadius: 2 }}>
         <Grid container spacing={1}>
           {[
             ['Fecha', form.fecha ? moment(form.fecha).format('DD/MM/YYYY') : '-'],
             ['Usuario', form.usuario || '-'],
             ['Responsable', form.responsable || '-'],
+            ['Diferencia Total', formatMoney(totales.diferenciaTotal)],
+            ['Total Ajustes', formatMoney(totales.totalAjustes)],
             ['Balance Final', formatMoney(totales.balanceFinal)],
-            ['Diferencia', formatMoney(totales.diferenciaTotal)],
-            ['Ajustes', formatMoney(totales.totalAjustes)],
           ].map(([label, value], idx) => (
             <Grid item xs={6} sm={4} key={idx}>
               <Typography variant="caption" sx={{ color: '#A0A0A0', fontSize: '0.7rem' }}>
@@ -495,12 +544,28 @@ export default function Modificar({ cierre, onClose, onSave }) {
                   {j.cliente || '-'}
                 </Box>
                 <Box sx={{ 
-                  width: 80, 
+                  width: 90, 
+                  fontSize: '0.8rem', 
+                  color: '#A0A0A0',
+                  textAlign: 'right',
+                  fontFamily: 'monospace'
+                }}>
+                  {/* Mostrar el monto_dif (valor de la diferencia) */}
+                  <Typography variant="caption" sx={{ color: '#888', fontSize: '0.6rem', display: 'block' }}>
+                    Diferencia:
+                  </Typography>
+                  {j.monto_dif || '-'}
+                </Box>
+                <Box sx={{ 
+                  width: 90, 
                   fontSize: '0.8rem', 
                   color: j.ajuste > 0 ? '#4caf50' : j.ajuste < 0 ? '#f44336' : '#A0A0A0',
                   textAlign: 'right',
                   fontFamily: 'monospace'
                 }}>
+                  <Typography variant="caption" sx={{ color: '#888', fontSize: '0.6rem', display: 'block' }}>
+                    Ajuste:
+                  </Typography>
                   {formatMoney(j.ajuste || 0)}
                 </Box>
                 <Box sx={{ 
@@ -572,6 +637,18 @@ export default function Modificar({ cierre, onClose, onSave }) {
                 '& .MuiInputBase-input': { height: '16px' },
               }}
             />
+            <Box sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              width: 90,
+            }}>
+              <Typography variant="caption" sx={{ color: '#888', fontSize: '0.6rem' }}>
+                Diferencia
+              </Typography>
+              <Typography variant="body2" sx={{ fontSize: '0.8rem', color: '#ccc' }}>
+                {j.monto_dif || '$ 0'}
+              </Typography>
+            </Box>
             <TextField
               label="Ajuste"
               type="number"

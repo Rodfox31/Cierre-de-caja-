@@ -2,7 +2,7 @@ import axios from 'axios';
 
 export const API_BASE_URLS = [
   'http://localhost:3001',
-  'https://studious-rotary-phone-69w9v5x6wwp6f475x-3001.app.github.dev'
+  'https://ideal-waddle-97w765gvwqqpf677-3001.app.github.dev'
 ];
 
 export async function fetchWithFallback(path, options) {
