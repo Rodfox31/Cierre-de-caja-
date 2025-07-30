@@ -33,6 +33,8 @@ import {
 } from '@mui/material';
 
 // --- MUI Icons ---
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import StorefrontIcon from '@mui/icons-material/Storefront';
 import PersonIcon from '@mui/icons-material/Person';
 import EventIcon from '@mui/icons-material/Event';
@@ -104,10 +106,13 @@ function HeaderControls({
     fecha, setFecha, tiendas, selectedTienda, setSelectedTienda,
     usuarios, selectedUsuario, setSelectedUsuario, onCerrarCaja, resetHeader
 }) {
+    // Buscador de usuario compacto
+    const [userSearch, setUserSearch] = useState("");
+    const filteredUsuarios = usuarios?.filter(u => u.toLowerCase().includes(userSearch.toLowerCase()));
+    // Estados para colapso y botón
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [isButtonDisabled, setIsButtonDisabled] = useState(false);
 
-    // Resetear el header cuando se complete un cierre
     useEffect(() => {
         if (resetHeader) {
             setIsCollapsed(false);
@@ -120,106 +125,175 @@ function HeaderControls({
         setIsCollapsed(true);
         setTimeout(() => {
             onCerrarCaja();
-        }, 400); 
+        }, 500); // Animación más suave
     };
 
     return (
-        <Paper elevation={0} sx={{ borderRadius: 1, mb: 2, backgroundColor: '#1e1e1e', border: '1px solid #333' }}>
-            <Collapse in={!isCollapsed} timeout={300}>
-                <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                    <Stack direction="row" spacing={2} flexWrap="wrap">
-                        <TextField
-                            label="Fecha"
-                            type="date"
-                            size="small"
-                            value={fecha.toISOString().split("T")[0]}
-                            onChange={(e) => setFecha(new Date(e.target.value))}
-                            InputLabelProps={{ shrink: true }}
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    backgroundColor: '#2a2a2a',
-                                    '& fieldset': { borderColor: '#444' },
-                                    '&:hover fieldset': { borderColor: '#666' },
-                                    '&.Mui-focused fieldset': { borderColor: '#888' }
-                                },
-                                '& .MuiInputBase-input': { color: '#ffffff' },
-                                '& .MuiInputLabel-root': { color: '#888' }
-                            }}
-                        />
-                        <FormControl size="small" sx={{ minWidth: 200 }}>
-                            <InputLabel sx={{ color: '#888' }}>Tienda</InputLabel>
-                            <Select 
-                                value={selectedTienda} 
-                                label="Tienda" 
-                                onChange={(e) => setSelectedTienda(e.target.value)}
+        <Box sx={{ position: 'relative', mb: 3 }}>
+            <Paper elevation={6} sx={{
+                borderRadius: 3,
+                mb: 2,
+                background: 'rgba(30,34,40,0.85)',
+                border: '1px solid #2a2a2a',
+                boxShadow: '0 8px 32px 0 rgba(31,38,135,0.15)',
+                backdropFilter: 'blur(6px)',
+                overflow: 'hidden',
+            }}>
+                <Collapse in={!isCollapsed} timeout={500}>
+                    <Box sx={{
+                        p: 3,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 2,
+                        position: 'relative',
+                    }}>
+                        <Stack direction="row" spacing={2} flexWrap="wrap" alignItems="center">
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
+                                <StorefrontIcon sx={{ fontSize: 28, color: '#A3BE8C' }} />
+                                <Typography variant="h6" sx={{ fontWeight: 700, color: '#ECEFF4', letterSpacing: 1 }}>
+                                    Cierre de Caja
+                                </Typography>
+                            </Box>
+                            <TextField
+                                label="Fecha"
+                                type="date"
+                                size="small"
+                                value={fecha.toISOString().split("T")[0]}
+                                onChange={(e) => setFecha(new Date(e.target.value))}
+                                InputLabelProps={{ shrink: true }}
                                 sx={{
-                                    backgroundColor: '#2a2a2a',
-                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#666' },
-                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                                    '& .MuiSelect-select': { color: '#ffffff' },
-                                    '& .MuiSvgIcon-root': { color: '#888' }
+                                    minWidth: 120,
+                                    mx: 1,
+                                    '& .MuiOutlinedInput-root': {
+                                        backgroundColor: 'rgba(44,51,63,0.7)',
+                                        borderRadius: 2,
+                                        '& fieldset': { borderColor: '#444' },
+                                        '&:hover fieldset': { borderColor: '#A3BE8C' },
+                                        '&.Mui-focused fieldset': { borderColor: '#A3BE8C' }
+                                    },
+                                    '& .MuiInputBase-input': { color: '#ECEFF4' },
+                                    '& .MuiInputLabel-root': { color: '#A3BE8C' }
                                 }}
-                            >
-                                {tiendas?.length > 0 ? (
-                                    tiendas.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)
-                                ) : <MenuItem value="error" disabled>Error: Sin datos</MenuItem>}
-                            </Select>
-                        </FormControl>
-                        <FormControl size="small" sx={{ minWidth: 200 }}>
-                            <InputLabel sx={{ color: '#888' }}>Usuario</InputLabel>
-                            <Select 
-                                value={selectedUsuario} 
-                                label="Usuario" 
-                                onChange={(e) => setSelectedUsuario(e.target.value)}
+                            />
+                            <FormControl size="small" sx={{ minWidth: 140, mx: 1 }}>
+                                <InputLabel sx={{ color: '#A3BE8C' }}>Tienda</InputLabel>
+                                <Select
+                                    value={selectedTienda}
+                                    label="Tienda"
+                                    onChange={(e) => setSelectedTienda(e.target.value)}
+                                    sx={{
+                                        backgroundColor: 'rgba(44,51,63,0.7)',
+                                        borderRadius: 2,
+                                        '& .MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                                        '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#A3BE8C' },
+                                        '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#A3BE8C' },
+                                        '& .MuiSelect-select': { color: '#ECEFF4' },
+                                        '& .MuiSvgIcon-root': { color: '#A3BE8C' }
+                                    }}
+                                >
+                                    {tiendas?.length > 0 ? (
+                                        tiendas.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)
+                                    ) : <MenuItem value="error" disabled>Error: Sin datos</MenuItem>}
+                                </Select>
+                            </FormControl>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mx: 1 }}>
+                                <FormControl size="small" sx={{ minWidth: 140 }}>
+                                    <InputLabel sx={{ color: '#A3BE8C' }}>Usuario</InputLabel>
+                                    <Select
+                                        value={selectedUsuario}
+                                        label="Usuario"
+                                        onChange={(e) => setSelectedUsuario(e.target.value)}
+                                        sx={{
+                                            backgroundColor: 'rgba(44,51,63,0.7)',
+                                            borderRadius: 2,
+                                            '& .MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                                            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#A3BE8C' },
+                                            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#A3BE8C' },
+                                            '& .MuiSelect-select': { color: '#ECEFF4' },
+                                            '& .MuiSvgIcon-root': { color: '#A3BE8C' }
+                                        }}
+                                    >
+                                        {filteredUsuarios?.length > 0 ? (
+                                            filteredUsuarios.map((u, idx) => <MenuItem key={idx} value={u}>{u}</MenuItem>)
+                                        ) : <MenuItem value="error" disabled>No encontrado</MenuItem>}
+                                    </Select>
+                                </FormControl>
+                                <TextField
+                                    placeholder="Buscar usuario"
+                                    value={userSearch}
+                                    onChange={e => setUserSearch(e.target.value)}
+                                    size="small"
+                                    sx={{
+                                        width: 90,
+                                        ml: 1,
+                                        '& .MuiOutlinedInput-root': {
+                                            backgroundColor: 'rgba(44,51,63,0.7)',
+                                            borderRadius: 2,
+                                            fontSize: '0.85rem',
+                                            height: 36,
+                                            '& fieldset': { borderColor: '#444' },
+                                            '&:hover fieldset': { borderColor: '#A3BE8C' },
+                                            '&.Mui-focused fieldset': { borderColor: '#A3BE8C' }
+                                        },
+                                        '& .MuiInputBase-input': { color: '#ECEFF4', fontSize: '0.85rem', py: 0.5 },
+                                    }}
+                                    inputProps={{ 'aria-label': 'Buscar usuario' }}
+                                />
+                            </Box>
+                        </Stack>
+                        <Box sx={{ position: 'absolute', right: 32, top: 24 }}>
+                            <Button
+                                variant="contained"
+                                onClick={handleCerrarCajaClick}
+                                disabled={isButtonDisabled}
                                 sx={{
-                                    backgroundColor: '#2a2a2a',
-                                    '& .MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#666' },
-                                    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                                    '& .MuiSelect-select': { color: '#ffffff' },
-                                    '& .MuiSvgIcon-root': { color: '#888' }
+                                    background: 'linear-gradient(90deg, #A3BE8C 0%, #1f2bcc 100%)',
+                                    color: '#fff',
+                                    fontWeight: 700,
+                                    px: 2.5,
+                                    py: 1,
+                                    borderRadius: 2,
+                                    fontSize: '0.95rem',
+                                    boxShadow: '0 2px 8px #A3BE8C40',
+                                    '&:hover': { background: 'linear-gradient(90deg, #A3BE8C 40%, #1f2bcc 100%)' },
+                                    '&:disabled': { background: '#333', color: '#888' }
                                 }}
+                                size="medium"
                             >
-                                {usuarios?.length > 0 ? (
-                                    usuarios.map((u, idx) => <MenuItem key={idx} value={u}>{u}</MenuItem>)
-                                ) : <MenuItem value="error" disabled>Error: Sin datos</MenuItem>}
-                            </Select>
-                        </FormControl>
-                    </Stack>
-                    <Button 
-                        variant="contained" 
-                        onClick={handleCerrarCajaClick} 
-                        disabled={isButtonDisabled}
-                        sx={{
-                            backgroundColor: '#1f2bccff',
-                            '&:hover': { backgroundColor: '#1f2bccff' },
-                            '&:disabled': { backgroundColor: '#333' }
-                        }}
-                    >
-                        Cerrar Caja
-                    </Button>
-                </Box>
-            </Collapse>
-            <Collapse in={isCollapsed} timeout={300}>
-                <Box sx={{ p: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid #333' }}>
-                    <Stack direction="row" spacing={3} alignItems="center">
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <EventIcon fontSize="small" sx={{ color: '#888' }} />
-                            <Typography variant="body2" sx={{ color: '#ffffff' }}>{fecha.toLocaleDateString("es-CL")}</Typography>
+                                <CheckCircleIcon sx={{ mr: 1 }} /> Cerrar Caja
+                            </Button>
+                        </Box>
+                    </Box>
+                </Collapse>
+                <Collapse in={isCollapsed} timeout={500}>
+                    <Box sx={{
+                        p: 2.5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderTop: '1px solid #2a2a2a',
+                        background: 'rgba(44,51,63,0.7)',
+                        borderRadius: 0,
+                    }}>
+                        <Stack direction="row" spacing={4} alignItems="center">
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <EventIcon fontSize="medium" sx={{ color: '#A3BE8C' }} />
+                                <Typography variant="body1" sx={{ color: '#ECEFF4', fontWeight: 500 }}>{fecha.toLocaleDateString("es-CL")}</Typography>
+                            </Stack>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <StorefrontIcon fontSize="medium" sx={{ color: '#A3BE8C' }} />
+                                <Typography variant="body1" sx={{ color: '#ECEFF4', fontWeight: 500 }}>{selectedTienda}</Typography>
+                            </Stack>
+                            <Stack direction="row" spacing={1.5} alignItems="center">
+                                <PersonIcon fontSize="medium" sx={{ color: '#A3BE8C' }} />
+                                <Typography variant="body1" sx={{ color: '#ECEFF4', fontWeight: 500 }}>{selectedUsuario}</Typography>
+                            </Stack>
                         </Stack>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <StorefrontIcon fontSize="small" sx={{ color: '#888' }} />
-                            <Typography variant="body2" sx={{ color: '#ffffff' }}>{selectedTienda}</Typography>
-                        </Stack>
-                        <Stack direction="row" spacing={1} alignItems="center">
-                            <PersonIcon fontSize="small" sx={{ color: '#888' }} />
-                            <Typography variant="body2" sx={{ color: '#ffffff' }}>{selectedUsuario}</Typography>
-                        </Stack>
-                    </Stack>
-                </Box>
-            </Collapse>
-        </Paper>
+                    </Box>
+                </Collapse>
+            </Paper>
+        </Box>
     );
 }
 
@@ -229,46 +303,56 @@ function HeaderControls({
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 function BillsPanel({ billEntries, updateRowTotal, finalTotal }) {
     const theme = useTheme();
+    const [open, setOpen] = useState(false);
+    const todayStr = new Date().toLocaleDateString('es-CL');
+    // Sumar la columna Total
+    const cashTotal = billEntries.reduce((acc, bill) => acc + (bill.total || 0), 0);
     return (
-        <Card elevation={0} sx={{ borderRadius: 1, width: '100%', backgroundColor: '#1e1e1e', border: '1px solid #333' }}>
-            <CardContent sx={{ p: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                    <AccountBalanceWalletIcon sx={{ color: '#ffffff', fontSize: 20 }} />
-                    <Typography variant="h6" sx={{ color: '#ffffff', fontSize: '1rem' }}>Detalle de Efectivo</Typography>
+        <Card elevation={0} sx={{ borderRadius: 1, width: '100%', backgroundColor: '#1e1e1e', border: '1px solid #333', position: 'relative' }}>
+            <CardContent sx={{ p: 2, pb: open ? 2 : 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <AccountBalanceWalletIcon sx={{ color: '#ffffff', fontSize: 20 }} />
+                        <Typography variant="h6" sx={{ color: '#ffffff', fontSize: '1rem' }}>Detalle de Efectivo</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="caption" sx={{ color: '#A3BE8C', fontWeight: 500 }}>{todayStr}</Typography>
+                        <IconButton size="small" onClick={() => setOpen(o => !o)} sx={{ ml: 1, color: '#A3BE8C', backgroundColor: 'rgba(44,51,63,0.7)', borderRadius: 2 }}>
+                            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                        </IconButton>
+                    </Box>
                 </Box>
-                <Stack spacing={0.3}>
-                    <Grid container spacing={0.5} sx={{ alignItems: 'center', color: '#888', px: 0.5 }}>
-                        <Grid item xs={5}><Typography variant="body2" sx={{ fontSize: '0.85rem' }}>Billete/Moneda</Typography></Grid>
-                        <Grid item xs={3}><Typography variant="body2" sx={{ fontSize: '0.85rem' }}>Cantidad</Typography></Grid>
-                        <Grid item xs={4} textAlign="right"><Typography variant="body2" sx={{ fontSize: '0.85rem' }}>Total</Typography></Grid>
-                    </Grid>
-                    <Divider sx={{ borderColor: '#333' }} />
-                    {billEntries.map((bill, index) => (
-                        <Fade in={true} timeout={300 + index * 50} key={index}>
-                            <Grid container spacing={0.5} sx={{ alignItems: 'center', py: 0.15, px: 0.2, borderRadius: 2 }}>
-                                <Grid item xs={5}><Typography variant="body1" fontWeight="medium">{bill.label}</Typography></Grid>
-                                <Grid item xs={3}>
-                                    <TextField type="number" size="small" variant="outlined" placeholder="0" value={bill.cantidad || ""} onChange={(e) => updateRowTotal(index, e.target.value)} sx={{ width: '100%', '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.95rem', height: 32, '&:hover fieldset': { borderColor: theme.palette.success.main } } }} inputProps={{ min: 0, 'aria-label': `Cantidad de ${bill.label}` }} />
+                <Collapse in={open} timeout={400}>
+                    <Stack spacing={0.3}>
+                        <Grid container spacing={0.5} sx={{ alignItems: 'center', color: '#888', px: 0.5 }}>
+                            <Grid item xs={5}><Typography variant="body2" sx={{ fontSize: '0.85rem' }}>Billete/Moneda</Typography></Grid>
+                            <Grid item xs={3}><Typography variant="body2" sx={{ fontSize: '0.85rem' }}>Cantidad</Typography></Grid>
+                            <Grid item xs={4} textAlign="right"><Typography variant="body2" sx={{ fontSize: '0.85rem' }}>Total</Typography></Grid>
+                        </Grid>
+                        <Divider sx={{ borderColor: '#333' }} />
+                        {billEntries.map((bill, index) => (
+                            <Fade in={open} timeout={300 + index * 50} key={index}>
+                                <Grid container spacing={0.5} sx={{ alignItems: 'center', py: 0.15, px: 0.2, borderRadius: 2 }}>
+                                    <Grid item xs={5}><Typography variant="body1" fontWeight="medium">{bill.label}</Typography></Grid>
+                                    <Grid item xs={3}>
+                                        <TextField type="number" size="small" variant="outlined" placeholder="0" value={bill.cantidad || ""} onChange={(e) => updateRowTotal(index, e.target.value)} sx={{ width: '100%', '& .MuiOutlinedInput-root': { borderRadius: 2, fontSize: '0.95rem', height: 32, '&:hover fieldset': { borderColor: theme.palette.success.main } } }} inputProps={{ min: 0, 'aria-label': `Cantidad de ${bill.label}` }} />
+                                    </Grid>
+                                    <Grid item xs={4} textAlign="right">
+                                        <Typography variant="body1" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: bill.total > 0 ? 'bold' : 'normal', color: bill.total > 0 ? 'success.main' : 'text.secondary' }}>{bill.total ? formatCurrency(bill.total) : "$  -"}</Typography>
+                                    </Grid>
                                 </Grid>
-                                <Grid item xs={4} textAlign="right">
-                                    <Typography variant="body1" sx={{ fontVariantNumeric: 'tabular-nums', fontWeight: bill.total > 0 ? 'bold' : 'normal', color: bill.total > 0 ? 'success.main' : 'text.secondary' }}>{bill.total ? formatCurrency(bill.total) : "$  -"}</Typography>
-                                </Grid>
-                            </Grid>
-                        </Fade>
-                    ))}
-                    <Divider sx={{ my: 0.5 }} />
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 0.2, py: 0.2, borderRadius: 2, backgroundColor: alpha(theme.palette.warning.main, 0.04) }}>
-                        <Typography variant="body1" fontWeight="bold">Fondo de caja:</Typography>
-                        <Typography variant="body1" fontWeight="bold" color="warning.main">{formatCurrency(-10000)}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 0.2, py: 0.5, borderRadius: 2, background: `linear-gradient(45deg, ${alpha(theme.palette.success.main, 0.1)} 30%, ${alpha(theme.palette.success.main, 0.05)} 90%)`, border: `1px solid ${alpha(theme.palette.success.main, 0.2)}` }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <AttachMoneyIcon color="success" />
-                            <Typography variant="subtitle2" fontWeight="bold" color="white" sx={{ fontSize: '0.95rem' }}>Cash Total:</Typography>
+                            </Fade>
+                        ))}
+                        <Divider sx={{ my: 0.5 }} />
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', px: 0.2, py: 0.5, borderRadius: 2, background: `linear-gradient(45deg, ${alpha(theme.palette.success.main, 0.1)} 30%, ${alpha(theme.palette.success.main, 0.05)} 90%)`, border: `1px solid ${alpha(theme.palette.success.main, 0.2)}` }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <AttachMoneyIcon color="success" />
+                                <Typography variant="subtitle2" fontWeight="bold" color="white" sx={{ fontSize: '0.95rem' }}>Cash Total:</Typography>
+                            </Box>
+                            <Typography variant="h6" fontWeight="bold" color="success.main">{formatCurrency(cashTotal)}</Typography>
                         </Box>
-                        <Typography variant="h6" fontWeight="bold" color="success.main">{formatCurrency(finalTotal)}</Typography>
-                    </Box>
-                </Stack>
+                    </Stack>
+                </Collapse>
             </CardContent>
         </Card>
     );
@@ -344,20 +428,24 @@ function BrinksPanel({ brinksEntries, setBrinksEntries, onTotalChange }) {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // BLOQUE 3: PaymentMethodsPanel
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, dynamicEfectivo }) {
+function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, dynamicEfectivo, billEntries, brinksEntries }) {
 
     useEffect(() => {
         if ((!paymentEntries || paymentEntries.length === 0) && medios_pago && medios_pago.length > 0) {
+            const cashTotal = billEntries.reduce((acc, bill) => acc + (bill.total || 0), 0);
+            const brinksTotal = brinksEntries.reduce((acc, entry) => acc + (parseFloat(entry.monto) || 0), 0);
+            const facturadoTotal = cashTotal + brinksTotal;
+            const formattedFacturado = facturadoTotal.toLocaleString("es-CL", { minimumFractionDigits: 2 });
             const initialEntries = medios_pago.map((medio, index) => ({
                 medio,
-                facturado: index === 0 ? dynamicEfectivo.toString() : "",
+                facturado: index === 0 ? formattedFacturado : "",
                 cobrado: "",
                 difference: "$  -",
                 differenceVal: 0,
             }));
             setPaymentEntries(initialEntries);
         }
-    }, [medios_pago, paymentEntries, setPaymentEntries, dynamicEfectivo]);
+    }, [medios_pago, paymentEntries, setPaymentEntries, billEntries, brinksEntries]);
     
     const updatePaymentRow = (index, field, value) => {
         const newEntries = [...paymentEntries];
@@ -373,16 +461,25 @@ function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, d
 
     useEffect(() => {
         if (paymentEntries.length > 0) {
+            const cashTotal = billEntries.reduce((acc, bill) => acc + (bill.total || 0), 0);
+            const brinksTotal = brinksEntries.reduce((acc, entry) => acc + (parseFloat(entry.monto) || 0), 0);
+            const facturadoTotal = cashTotal + brinksTotal;
+            const formattedFacturado = facturadoTotal.toLocaleString("es-CL", { minimumFractionDigits: 2 });
             const newEntries = [...paymentEntries];
-            newEntries[0].facturado = dynamicEfectivo.toString();
-            const facturadoVal = parseCurrency(dynamicEfectivo.toString());
+            newEntries[0].facturado = formattedFacturado;
+            // Format cobrado if present and is a number
+            if (newEntries[0].cobrado && !isNaN(parseCurrency(newEntries[0].cobrado))) {
+                const cobradoNum = parseCurrency(newEntries[0].cobrado);
+                newEntries[0].cobrado = cobradoNum.toLocaleString("es-CL", { minimumFractionDigits: 2 });
+            }
+            const facturadoVal = parseCurrency(newEntries[0].facturado || "0");
             const cobradoVal = parseCurrency(newEntries[0].cobrado || "0");
             const diff = facturadoVal - cobradoVal;
             newEntries[0].differenceVal = diff;
             newEntries[0].difference = diff ? formatCurrency(diff) : "$  -";
             setPaymentEntries(newEntries);
         }
-    }, [dynamicEfectivo, paymentEntries.length]);
+    }, [paymentEntries.length, billEntries, brinksEntries]);
 
     const getGrandTotal = () => paymentEntries.reduce((acc, row) => acc + (row.differenceVal || 0), 0);
     const grandTotal = getGrandTotal();
@@ -413,7 +510,7 @@ function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, d
                                         <TextField
                                             fullWidth
                                             size="small"
-                                            placeholder="Facturado"
+                                            placeholder="$"
                                             value={entry.facturado}
                                             onChange={(e) => updatePaymentRow(idx, "facturado", e.target.value)}
                                             InputProps={{
@@ -436,7 +533,7 @@ function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, d
                                         <TextField
                                             fullWidth
                                             size="small"
-                                            placeholder="Cobrado"
+                                            placeholder="$"
                                             value={entry.cobrado}
                                             onChange={(e) => updatePaymentRow(idx, "cobrado", e.target.value)}
                                             InputProps={{ 
@@ -737,6 +834,34 @@ function formatFecha(fecha) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // COMPONENTE PRINCIPAL: CierreCaja
+// 
+// ORDEN LÓGICO DE COMPONENTES (basado en mejores prácticas UX/UI):
+// 
+// 1. HEADER CONTROLS - Configuración inicial (fecha, tienda, usuario)
+//    ↓ (Flujo de datos primarios)
+// 2. BILLS PANEL - Entrada de efectivo físico (datos primarios)
+// 3. BRINKS PANEL - Entrada de depósitos (datos primarios)
+//    ↓ (Procesamiento y análisis)
+// 4. PAYMENT METHODS PANEL - Análisis de medios de pago y diferencias
+// 5. JUSTIFICACIONES PANEL - Gestión de diferencias y ajustes
+//    ↓ (Validación y cierre)
+// 6. FINALIZATION PANEL - Validación final y envío
+//
+// PRINCIPIOS UX/UI APLICADOS:
+// - Flujo de izquierda a derecha (datos primarios → procesamiento → validación)
+// - Agrupación lógica por columnas (entrada vs análisis)
+// - Progresión visual clara (primero datos, luego análisis, finalmente cierre)
+// - Jerarquía visual con comentarios explicativos
+// - Títulos de sección para guiar al usuario
+// - Separación visual entre etapas del proceso
+//
+// MEJORAS IMPLEMENTADAS:
+// ✓ Reordenamiento lógico de componentes
+// ✓ Agrupación visual por columnas
+// ✓ Títulos de sección descriptivos
+// ✓ Iconografía consistente
+// ✓ Comentarios explicativos del flujo
+// ✓ Guía visual del proceso
 ////////////////////////////////////////////////////////////////////////////////////////////////
 function CierreCaja() {
     const [fecha, setFecha] = useState(new Date());
@@ -941,14 +1066,54 @@ function CierreCaja() {
             />
             
             <Collapse in={panelVisible} timeout={500}>
+                {/* TÍTULO DE SECCIÓN: ENTRADA DE DATOS */}
+                <Box sx={{ mb: 2, mt: 1 }}>
+                    <Typography 
+                        variant="h6" 
+                        sx={{ 
+                            color: '#A3BE8C', 
+                            fontWeight: 600, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 1,
+                            mb: 1
+                        }}
+                    >
+                        <AccountBalanceWalletIcon sx={{ fontSize: 20 }} />
+                        Proceso de Cierre de Caja
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: '#888', fontSize: '0.85rem' }}>
+                        Complete los datos en el orden indicado: primero los datos primarios, luego el análisis y finalmente la validación
+                    </Typography>
+                </Box>
+
                 <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                    {/* COLUMNA IZQUIERDA - ENTRADA DE DATOS PRIMARIOS */}
                     <Grid item xs={12} md={4} lg={3}>
+                        {/* TÍTULO DE SUBSECCIÓN */}
+                        <Typography 
+                            variant="subtitle1" 
+                            sx={{ 
+                                color: '#A3BE8C', 
+                                fontWeight: 500, 
+                                mb: 1.5,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5
+                            }}
+                        >
+                            <TrendingUpIcon sx={{ fontSize: 16 }} />
+                            Datos Primarios
+                        </Typography>
+                        
                         <Stack spacing={2}>
+                            {/* 1. BILLS PANEL - Efectivo físico (datos primarios) */}
                             <BillsPanel
                                 billEntries={billEntries}
                                 updateRowTotal={updateRowTotal}
                                 finalTotal={finalTotal}
                             />
+                            {/* 2. BRINKS PANEL - Depósitos (datos primarios) */}
                             <BrinksPanel
                                 brinksEntries={brinksEntries}
                                 setBrinksEntries={setBrinksEntries}
@@ -957,14 +1122,35 @@ function CierreCaja() {
                         </Stack>
                     </Grid>
 
+                    {/* COLUMNA DERECHA - PROCESAMIENTO Y ANÁLISIS */}
                     <Grid item xs={12} md={8} lg={9}>
+                        {/* TÍTULO DE SUBSECCIÓN */}
+                        <Typography 
+                            variant="subtitle1" 
+                            sx={{ 
+                                color: '#A3BE8C', 
+                                fontWeight: 500, 
+                                mb: 1.5,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.5
+                            }}
+                        >
+                            <TrendingDownIcon sx={{ fontSize: 16 }} />
+                            Análisis y Validación
+                        </Typography>
+                        
                         <Stack spacing={2}>
+                            {/* 3. PAYMENT METHODS PANEL - Análisis de medios de pago */}
                             <PaymentMethodsPanel
                                 medios_pago={dataAjustes.medios_pago}
                                 paymentEntries={paymentEntries}
                                 setPaymentEntries={setPaymentEntries}
                                 dynamicEfectivo={dynamicEfectivo}
+                                billEntries={billEntries}
+                                brinksEntries={brinksEntries}
                             />
+                            {/* 4. JUSTIFICACIONES PANEL - Gestión de diferencias */}
                             <JustificacionesPanel
                                 paymentEntries={paymentEntries}
                                 ajustesMotivos={dataAjustes.motivos_error_pago}
@@ -973,6 +1159,7 @@ function CierreCaja() {
                                 onSumChange={setSumJustificaciones}
                                 onJustificacionesChange={setJustificacionesData}
                             />
+                            {/* 5. FINALIZATION PANEL - Cierre y validación final */}
                             <FinalizationPanel
                                 tarjetasTotal={getGrandPaymentTotal()}
                                 sumJustificaciones={sumJustificaciones}

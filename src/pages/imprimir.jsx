@@ -76,18 +76,49 @@ function Imprimir({ resumenData = {}, onClose, open }) {
   };
 
   // Formatear valores monetarios
+  // Formatear valores monetarios robusto para formato chileno/europeo
   const formatCurrency = (value) => {
-    if (typeof value === 'string' && value.includes('$')) return value;
-    const num = parseFloat(value) || 0;
-    return `$${num.toLocaleString('es-CL', { minimumFractionDigits: 0 })}`;
+    if (value == null || value === '') return '$0';
+    if (typeof value === 'string') {
+      // Si ya tiene el símbolo peso, lo dejamos
+      if (value.includes('$')) return value;
+      // Limpiar espacios
+      let clean = value.trim();
+      // Si tiene punto como miles y coma como decimal (ej: "5.400,22")
+      if (/^\d{1,3}(\.\d{3})*(,\d+)?$/.test(clean)) {
+        clean = clean.replace(/\./g, ''); // quitar puntos
+        clean = clean.replace(/,/g, '.'); // cambiar coma por punto
+      }
+      // Si tiene solo coma decimal (ej: "5400,22")
+      else if (/^\d+(,\d+)?$/.test(clean)) {
+        clean = clean.replace(/,/g, '.');
+      }
+      // Si tiene solo punto decimal (ej: "5400.22")
+      // No hace falta modificar
+      const num = parseFloat(clean) || 0;
+      return `$${num.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    // Si es número
+    const num = typeof value === 'number' ? value : parseFloat(value) || 0;
+    return `$${num.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  // Calcular totales
-  const totalFacturado = resumenData.mediosPago?.reduce((sum, medio) => sum + (parseFloat(medio.facturado) || 0), 0) || 0;
-  const totalCobrado = resumenData.mediosPago?.reduce((sum, medio) => sum + (parseFloat(medio.cobrado) || 0), 0) || 0;
-  const diferenciaMedios = totalCobrado - totalFacturado;
+  // Usar los totales que vienen de CierreCaja
+  const totalFacturado = resumenData.granTotalMedios || '';
+  const totalCobrado = resumenData.granTotalMedios || '';
+  const diferenciaMedios = resumenData.balanceSinJustificar || '';
   const totalJustificaciones = resumenData.justificaciones?.reduce((sum, just) => sum + (parseFloat(just.ajuste) || 0), 0) || 0;
-  const balanceFinal = diferenciaMedios - totalJustificaciones;
+  let balanceFinal = '';
+  if (diferenciaMedios !== '' && totalJustificaciones !== '') {
+    const dif = parseFloat(
+      typeof diferenciaMedios === 'string' ? diferenciaMedios.replace(/\./g, '').replace(/,/g, '.') : diferenciaMedios
+    ) || 0;
+    const just = typeof totalJustificaciones === 'string' ? parseFloat(totalJustificaciones.replace(/\./g, '').replace(/,/g, '.')) : totalJustificaciones;
+    balanceFinal = dif - (just || 0);
+    if (isNaN(balanceFinal)) balanceFinal = 0;
+  } else {
+    balanceFinal = 0;
+  }
 
   return (
     <Dialog 
@@ -167,11 +198,41 @@ function Imprimir({ resumenData = {}, onClose, open }) {
           </Grid>
         </CompactCard>
 
+        {/* EFECTIVO */}
+        <CompactCard title="Efectivo" icon={<AttachMoney />}>
+          <Grid container spacing={1}>
+            <Grid item xs={6}>
+              <InfoRow label="Cash Total" value={formatCurrency(resumenData.total_billetes)} bold />
+            </Grid>
+            <Grid item xs={6}>
+              <InfoRow label="Final Balance" value={formatCurrency(resumenData.final_balance)} />
+            </Grid>
+          </Grid>
+          {Array.isArray(resumenData.bills) && resumenData.bills.length > 0 && (
+            <Table size="small" sx={{ minWidth: 300, mt: 1, '& .MuiTableCell-root': { py: 0.2, px: 0.5 } }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Billete/Moneda</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Cantidad</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Total</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {resumenData.bills.map((bill, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell sx={{ fontSize: '0.7rem', color: '#333' }}>{bill.label}</TableCell>
+                    <TableCell align="right" sx={{ fontSize: '0.7rem', color: '#333' }}>{bill.cantidad}</TableCell>
+                    <TableCell align="right" sx={{ fontSize: '0.7rem', color: '#333' }}>{formatCurrency(bill.total)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CompactCard>
+
         {/* MEDIOS DE PAGO */}
         <CompactCard title="Medios de Pago" icon={<Payment />} noPadding>
-          <Box sx={{ p: 0.8 }}>
-            <SectionHeader icon={<Payment />} title="Medios de Pago" />
-          </Box>
+          {/* ...eliminado encabezado duplicado... */}
           <Table size="small" sx={{ minWidth: 400, '& .MuiTableCell-root': { py: 0.3, px: 0.5 } }}>
             <TableHead>
               <TableRow>
@@ -186,10 +247,10 @@ function Imprimir({ resumenData = {}, onClose, open }) {
                 <TableRow key={idx}>
                   <TableCell sx={{ fontSize: '0.7rem', color: '#333' }}>{medio.medio}</TableCell>
                   <TableCell align="right" sx={{ fontSize: '0.7rem', fontFamily: 'monospace', color: '#555' }}>
-                    {formatCurrency(medio.facturado)}
+                    {formatCurrency(medio.facturadoVal ?? medio.facturado)}
                   </TableCell>
                   <TableCell align="right" sx={{ fontSize: '0.7rem', fontFamily: 'monospace', color: '#555' }}>
-                    {formatCurrency(medio.cobrado)}
+                    {formatCurrency(medio.cobradoVal ?? medio.cobrado)}
                   </TableCell>
                   <TableCell align="right" sx={{ 
                     fontSize: '0.7rem', 
@@ -197,27 +258,30 @@ function Imprimir({ resumenData = {}, onClose, open }) {
                     color: medio.differenceVal > 0 ? '#388e3c' : medio.differenceVal < 0 ? '#d32f2f' : '#666',
                     fontWeight: medio.differenceVal !== 0 ? 'bold' : 'normal'
                   }}>
-                    {medio.difference || formatCurrency(medio.differenceVal)}
+                    {formatCurrency(medio.differenceVal ?? medio.difference)}
                   </TableCell>
                 </TableRow>
               ))}
-              <TableRow sx={{ borderTop: '1px solid #e0e0e0', fontWeight: 'bold' }}>
-                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>TOTAL</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', fontFamily: 'monospace', color: '#333' }}>
-                  {formatCurrency(totalFacturado)}
-                </TableCell>
-                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', fontFamily: 'monospace', color: '#333' }}>
-                  {formatCurrency(totalCobrado)}
-                </TableCell>
-                <TableCell align="right" sx={{ 
-                  fontWeight: 'bold', 
-                  fontSize: '0.7rem', 
-                  fontFamily: 'monospace',
-                  color: diferenciaMedios > 0 ? '#388e3c' : diferenciaMedios < 0 ? '#d32f2f' : '#666'
-                }}>
-                  {formatCurrency(diferenciaMedios)}
-                </TableCell>
-              </TableRow>
+              {/* Mostrar totales solo si vienen de CierreCaja */}
+              {resumenData.granTotalMedios && (
+                <TableRow sx={{ borderTop: '1px solid #e0e0e0', fontWeight: 'bold' }}>
+                  <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>TOTAL</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', fontFamily: 'monospace', color: '#333' }}>
+                    {formatCurrency(resumenData.granTotalMedios)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', fontFamily: 'monospace', color: '#333' }}>
+                    {formatCurrency(resumenData.granTotalMediosCobrado ?? resumenData.granTotalMedios)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ 
+                    fontWeight: 'bold', 
+                    fontSize: '0.7rem', 
+                    fontFamily: 'monospace',
+                    color: '#333'
+                  }}>
+                    {formatCurrency(resumenData.balanceSinJustificar)}
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CompactCard>
@@ -241,27 +305,39 @@ function Imprimir({ resumenData = {}, onClose, open }) {
               )}
             </CompactCard>
           </Grid>
-          
           <Grid item xs={12} md={6}>
             <CompactCard title="Justificaciones" icon={<AssignmentInd />}>
               {resumenData.justificaciones?.length > 0 ? (
-                <Stack spacing={0.2}>
-                  {resumenData.justificaciones.map((just, idx) => (
-                    <Box key={idx} sx={{ p: 0.3, border: '1px solid #e0e0e0', borderRadius: 1 }}>
-                      <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', fontSize: '0.65rem' }}>
-                        {just.orden} - {just.cliente}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#666', display: 'block', fontSize: '0.6rem' }}>
-                        Monto: {formatCurrency(just.monto_dif)} - Ajuste: {formatCurrency(just.ajuste)}
-                      </Typography>
-                      <Typography variant="caption" sx={{ color: '#666', display: 'block', fontSize: '0.6rem' }}>
-                        {just.motivo}
-                      </Typography>
-                    </Box>
-                  ))}
-                  <Divider sx={{ my: 0.2 }} />
-                  <InfoRow label="Total Ajustes" value={formatCurrency(totalJustificaciones)} bold />
-                </Stack>
+                <Table size="small" sx={{ minWidth: 400, '& .MuiTableCell-root': { py: 0.2, px: 0.5 } }}>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Fecha</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Usuario</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Cliente</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Orden</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Medio de Pago</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Motivo</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Ajuste</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {resumenData.justificaciones.map((just, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell sx={{ fontSize: '0.7rem', color: '#333' }}>{just.fecha}</TableCell>
+                        <TableCell sx={{ fontSize: '0.7rem', color: '#333' }}>{just.usuario}</TableCell>
+                        <TableCell sx={{ fontSize: '0.7rem', color: '#333' }}>{just.cliente}</TableCell>
+                        <TableCell sx={{ fontSize: '0.7rem', color: '#333' }}>{just.orden}</TableCell>
+                        <TableCell sx={{ fontSize: '0.7rem', color: '#333' }}>{just.medio_pago}</TableCell>
+                        <TableCell sx={{ fontSize: '0.7rem', color: '#333' }}>{just.motivo}</TableCell>
+                        <TableCell align="right" sx={{ fontSize: '0.7rem', color: '#333' }}>{formatCurrency(just.ajuste)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow>
+                      <TableCell colSpan={6} align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>Total Ajustes</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.7rem', color: '#333' }}>{formatCurrency(totalJustificaciones)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               ) : (
                 <Typography variant="caption" sx={{ fontStyle: 'italic', color: '#666', textAlign: 'center', fontSize: '0.65rem' }}>
                   No hay justificaciones registradas
@@ -308,7 +384,7 @@ function Imprimir({ resumenData = {}, onClose, open }) {
                   fontFamily: 'monospace',
                   fontSize: '1rem'
                 }}>
-                  {formatCurrency(balanceFinal)}
+                  {formatCurrency(isNaN(balanceFinal) ? 0 : balanceFinal)}
                 </Typography>
               </Box>
             </Grid>

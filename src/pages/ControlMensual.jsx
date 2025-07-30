@@ -152,10 +152,27 @@ const TiendaCard = React.memo(function TiendaCard({
   totalCierres, 
   cierresConErrores, 
   totalDiferencia,
-  onClick 
+  todosCierres,
+  onClick,
+  isSelected
 }) {
   const theme = useTheme();
-  const porcentajeErrores = totalCierres > 0 ? (cierresConErrores / totalCierres) * 100 : 0;
+  
+  // Solo considerar cierres no validados para el % de error
+  const cierresNoValidados = todosCierres?.filter(cierre => !cierre.validado) || [];
+  const totalNoValidados = cierresNoValidados.length;
+  const erroresNoValidados = cierresNoValidados.filter(cierre => {
+    const estado = getEstado(cierre);
+    return estado === ESTADOS_CIERRE.DIFERENCIA_MENOR || estado === ESTADOS_CIERRE.DIFERENCIA_GRAVE;
+  }).length;
+  const porcentajeErrores = totalNoValidados > 0 ? (erroresNoValidados / totalNoValidados) * 100 : 0;
+  
+  // Calcular estadísticas adicionales basadas en todosCierres
+  const cierresValidados = todosCierres?.filter(cierre => cierre.validado).length || 0;
+  const cierresSinValidar = totalCierres - cierresValidados;
+  const diferenciaValidada = todosCierres?.filter(cierre => cierre.validado)
+    .reduce((sum, cierre) => sum + (Number(cierre.grand_difference_total) || 0), 0) || 0;
+  const diferenciaSinValidar = totalDiferencia - diferenciaValidada;
   
   // Colores más sutiles y sofisticados
   const getCardColor = () => {
@@ -189,31 +206,40 @@ const TiendaCard = React.memo(function TiendaCard({
     <Card
       sx={{
         cursor: 'pointer',
-        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         backgroundColor: getCardColor(),
-        border: `1px solid ${getAccentColor()}20`,
+        border: isSelected 
+          ? `2px solid ${getAccentColor()}` 
+          : `1px solid ${getAccentColor()}20`,
         borderRadius: 2,
         '&:hover': {
-          transform: 'translateY(-1px)',
-          boxShadow: `0 2px 8px ${getAccentColor()}15`,
-          borderColor: `${getAccentColor()}40`,
+          transform: 'translateY(-2px)',
+          boxShadow: `0 4px 12px ${getAccentColor()}20`,
+          borderColor: `${getAccentColor()}50`,
         },
-        height: '100px',
-        minWidth: '220px',
-        maxWidth: '300px',
+        minHeight: isSelected ? '220px' : '180px',
+        width: '100%',
+        minWidth: '180px',
+        maxWidth: '220px',
+        flex: '1 1 180px',
+        ...(isSelected && {
+          boxShadow: `0 4px 16px ${getAccentColor()}30` ,
+          transform: 'translateY(-1px)',
+        }),
       }}
       onClick={onClick}
     >
       <CardContent sx={{ 
         display: 'flex', 
         flexDirection: 'column',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-start',
         py: 1.5, 
         px: 2,
         height: '100%',
         '&:last-child': { pb: 1.5 }
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* Header */}
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', flex: 1 }}>
             <Box 
               sx={{ 
@@ -221,81 +247,184 @@ const TiendaCard = React.memo(function TiendaCard({
                 height: 8, 
                 borderRadius: '50%', 
                 backgroundColor: getAccentColor(),
-                mr: 1.5,
+                mr: 1,
+                boxShadow: `0 0 6px ${getAccentColor()}40`,
               }} 
             />
             <Typography 
-              variant="body1" 
+              variant="h6" 
               sx={{ 
-                fontWeight: 500, 
+                fontWeight: 600, 
                 color: getTextColor(),
-                fontSize: '0.95rem',
+                fontSize: '1rem',
               }}
             >
               {tienda}
             </Typography>
           </Box>
-          
-          <Typography 
-            variant="caption" 
-            sx={{ 
-              color: `${getTextColor()}80`,
-              fontSize: '0.75rem',
-            }}
-          >
-            {porcentajeErrores.toFixed(0)}%
-          </Typography>
+          <Box sx={{ textAlign: 'right' }}>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: `${getTextColor()}80`,
+                fontSize: '0.7rem',
+                fontWeight: 500,
+              }}
+            >
+              {porcentajeErrores.toFixed(0)}% errores
+            </Typography>
+          </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        {/* Stats Grid */}
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, mb: 1 }}>
+          {/* Total Cierres */}
+          <Box>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                color: getAccentColor(), 
+                fontWeight: 700,
+                fontSize: '1.1rem',
+                lineHeight: 1,
+              }}
+            >
+              {totalCierres}
+            </Typography>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: `${getTextColor()}70`,
+                fontSize: '0.65rem',
+                display: 'block',
+              }}
+            >
+              Total cierres
+            </Typography>
+          </Box>
+
+          {/* Errores */}
+          <Box>
+            <Typography 
+              variant="h6" 
+              sx={{ 
+                color: erroresNoValidados > 0 ? '#BF616A' : '#A3BE8C', 
+                fontWeight: 700,
+                fontSize: '1.1rem',
+                lineHeight: 1,
+              }}
+            >
+              {erroresNoValidados}
+            </Typography>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: `${getTextColor()}70`,
+                fontSize: '0.65rem',
+                display: 'block',
+              }}
+            >
+              Con errores
+            </Typography>
+          </Box>
+
+          {/* Validados */}
           <Box>
             <Typography 
               variant="body2" 
               sx={{ 
-                color: getAccentColor(), 
+                color: '#A3BE8C', 
                 fontWeight: 600,
                 fontSize: '0.9rem',
                 lineHeight: 1,
               }}
             >
-              {cierresConErrores}/{totalCierres}
+              {cierresValidados}
             </Typography>
             <Typography 
               variant="caption" 
               sx={{ 
-                color: `${getTextColor()}60`,
-                fontSize: '0.7rem',
+                color: `${getTextColor()}70`,
+                fontSize: '0.65rem',
+                display: 'block',
               }}
             >
-              errores
+              Validados
             </Typography>
           </Box>
-          
-          {totalDiferencia !== 0 && (
-            <Box sx={{ textAlign: 'right' }}>
+
+          {/* Sin Validar */}
+          <Box>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: cierresSinValidar > 0 ? '#EBCB8B' : '#A3BE8C', 
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                lineHeight: 1,
+              }}
+            >
+              {cierresSinValidar}
+            </Typography>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: `${getTextColor()}70`,
+                fontSize: '0.65rem',
+                display: 'block',
+              }}
+            >
+              Sin validar
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Mostrar detalles de diferencias solo si está seleccionada */}
+        <Collapse in={isSelected && totalDiferencia !== 0} timeout={400} unmountOnExit>
+          <Box sx={{ borderTop: `1px solid ${getAccentColor()}20`, pt: 1, mt: 1, transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
               <Typography 
                 variant="body2" 
                 sx={{ 
                   color: totalDiferencia > 0 ? '#BF616A' : '#A3BE8C',
                   fontWeight: 600,
-                  fontSize: '0.8rem',
-                  lineHeight: 1,
+                  fontSize: '0.85rem',
+                }}
+              >
+                Diferencia Total
+              </Typography>
+              <Typography 
+                variant="body2" 
+                sx={{ 
+                  color: totalDiferencia > 0 ? '#BF616A' : '#A3BE8C',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
                 }}
               >
                 {totalDiferencia > 0 ? '+' : ''}{formatMoney(totalDiferencia)}
               </Typography>
-              <Typography 
-                variant="caption" 
-                sx={{ 
-                  color: `${getTextColor()}60`,
-                  fontSize: '0.7rem',
-                }}
-              >
-                diferencia
-              </Typography>
             </Box>
-          )}
-        </Box>
+            {diferenciaSinValidar !== 0 && (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography 
+                  variant="caption" 
+                  sx={{ 
+                    color: `${getTextColor()}80`,
+                    fontSize: '0.7rem',
+                  }}
+                >
+                  Sin validar
+                </Typography>
+                <Typography 
+                  variant="caption"
+                  sx={{ color: '#EBCB8B', fontWeight: 700, fontSize: '0.8rem' }}
+                >
+                  {diferenciaSinValidar > 0 ? '+' : ''}{formatMoney(diferenciaSinValidar)}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+        </Collapse>
       </CardContent>
     </Card>
   );
@@ -331,7 +460,7 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
             size="small"
             checked={isSelected}
             onChange={(e) => handleCheckboxChange(cierre.id, e.target.checked)}
-            disabled={cierre.validado}
+            disabled={false}
           />
         </TableCell>
         <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
@@ -505,6 +634,8 @@ export default function ControlMensual() {
   const [showValidados, setShowValidados] = useState(false);
   // Nuevo estado para el tercer switch
   const [showTodos, setShowTodos] = useState(false);
+  // Nuevo estado para la tarjeta seleccionada
+  const [selectedCard, setSelectedCard] = useState(null);
 
   // Funciones auxiliares
   const showSnackbar = useCallback((message, severity = 'info') => {
@@ -617,20 +748,23 @@ export default function ControlMensual() {
       
       let cierresConErrores = 0;
       let totalDiferencia = 0;
-      
+      let totalDiferenciaValidado = 0;
       cierresTienda.forEach(cierre => {
         const estado = getEstado(cierre);
         if (estado === ESTADOS_CIERRE.DIFERENCIA_MENOR || estado === ESTADOS_CIERRE.DIFERENCIA_GRAVE) {
           cierresConErrores++;
         }
         totalDiferencia += Number(cierre.grand_difference_total) || 0;
+        if (cierre.validado) {
+          totalDiferenciaValidado += Number(cierre.grand_difference_total) || 0;
+        }
       });
-      
       return {
         tienda,
         totalCierres,
         cierresConErrores,
         totalDiferencia,
+        totalDiferenciaValidado,
         todosCierres: cierresTienda, // Guardamos todos los cierres
       };
     });
@@ -657,9 +791,17 @@ export default function ControlMensual() {
     if (selectedTienda) {
       handleTiendaClick(selectedTienda);
     }
+    // Mantener la selección de tarjeta al cambiar filtros
   }, [showWithoutErrors, showValidados, showTodos]); // Se ejecuta cuando cambia cualquiera de los switches
 
   const handleTiendaClick = (tienda) => {
+    // Si hacemos clic en la misma tienda, toggle la selección
+    if (selectedCard === tienda) {
+      setSelectedCard(null);
+    } else {
+      setSelectedCard(tienda);
+    }
+    
     // Encontrar la tienda en las estadísticas
     const tiendaStats = estadisticasPorTienda.find(stats => stats.tienda === tienda);
     if (tiendaStats) {
@@ -724,7 +866,8 @@ export default function ControlMensual() {
       showSnackbar('Cierres validados correctamente.', 'success');
       setSelectedCierresIds(new Set());
       await fetchCierres(); // Refrescar todos los datos
-      setSelectedTienda(null); // Reiniciar selección para mostrar la tabla general
+      // Mantener la tarjeta seleccionada para ver el cambio dinámico
+      // setSelectedTienda(null); // Comentado para mantener la selección
     } catch (err) {
       showSnackbar('Error al validar cierres.', 'error');
     }
@@ -1034,132 +1177,69 @@ export default function ControlMensual() {
           color: '#ffffff'
         }}
       >
-        {/* Filtros */}
-        <Box sx={{ mb: 4 }}>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
-                <InputLabel sx={{ color: '#ffffff', fontSize: '0.95rem', top: '-4px' }}>Mes</InputLabel>
-                <Select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  label="Mes"
-                  sx={{
-                    color: '#ffffff',
-                    '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                    '.MuiSvgIcon-root': { color: '#ffffff' },
-                    borderRadius: 2,
-                    minHeight: 32,
-                    fontSize: '0.95rem',
-                    height: 36,
-                  }}
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
-                >
-                  {months.map((month, index) => (
-                    <MenuItem key={index} value={index} sx={{ fontSize: '0.95rem', minHeight: 32 }}>
-                      {month}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
-                <InputLabel sx={{ color: '#ffffff', fontSize: '0.95rem', top: '-4px' }}>Año</InputLabel>
-                <Select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  label="Año"
-                  sx={{
-                    color: '#ffffff',
-                    '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                    '.MuiSvgIcon-root': { color: '#ffffff' },
-                    borderRadius: 2,
-                    minHeight: 32,
-                    fontSize: '0.95rem',
-                    height: 36,
-                  }}
-                  MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
-                >
-                  {years.map((year) => (
-                    <MenuItem key={year} value={year} sx={{ fontSize: '0.95rem', minHeight: 32 }}>
-                      {year}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <Button
-                variant="outlined"
-                onClick={fetchCierres}
-                disabled={loading}
-                startIcon={<RefreshIcon />}
-                sx={{
-                  color: '#ffffff',
-                  borderColor: '#444',
-                  '&:hover': { borderColor: '#888' },
-                  height: '32px',
-                  minWidth: 110,
-                  fontSize: '0.95rem',
-                  borderRadius: 2,
-                  px: 1.5,
-                }}
-              >
-                {loading ? 'Cargando...' : 'Actualizar'}
-              </Button>
-            </Grid>
-            {/* Botones de descarga */}
-            <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end', alignItems: 'center', height: '32px' }}>
-                <Button variant="outlined" size="small" sx={{ borderRadius: 2, minWidth: 40, px: 1, fontSize: '0.85rem', color: '#fff', borderColor: '#fff', bgcolor: '#222', '&:hover': { bgcolor: '#444', borderColor: '#fff' } }} onClick={handleExportCSV}>CSV</Button>
-                <Button variant="outlined" size="small" sx={{ borderRadius: 2, minWidth: 40, px: 1, fontSize: '0.85rem', color: '#D16D6D', borderColor: '#D16D6D', bgcolor: '#222', '&:hover': { bgcolor: '#3a2323', borderColor: '#D16D6D' } }} onClick={handleExportPDF}>PDF</Button>
-                <Button variant="outlined" size="small" sx={{ borderRadius: 2, minWidth: 40, px: 1, fontSize: '0.85rem', color: '#4CAF50', borderColor: '#4CAF50', bgcolor: '#222', '&:hover': { bgcolor: '#233a23', borderColor: '#4CAF50' } }} onClick={handleExportXLSX}>Excel</Button>
-              </Box>
-            </Grid>
-          </Grid>
-        </Box>
-
-        <Divider sx={{ mb: 3, borderColor: '#444' }} />
-
-        {/* Período seleccionado */}
-        <Typography variant="body1" sx={{ mb: 3, color: '#b0b0b0', fontSize: '0.95rem' }}>
-          Período: {months[selectedMonth]} {selectedYear}
-        </Typography>
-
-        {/* Mensaje de error */}
+        {/* Mensajes de error primero */}
         {error && (
           <Alert severity="error" sx={{ mb: 3, borderRadius: 1 }}>
             {error}
           </Alert>
         )}
 
-        {/* Grid de tiendas */}
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'row', 
-          gap: 2, 
-          flexWrap: 'wrap',
-          justifyContent: 'flex-start',
-          alignItems: 'stretch',
-        }}>
-          {tiendasAMostrar.map((stats) => (
-            <TiendaCard
-              key={stats.tienda}
-              tienda={stats.tienda}
-              totalCierres={stats.totalCierres}
-              cierresConErrores={stats.cierresConErrores}
-              totalDiferencia={stats.totalDiferencia}
-              onClick={() => handleTiendaClick(stats.tienda)}
-            />
-          ))}
-        </Box>
+        {/* ...eliminado banner de resumen ejecutivo... */}
 
-        {/* Switch para filtrar tabla y botones de acción */}
-        <Box sx={{ mt: 3, mb: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+        {/* Fila de controles secundarios y acciones principales enmarcados - AHORA ARRIBA DE LOS STORE BOX */}
+        <Card sx={{ mb: 3, p: 2, borderRadius: 2, bgcolor: '#232323', boxShadow: '0 2px 8px #A3BE8C15', border: '1px solid #A3BE8C20', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, justifyContent: 'space-between' }}>
+          {/* Grupo principal: Año, Mes, Validar, Revisar, Switches */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, bgcolor: '#232323', borderRadius: 2, px: 2, py: 1 }}>
+            <FormControl fullWidth size="small" sx={{ minWidth: 100, maxWidth: 120 }}>
+              <InputLabel sx={{ color: '#ffffff', fontSize: '0.95rem', top: '-4px' }}>Año</InputLabel>
+              <Select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                label="Año"
+                sx={{
+                  color: '#ffffff',
+                  '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
+                  '.MuiSvgIcon-root': { color: '#ffffff' },
+                  borderRadius: 2,
+                  minHeight: 32,
+                  fontSize: '0.95rem',
+                  height: 36,
+                }}
+                MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
+              >
+                {years.map((year) => (
+                  <MenuItem key={year} value={year} sx={{ fontSize: '0.95rem', minHeight: 32 }}>
+                    {year}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <FormControl fullWidth size="small" sx={{ minWidth: 100, maxWidth: 120 }}>
+              <InputLabel sx={{ color: '#ffffff', fontSize: '0.95rem', top: '-4px' }}>Mes</InputLabel>
+              <Select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                label="Mes"
+                sx={{
+                  color: '#ffffff',
+                  '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
+                  '.MuiSvgIcon-root': { color: '#ffffff' },
+                  borderRadius: 2,
+                  minHeight: 32,
+                  fontSize: '0.95rem',
+                  height: 36,
+                }}
+                MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
+              >
+                {months.map((month, index) => (
+                  <MenuItem key={index} value={index} sx={{ fontSize: '0.95rem', minHeight: 32 }}>
+                    {month}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <Button
               variant="contained"
               onClick={handleValidarDiferencias}
@@ -1196,9 +1276,8 @@ export default function ControlMensual() {
             >
               Revisar ({selectedCierresIds.size})
             </Button>
-            {/* Switches */}
             <FormControlLabel
-              sx={{ ml: 2, mr: 0, alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32 }}
+              sx={{ alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32, display: 'flex', alignItems: 'center', flexDirection: 'row' }}
               control={
                 <Switch
                   checked={showWithoutErrors}
@@ -1238,14 +1317,13 @@ export default function ControlMensual() {
                 />
               }
               label={
-                <Typography sx={{ color: showTodos ? '#888' : (showWithoutErrors ? '#4caf50' : '#f44336'), fontSize: '0.85rem', fontWeight: 500 }}>
+                <Typography sx={{ color: showTodos ? '#888' : (showWithoutErrors ? '#4caf50' : '#f44336'), fontSize: '0.85rem', fontWeight: 500, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap' }}>
                   {showWithoutErrors ? 'Sin errores' : 'Con errores'}
                 </Typography>
               }
             />
-            {/* Switch de validación */}
             <FormControlLabel
-              sx={{ ml: 0, mr: 0, alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32 }}
+              sx={{ alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32, display: 'flex', alignItems: 'center', flexDirection: 'row' }}
               control={
                 <Switch
                   checked={showValidados}
@@ -1285,14 +1363,13 @@ export default function ControlMensual() {
                 />
               }
               label={
-                <Typography sx={{ color: showTodos ? '#888' : (showValidados ? '#4caf50' : '#FFD700'), fontSize: '0.85rem', fontWeight: 500 }}>
+                <Typography sx={{ color: showTodos ? '#888' : (showValidados ? '#4caf50' : '#FFD700'), fontSize: '0.85rem', fontWeight: 500, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap' }}>
                   {showValidados ? 'Validados' : 'Sin validar'}
                 </Typography>
               }
             />
-            {/* Switch para mostrar todos los cierres */}
             <FormControlLabel
-              sx={{ ml: 0, mr: 0, alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32 }}
+              sx={{ alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32 }}
               control={
                 <Switch
                   checked={showTodos}
@@ -1333,42 +1410,46 @@ export default function ControlMensual() {
               }
             />
           </Box>
-          {/* Caja de totales - invertido: Diferencia general primero, luego Total Validado */}
-          {selectedTienda && (() => {
-            let totalMonto = 0;
-            let totalValidado = 0;
-            selectedCierres.forEach(cierre => {
-              if (Array.isArray(cierre.justificaciones)) {
-                cierre.justificaciones.forEach(j => {
-                  let monto = j.monto_dif;
-                  if (typeof monto === 'string') {
-                    monto = monto.replace(/\$/g, '').trim();
-                    if (monto.includes(',')) {
-                      const partes = monto.split(',');
-                      const entero = partes[0].replace(/\./g, '');
-                      const decimal = partes[1] || '0';
-                      monto = entero + '.' + decimal;
-                    } else {
-                      monto = monto.replace(/\./g, '');
-                    }
-                  }
-                  const numeroMonto = Number(monto);
-                  if (!isNaN(numeroMonto)) totalMonto += numeroMonto;
-                  if (cierre.validado && !isNaN(numeroMonto)) totalValidado += numeroMonto;
-                });
-              }
-            });
-            return (
-              <Box sx={{ mt: 1, p: 1.5, bgcolor: '#232323', borderRadius: 3, display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'flex-start', minWidth: 260, maxWidth: 320 }}>
-                <Typography variant="subtitle1" sx={{ color: '#D16D6D', fontWeight: 'bold', fontSize: '1rem' }}>
-                  Diferencia general: {formatMoney(totalMonto)}
-                </Typography>
-                <Typography variant="subtitle1" sx={{ color: '#A3BE8C', fontWeight: 'bold', fontSize: '1rem' }}>
-                  Total Validado: {formatMoney(totalValidado)}
-                </Typography>
-              </Box>
-            );
-          })()}
+          {/* Espacio vacío y grupo derecho: Actualizar, CSV, PDF */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 300, justifyContent: 'flex-end', flex: 1 }}>
+            <Box sx={{ flex: 1 }} />
+            <Button
+              variant="outlined"
+              onClick={fetchCierres}
+              disabled={loading}
+              startIcon={<RefreshIcon />}
+              sx={{
+                color: '#ffffff',
+                borderColor: '#444',
+                '&:hover': { borderColor: '#888' },
+                height: '36px',
+                fontSize: '0.95rem',
+                borderRadius: 2,
+                px: 1.5,
+              }}
+            >
+              {loading ? 'Cargando...' : 'Actualizar'}
+            </Button>
+            <Button variant="outlined" size="small" sx={{ borderRadius: 2, minWidth: 40, px: 1, fontSize: '0.85rem', color: '#fff', borderColor: '#fff', bgcolor: '#222', '&:hover': { bgcolor: '#444', borderColor: '#fff' } }} onClick={handleExportCSV}>CSV</Button>
+            <Button variant="outlined" size="small" sx={{ borderRadius: 2, minWidth: 40, px: 1, fontSize: '0.85rem', color: '#D16D6D', borderColor: '#D16D6D', bgcolor: '#222', '&:hover': { bgcolor: '#3a2323', borderColor: '#D16D6D' } }} onClick={handleExportPDF}>PDF</Button>
+          </Box>
+        </Card>
+
+        {/* Fila principal: TiendaCards */}
+        <Box sx={{ mb: 3, display: 'flex', flexDirection: 'row', gap: 2, flexWrap: 'nowrap', justifyContent: 'flex-start', alignItems: 'stretch', overflowX: 'auto', width: '100%' }}>
+          {tiendasAMostrar.map((stats) => (
+            <Box key={stats.tienda} sx={{ display: 'flex', alignItems: 'stretch', flex: '1 1 180px', minWidth: '180px', maxWidth: '220px' }}>
+              <TiendaCard
+                tienda={stats.tienda}
+                totalCierres={stats.totalCierres}
+                cierresConErrores={stats.cierresConErrores}
+                totalDiferencia={stats.totalDiferencia}
+                todosCierres={stats.todosCierres}
+                onClick={() => handleTiendaClick(stats.tienda)}
+                isSelected={selectedCard === stats.tienda}
+              />
+            </Box>
+          ))}
         </Box>
 
         {/* Mensaje si no hay tiendas */}
