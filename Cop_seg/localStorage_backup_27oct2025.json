@@ -1,0 +1,204 @@
+{
+  "tiendas": [
+    "Recoleta",
+    "Alto Palermo",
+    "Unicenter",
+    "Solar",
+    "Cordoba",
+    "Rosario"
+  ],
+  "motivos_error_pago": [
+    "Dif. por cambio chico - Monto menor a 1 CAPSULA ESPRESSO (solo efectivo)",
+    "Pago Mixto autorizado por SL-TL-BM",
+    "Error de cobro - Se cobró de menos / mas",
+    "NESSOFT: Anulación no impactada",
+    "NESSOFT: Venta no impactada",
+    "NC: Diferencia Generada por Anulación",
+    "NC: Refacturación Mayor/Menor",
+    "BRINKS: Deposite de Más/Menos",
+    "OTROS: Cambio de artículo en Promoción",
+    "Orden cubieta con contingencia"
+  ],
+  "medios_pago": [
+    "Efectivo",
+    "MPoint",
+    "Mp - Qr",
+    "MPoint - Contingencia",
+    "Payway ",
+    "AppaGift"
+  ],
+  "asignaciones": {
+    "Recoleta": [
+      {
+        "usuario": "NNmirami",
+        "nombre": "Milton Mira"
+      },
+      {
+        "usuario": "NNdeviaslu",
+        "nombre": "Luciana Devias"
+      },
+      {
+        "usuario": "NNALEGREWA",
+        "nombre": "Walter Alegre"
+      },
+      {
+        "usuario": "NNCASTELLU",
+        "nombre": "Lucas Castells"
+      },
+      {
+        "usuario": "NNDEIBELA",
+        "nombre": "Laura Deibe"
+      },
+      {
+        "usuario": "NNBOCAPA",
+        "nombre": "Paula Boca"
+      },
+      {
+        "usuario": "NNROSLERDE",
+        "nombre": "Denise Rosler"
+      },
+      {
+        "usuario": "NNARANDAAL",
+        "nombre": "Alejandra Aranda"
+      },
+      {
+        "usuario": "NNSANTOSMA",
+        "nombre": "Anabel Santos"
+      },
+      {
+        "usuario": "NNZARACHRO",
+        "nombre": "Rocio Zaracho"
+      },
+      {
+        "usuario": "NNBAZANBI",
+        "nombre": "Bianca Bazan"
+      },
+      {
+        "usuario": "NNROBLEDDA",
+        "nombre": "Shania Silba"
+      },
+      {
+        "usuario": "NNLEONFL",
+        "nombre": "Flor leon"
+      },
+      {
+        "usuario": "NNKUSTERMA",
+        "nombre": "Magda Kuster"
+      },
+      {
+        "usuario": "NNSOSATA",
+        "nombre": "Catalina Sosa"
+      },
+      {
+        "usuario": "nnsosame",
+        "nombre": "Florencia Sosa"
+      }
+    ],
+    "Alto Palermo": [
+      {
+        "usuario": "NNOttavianoca",
+        "nombre": "Carla Ottaviano"
+      },
+      {
+        "usuario": "Test",
+        "nombre": "Test"
+      },
+      {
+        "usuario": "nnaquinoel",
+        "nombre": "Aquino Eliana"
+      },
+      {
+        "usuario": "nnnaricemi",
+        "nombre": "micaela narice"
+      }
+    ],
+    "Unicenter": [
+      {
+        "usuario": "NNzomermax",
+        "nombre": "Maxi Zommer"
+      }
+    ],
+    "Solar": [
+      {
+        "usuario": "NNLARROSEM",
+        "nombre": "Emmanuel Larrosa"
+      },
+      {
+        "usuario": "NNPOOSJE",
+        "nombre": "Jesus Poos"
+      },
+      {
+        "usuario": "NNNEMESU",
+        "nombre": "Sumaia Neme"
+      },
+      {
+        "usuario": "NNZAVALALO",
+        "nombre": "Lourdes Zavala"
+      },
+      {
+        "usuario": "NNSILVASA",
+        "nombre": "Sarahy Silva"
+      },
+      {
+        "usuario": "NNRUIZVI",
+        "nombre": "Victoria Ruiz"
+      },
+      {
+        "usuario": "NNSANCHEPA",
+        "nombre": "Paula Sanchez"
+      },
+      {
+        "usuario": "NNANGANULI",
+        "nombre": "Lisandro Anganuzzi"
+      },
+      {
+        "usuario": "NNBACIGALU",
+        "nombre": "Lucia Bacigalupe"
+      },
+      {
+        "usuario": "NNQUIROZCR",
+        "nombre": "Cristian Quiroz"
+      }
+    ],
+    "Cordoba": [
+      {
+        "usuario": "NNmirabela",
+        "nombre": "Belen Mirabella"
+      }
+    ],
+    "Rosario": [
+      {
+        "usuario": "nnpirenma",
+        "nombre": "Maria Piren"
+      }
+    ]
+  },
+  "config_font_size": 22,
+  "config_theme": "Claro",
+  "config_language": "Español",
+  "config_debug": false,
+  "config_logging": false,
+  "user_passwords": {},
+  "roles_config": {
+    "admin": [
+      "*"
+    ],
+    "supervisor": [
+      "view_assigned_sucursales",
+      "view_cierres",
+      "modify_justifications",
+      "view_diferencias",
+      "view_reports",
+      "export_own_data",
+      "view_analytics"
+    ],
+    "cajero": [
+      "create_cierre",
+      "view_own_cierres",
+      "view_own_sucursal",
+      "view_cierres",
+      "view_analytics",
+      "view_assigned_sucursales"
+    ]
+  }
+}

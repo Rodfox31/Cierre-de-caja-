@@ -37,6 +37,7 @@ import {
   Snackbar,
   Alert,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
@@ -56,6 +57,7 @@ import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import DialogActions from '@mui/material/DialogActions';
 import Modificar from './Modificar';
+import DetallesCierre from './DetallesCierre';
 
 ////////////////////////////////////////////////////////////////////////
 // CONSTANTES Y FUNCIONES AUXILIARES
@@ -195,6 +197,7 @@ const calcularEstadisticas = (cierres) => {
 };
 
 const StatsCard = React.memo(function StatsCard({ title, value, color, tooltip }) {
+  const theme = useTheme();
   return (
     <Tooltip title={tooltip} arrow>
       <Paper
@@ -207,17 +210,20 @@ const StatsCard = React.memo(function StatsCard({ title, value, color, tooltip }
           alignItems: 'center',
           justifyContent: 'space-between',
           transition: 'background-color 0.2s, box-shadow 0.2s',
-          '&:hover': { backgroundColor: '#2a2a2a', boxShadow: 2 },
+          '&:hover': {
+            backgroundColor: alpha(theme.palette.primary.main, 0.08),
+            boxShadow: 2,
+          },
           borderRadius: 1,
-          backgroundColor: '#1e1e1e',
+          backgroundColor: theme.palette.background.paper,
           height: '60px',
         }}
       >
         <Box>
-          <Typography variant="caption" sx={{ color: '#b0b0b0', fontSize: '0.75rem' }}>
+          <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.75rem' }}>
             {title}
           </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: color, lineHeight: 1.2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color, lineHeight: 1.2 }}>
             {value}
           </Typography>
         </Box>
@@ -251,13 +257,14 @@ function LoadingSkeleton({ columns }) {
 }
 
 function EmptyState() {
+  const theme = useTheme();
   return (
     <Box sx={{ py: 8, textAlign: 'center' }}>
-      <InfoIcon sx={{ fontSize: 60, mb: 2, color: '#666' }} />
-      <Typography variant="h6" sx={{ color: '#b0b0b0' }} gutterBottom>
+      <InfoIcon sx={{ fontSize: 60, mb: 2, color: theme.palette.text.secondary }} />
+      <Typography variant="h6" sx={{ color: theme.palette.text.primary }} gutterBottom>
         No se encontraron resultados
       </Typography>
-      <Typography variant="body2" sx={{ color: '#888' }}>
+      <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
         Intenta ajustar los filtros o actualizar los datos
       </Typography>
     </Box>
@@ -300,6 +307,28 @@ const HeaderControls = React.memo(function HeaderControls({
   handleMonthChange,
 }) {
   const theme = useTheme();
+  const sharedSelectSx = {
+    backgroundColor: alpha(theme.palette.background.paper, 0.85),
+    borderRadius: 2,
+    color: theme.palette.text.primary,
+    '.MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.custom?.tableBorder || theme.palette.divider },
+    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.primary.main },
+    '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.primary.main },
+    '.MuiSvgIcon-root': { color: theme.palette.text.primary },
+    transition: 'background-color 0.3s ease, border-color 0.3s ease',
+  };
+  const sharedLabelSx = { color: theme.palette.text.secondary };
+  const sharedDateFieldSx = {
+    '& .MuiOutlinedInput-root': {
+      backgroundColor: alpha(theme.palette.background.paper, 0.85),
+      color: theme.palette.text.primary,
+      borderRadius: 2,
+      '& fieldset': { borderColor: theme.palette.custom?.tableBorder || theme.palette.divider },
+      '&:hover fieldset': { borderColor: theme.palette.primary.main },
+      '&.Mui-focused fieldset': { borderColor: theme.palette.primary.main },
+    },
+    '& .MuiInputLabel-root': sharedLabelSx,
+  };
 
   const handleDatePresetChange = useCallback(
     (event) => {
@@ -361,13 +390,13 @@ const HeaderControls = React.memo(function HeaderControls({
         {/* PERIODO */}
         <Grid item sx={{ flex: '1 1 120px', minWidth: 120 }}>
           <FormControl fullWidth size="small">
-            <InputLabel sx={{ color: '#ffffff' }}>Período</InputLabel>
+            <InputLabel sx={sharedLabelSx}>Período</InputLabel>
             <Select
               label="Período"
               value={selectedDatePreset}
               onChange={handleDatePresetChange}
               variant="outlined"
-              sx={{ color: '#ffffff', '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, '.MuiSvgIcon-root': { color: '#ffffff' } }}
+              sx={sharedSelectSx}
             >
               <MenuItem value="custom">Personalizado</MenuItem>
               <MenuItem value="last7days">Últimos 7 días</MenuItem>
@@ -380,13 +409,13 @@ const HeaderControls = React.memo(function HeaderControls({
         {/* MES SOLO DEL AÑO ACTUAL */}
         <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
           <FormControl fullWidth size="small">
-            <InputLabel sx={{ color: '#ffffff' }}>Mes</InputLabel>
+            <InputLabel sx={sharedLabelSx}>Mes</InputLabel>
             <Select
               label="Mes"
               value={selectedMonth}
               onChange={handleMonthChange}
               variant="outlined"
-              sx={{ color: '#ffffff', '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, '.MuiSvgIcon-root': { color: '#ffffff' } }}
+              sx={sharedSelectSx}
             >
               <MenuItem value="">Todos</MenuItem>
               {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].map((mes, idx) => {
@@ -408,9 +437,9 @@ const HeaderControls = React.memo(function HeaderControls({
             variant="outlined"
             value={fechaDesde ? fechaDesde.format('YYYY-MM-DD') : ''}
             onChange={handleFechaDesdeChange}
-            InputLabelProps={{ shrink: true, sx: { color: '#ffffff' } }}
+            InputLabelProps={{ shrink: true }}
             disabled={selectedDatePreset !== 'custom'}
-            sx={{ '& .MuiOutlinedInput-root': { color: '#ffffff', '& fieldset': { borderColor: '#444' }, '&:hover fieldset': { borderColor: '#888' } }, '& .MuiInputLabel-root': { color: '#ffffff' } }}
+            sx={sharedDateFieldSx}
           />
         </Grid>
         {/* HASTA */}
@@ -423,22 +452,22 @@ const HeaderControls = React.memo(function HeaderControls({
             variant="outlined"
             value={fechaHasta ? fechaHasta.format('YYYY-MM-DD') : ''}
             onChange={handleFechaHastaChange}
-            InputLabelProps={{ shrink: true, sx: { color: '#ffffff' } }}
+            InputLabelProps={{ shrink: true }}
             disabled={selectedDatePreset !== 'custom'}
-            sx={{ '& .MuiOutlinedInput-root': { color: '#ffffff', '& fieldset': { borderColor: '#444' }, '&:hover fieldset': { borderColor: '#888' } }, '& .MuiInputLabel-root': { color: '#ffffff' } }}
+            sx={sharedDateFieldSx}
           />
         </Grid>
         {/* TIENDA */}
         <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
           <FormControl fullWidth size="small">
-            <InputLabel sx={{ color: '#ffffff' }}>Tienda</InputLabel>
+            <InputLabel sx={sharedLabelSx}>Tienda</InputLabel>
             <Select
               label="Tienda"
               value={tiendaSeleccionada}
               onChange={(e) => { setTiendaSeleccionada(e.target.value); setPage(0); }}
               MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
               variant="outlined"
-              sx={{ color: '#ffffff', '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, '.MuiSvgIcon-root': { color: '#ffffff' } }}
+              sx={sharedSelectSx}
             >
               <MenuItem value="">Todas</MenuItem>
               {tiendas.map((t) => (
@@ -450,7 +479,7 @@ const HeaderControls = React.memo(function HeaderControls({
         {/* USUARIO */}
         <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
           <FormControl fullWidth size="small">
-            <InputLabel sx={{ color: '#ffffff' }}>Usuario</InputLabel>
+            <InputLabel sx={sharedLabelSx}>Usuario</InputLabel>
             <Select
               label="Usuario"
               value={usuarioSeleccionado}
@@ -458,7 +487,7 @@ const HeaderControls = React.memo(function HeaderControls({
               disabled={!tiendaSeleccionada}
               MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
               variant="outlined"
-              sx={{ color: '#ffffff', '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' }, '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' }, '.MuiSvgIcon-root': { color: '#ffffff' } }}
+              sx={sharedSelectSx}
             >
               <MenuItem value="">Todos</MenuItem>
               {usuarios.map((u) => (
@@ -478,11 +507,11 @@ const HeaderControls = React.memo(function HeaderControls({
                 <Checkbox 
                   checked={showCorrectos} 
                   onChange={e => { setShowCorrectos(e.target.checked); setPage(0); }}
-                  sx={{ color: '#4caf50', '&.Mui-checked': { color: '#4caf50' }, p: 0.5 }}
+                  sx={{ color: theme.palette.success.main, '&.Mui-checked': { color: theme.palette.success.main }, p: 0.5 }}
                   size="small"
                 />
               }
-              label={<Typography variant="body2" sx={{ color: '#ffffff' }}>Correctos</Typography>}
+              label={<Typography variant="body2" sx={{ color: theme.palette.text.primary }}>Correctos</Typography>}
               sx={{ mr: 1 }}
             />
             <FormControlLabel
@@ -490,11 +519,11 @@ const HeaderControls = React.memo(function HeaderControls({
                 <Checkbox 
                   checked={showDiferenciasMenores} 
                   onChange={e => { setShowDiferenciasMenores(e.target.checked); setPage(0); }}
-                  sx={{ color: '#ff9800', '&.Mui-checked': { color: '#ff9800' }, p: 0.5 }}
+                  sx={{ color: theme.palette.warning.main, '&.Mui-checked': { color: theme.palette.warning.main }, p: 0.5 }}
                   size="small"
                 />
               }
-              label={<Typography variant="body2" sx={{ color: '#ffffff' }}>Menores</Typography>}
+              label={<Typography variant="body2" sx={{ color: theme.palette.text.primary }}>Menores</Typography>}
               sx={{ mr: 1 }}
             />
             <FormControlLabel
@@ -502,11 +531,11 @@ const HeaderControls = React.memo(function HeaderControls({
                 <Checkbox 
                   checked={showDiferenciasGraves} 
                   onChange={e => { setShowDiferenciasGraves(e.target.checked); setPage(0); }}
-                  sx={{ color: '#f44336', '&.Mui-checked': { color: '#f44336' }, p: 0.5 }}
+                  sx={{ color: theme.palette.error.main, '&.Mui-checked': { color: theme.palette.error.main }, p: 0.5 }}
                   size="small"
                 />
               }
-              label={<Typography variant="body2" sx={{ color: '#ffffff' }}>Graves</Typography>}
+              label={<Typography variant="body2" sx={{ color: theme.palette.text.primary }}>Graves</Typography>}
               sx={{ mr: 1 }}
             />
           </Box>
@@ -523,9 +552,9 @@ const HeaderControls = React.memo(function HeaderControls({
               size="small"
               sx={{ 
                 minWidth: 100,
-                color: '#ffffff',
-                borderColor: '#444',
-                '&:hover': { borderColor: '#888' }
+                color: theme.palette.text.primary,
+                borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
+                '&:hover': { borderColor: theme.palette.primary.main }
               }}
             >
               {loading ? 'Cargando...' : 'Actualizar'}
@@ -537,9 +566,9 @@ const HeaderControls = React.memo(function HeaderControls({
               size="small"
               sx={{ 
                 minWidth: 100,
-                color: '#ffffff',
-                borderColor: '#444',
-                '&:hover': { borderColor: '#888' }
+                color: theme.palette.text.primary,
+                borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
+                '&:hover': { borderColor: theme.palette.primary.main }
               }}
             >
               CSV
@@ -551,9 +580,9 @@ const HeaderControls = React.memo(function HeaderControls({
               size="small"
               sx={{ 
                 minWidth: 100,
-                color: '#ffffff',
-                borderColor: '#444',
-                '&:hover': { borderColor: '#888' }
+                color: theme.palette.text.primary,
+                borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
+                '&:hover': { borderColor: theme.palette.primary.main }
               }}
             >
               Columnas
@@ -566,9 +595,9 @@ const HeaderControls = React.memo(function HeaderControls({
               size="small"
               sx={{ 
                 minWidth: 100,
-                color: !selectedId ? '#666' : '#ff6b6b',
-                borderColor: !selectedId ? '#333' : '#ff6b6b',
-                '&:hover': { borderColor: !selectedId ? '#333' : '#ff5252' }
+                color: !selectedId ? theme.palette.text.disabled : theme.palette.error.main,
+                borderColor: !selectedId ? theme.palette.action.disabledBackground : theme.palette.error.main,
+                '&:hover': { borderColor: !selectedId ? theme.palette.action.disabledBackground : theme.palette.error.light }
               }}
             >
               Eliminar
@@ -628,6 +657,51 @@ export default function Diferencias() {
   const showSnackbar = useCallback((message, severity = 'info') => {
     setSnackbar({ open: true, message, severity });
   }, []);
+
+  // Función para transformar datos de cierre al formato de DetallesCierre
+  const transformarDatosParaDetalles = (cierre) => {
+    if (!cierre) return {};
+    
+    // Formatear medios de pago
+    const mediosPago = cierre.medios_pago?.map(m => ({
+      medio: m.medio,
+      facturado: m.facturado,
+      facturadoVal: m.facturado,
+      cobrado: m.cobrado,
+      cobradoVal: m.cobrado,
+      difference: m.differenceVal,
+      differenceVal: m.differenceVal
+    })) || [];
+
+    // Calcular totales
+    const granTotalMedios = mediosPago.reduce((sum, m) => sum + (parseFloat(m.facturado) || 0), 0);
+    const granTotalMediosCobrado = mediosPago.reduce((sum, m) => sum + (parseFloat(m.cobrado) || 0), 0);
+    const balanceSinJustificar = cierre.grand_difference_total || 0;
+
+    return {
+      fecha: cierre.fecha ? moment(cierre.fecha).format('DD/MM/YYYY') : moment().format('DD/MM/YYYY'),
+      tienda: cierre.tienda || 'N/A',
+      usuario: cierre.usuario || 'N/A',
+      responsable: cierre.usuario || 'N/A',
+      mediosPago: mediosPago,
+      granTotalMedios: granTotalMedios,
+      granTotalMediosCobrado: granTotalMediosCobrado,
+      balanceSinJustificar: balanceSinJustificar,
+      justificaciones: cierre.justificaciones?.map(j => ({
+        fecha: j.fecha || cierre.fecha ? moment(cierre.fecha).format('DD/MM/YYYY') : '',
+        usuario: j.usuario || cierre.usuario || '',
+        cliente: j.cliente || '',
+        orden: j.orden || '',
+        medio_pago: j.medio_pago || '',
+        motivo: j.motivo || '',
+        ajuste: j.monto_dif || j.ajuste || 0
+      })) || [],
+      validado: cierre.validado || false,
+      usuario_validacion: cierre.usuario_validacion || '',
+      fecha_validacion: cierre.fecha_validacion || '',
+      comentarios: cierre.comentarios || ''
+    };
+  };
 
   const handleCloseSnackbar = useCallback((_, reason) => {
     if (reason === 'clickaway') return;
@@ -1183,19 +1257,21 @@ export default function Diferencias() {
     <Box
       p={3}
       sx={{
-        fontFamily: 'Inter',
-        bgcolor: '#121212',
-        color: '#ffffff',
-        minHeight: '100vh'
+        fontFamily: theme.typography.fontFamily,
+        backgroundColor: theme.palette.background.default,
+        color: theme.palette.text.primary,
+        minHeight: '100vh',
+        transition: 'background-color 0.3s ease, color 0.3s ease',
       }}
     >
       <Paper
         elevation={3}
         sx={{
-          p: 4,
+          p: { xs: 2, md: 4 },
           borderRadius: 2,
-          bgcolor: '#1e1e1e',
-          color: '#ffffff'
+          backgroundColor: theme.palette.background.paper,
+          color: theme.palette.text.primary,
+          transition: 'background-color 0.3s ease, color 0.3s ease',
         }}
       >
         <HeaderControls
@@ -1284,7 +1360,7 @@ export default function Diferencias() {
               position: 'relative',
               scrollBehavior: 'smooth',
               borderRadius: 1,
-              bgcolor: '#121212'
+              backgroundColor: theme.palette.background.paper,
             }}
           >
             <Table sx={{ minWidth: 650 }} aria-label="simple table">
@@ -1296,9 +1372,9 @@ export default function Diferencias() {
                       align={col.align || 'left'}
                       sortDirection={orderBy === col.id ? order : false}
                       sx={{ 
-                        color: '#ffffff', 
-                        backgroundColor: '#242424', 
-                        borderBottom: '1px solid #333',
+                        color: theme.palette.text.primary, 
+                        backgroundColor: theme.palette.custom?.tableRow || theme.palette.background.default, 
+                        borderBottom: `1px solid ${theme.palette.custom?.tableBorder || theme.palette.divider}`,
                         width: col.width,
                         minWidth: col.width,
                         fontWeight: 'bold'
@@ -1310,9 +1386,9 @@ export default function Diferencias() {
                           direction={orderBy === col.id ? order : 'asc'}
                           onClick={() => handleRequestSort(col.id)}
                           sx={{
-                            color: '#ffffff !important',
+                            color: `${theme.palette.text.primary} !important`,
                             '& .MuiTableSortLabel-icon': {
-                              color: '#ffffff !important',
+                              color: `${theme.palette.text.primary} !important`,
                             },
                           }}
                         >
@@ -1337,7 +1413,12 @@ export default function Diferencias() {
                         hover
                         selected={selectedId === cierre.id}
                         onClick={() => setSelectedId(cierre.id)}
-                        sx={{ cursor: 'pointer', ...(selectedId === cierre.id ? { backgroundColor: '#1976d222' } : {}) }}
+                        sx={{
+                          cursor: 'pointer',
+                          ...(selectedId === cierre.id
+                            ? { backgroundColor: alpha(theme.palette.primary.main, 0.14) }
+                            : {}),
+                        }}
                       >
                         {displayedColumns.map((col) => (
                           <TableCell key={col.id} align={col.align || 'left'}>
@@ -1374,121 +1455,14 @@ export default function Diferencias() {
           </Paper>
         </Collapse>
 
-        {/* Modal de detalle */}
-        <Modal
-          open={modalDetalle !== null}
+        {/* Modal de detalle usando el componente DetallesCierre */}
+        <DetallesCierre 
+          resumenData={transformarDatosParaDetalles(modalDetalle)}
           onClose={() => { setModalDetalle(null); setTabValue(0); }}
-        >
-          <Fade in={modalDetalle !== null}>
-            <Box
-              sx={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: { xs: '95%', sm: '80%', md: '70%' },
-                bgcolor: 'background.paper',
-                boxShadow: 24,
-                p: 3,
-                borderRadius: 2,
-                outline: 'none',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-                transition: 'transform 0.3s ease',
-              }}
-            >
-            <Typography variant="h5" gutterBottom>
-              Detalle completo del cierre – {moment(modalDetalle?.fecha).format('DD/MM/YYYY')}
-            </Typography>
-            <Tabs
-              value={tabValue}
-              onChange={(_, nv) => setTabValue(nv)}
-              sx={{ mb: 3 }}
-            >
-              <Tab label="Información" />
-              <Tab label="Medios de pago" />
-              {modalDetalle?.justificaciones?.length > 0 && (
-                <Tab label="Justificaciones" />
-              )}
-            </Tabs>
+          open={modalDetalle !== null}
+        />
 
-            {tabValue === 0 && modalDetalle && (
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="h6" sx={{ mb: 2 }}>Información básica</Typography>
-                  <Typography variant="body1"><strong>Tienda:</strong> {modalDetalle.tienda}</Typography>
-                  <Typography variant="body1"><strong>Usuario:</strong> {modalDetalle.usuario}</Typography>
-                  <Typography variant="body1"><strong>Estado:</strong> {getEstado(modalDetalle).label}</Typography>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="h6" sx={{ mb: 2 }}>Totales</Typography>
-                  <Typography variant="body1"><strong>Facturado:</strong> <ExactValue value={modalDetalle.total_facturado} /></Typography>
-                  <Typography variant="body1"><strong>Cobrado:</strong> <ExactValue value={modalDetalle.total_cobrado} /></Typography>
-                  <Typography variant="body1"><strong>Diferencia:</strong> <ExactValue value={modalDetalle.grand_difference_total} /></Typography>
-                </Grid>
-              </Grid>
-            )}
-
-            {tabValue === 1 && modalDetalle && (
-              <>
-                <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>Medios de pago</Typography>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Medio</TableCell>
-                      <TableCell align="right">Facturado</TableCell>
-                      <TableCell align="right">Cobrado</TableCell>
-                      <TableCell align="right">Diferencia</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {modalDetalle.medios_pago.map((m, i) => (
-                      <TableRow key={i}>
-                        <TableCell>{m.medio}</TableCell>
-                        <TableCell align="right"><ExactValue value={m.facturado} /></TableCell>
-                        <TableCell align="right"><ExactValue value={m.cobrado} /></TableCell>
-                        <TableCell align="right"><ExactValue value={m.differenceVal} /></TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </>
-            )}
-
-            {tabValue === 2 && modalDetalle?.justificaciones?.length > 0 && (
-              <>
-                <Typography variant="h6" sx={{ mt: 3, mb: 2 }}>Justificaciones</Typography>
-                <Table size="small">
-                  <TableHead>
-                    <TableRow>
-                      <TableCell>Motivo</TableCell>
-                      <TableCell align="right">Monto</TableCell>
-                      <TableCell>Cliente</TableCell>
-                      <TableCell>Orden</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {modalDetalle.justificaciones.map((j, i) => (
-                      <TableRow key={i}>
-                        <TableCell><Typography variant="body2">{j.motivo}</Typography></TableCell>
-                        <TableCell align="right"><ExactValue value={j.monto_dif} /></TableCell>
-                        <TableCell>{j.cliente || '-'}</TableCell>
-                        <TableCell>{j.orden || '-'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </>
-            )}
-
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button variant="contained" onClick={() => { setModalDetalle(null); setTabValue(0); }} sx={{ borderRadius: 1 }}>Cerrar</Button>
-            </Box>
-          </Box>
-        </Fade>
-      </Modal>
-
-      <Modal open={columnModalOpen} onClose={() => setColumnModalOpen(false)}>
+        <Modal open={columnModalOpen} onClose={() => setColumnModalOpen(false)}>
         <Fade in={columnModalOpen}>
           <Box
             sx={{

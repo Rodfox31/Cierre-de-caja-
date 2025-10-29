@@ -17,11 +17,14 @@ import {
   Switch,
   FormControlLabel,
 } from '@mui/material';
+import { useTheme, alpha } from '@mui/material/styles';
 import { Add as AddIcon, Delete as DeleteIcon, Save as SaveIcon } from '@mui/icons-material';
 import { axiosWithFallback } from '../config';
 import moment from 'moment';
 
 export default function Modificar({ cierre, onClose, onSave }) {
+  const theme = useTheme();
+  
   const [form, setForm] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -346,7 +349,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
         sx={{
           width: '100vw',
           height: '100vh',
-          bgcolor: '#121214',
+          bgcolor: theme.palette.background.default,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -364,14 +367,14 @@ export default function Modificar({ cierre, onClose, onSave }) {
         p: 1.5,
         height: '100vh',
         overflow: 'auto',
-        bgcolor: '#121214',
-        color: '#E0E0E0',
+        bgcolor: theme.palette.background.default,
+        color: theme.palette.text.primary,
       }}
     >
       <Typography variant="h5" align="center" sx={{ mb: 1.5, fontWeight: 600 }}>
         Modificar Cierre #{form.id}
       </Typography>
-      <Alert severity="info" sx={{ mb: 1.5, bgcolor: '#1a2332', borderColor: '#2196f3' }}>
+      <Alert severity="info" sx={{ mb: 1.5, bgcolor: alpha(theme.palette.info.main, 0.1), borderColor: theme.palette.info.main }}>
         <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
           <strong>Diferencia Total:</strong> Suma de todas las diferencias entre cobrado y facturado.
           <br />
@@ -379,7 +382,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
           <br />
           <strong>Balance Final:</strong> Diferencia Total - Total Ajustes.
         </Typography>
-      </Alert>      <Paper elevation={1} sx={{ p: 1, mb: 1.5, bgcolor: '#1E1E1E', borderRadius: 2 }}>
+      </Alert>      <Paper elevation={1} sx={{ p: 1, mb: 1.5, bgcolor: theme.palette.background.paper, borderRadius: 2 }}>
         <Grid container spacing={1}>
           {[
             ['Fecha', form.fecha ? moment(form.fecha).format('DD/MM/YYYY') : '-'],
@@ -390,7 +393,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
             ['Balance Final', formatMoney(totales.balanceFinal)],
           ].map(([label, value], idx) => (
             <Grid item xs={6} sm={4} key={idx}>
-              <Typography variant="caption" sx={{ color: '#A0A0A0', fontSize: '0.7rem' }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem' }}>
                 {label}
               </Typography>
               <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>{value}</Typography>
@@ -410,7 +413,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
               display: 'flex',
               gap: 2,
               alignItems: 'center',
-              bgcolor: '#1E1E1E',
+              bgcolor: theme.palette.background.paper,
               borderRadius: 2,
             }}
           >
@@ -425,7 +428,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
               size="small"
               sx={{
                 width: 120,
-                bgcolor: '#2A2A2A',
+                bgcolor: theme.palette.custom.tableRow,
                 borderRadius: 1,
                 '& .MuiInputBase-input': { height: '16px' },
               }}
@@ -439,20 +442,20 @@ export default function Modificar({ cierre, onClose, onSave }) {
               size="small"
               sx={{
                 width: 120,
-                bgcolor: '#2A2A2A',
+                bgcolor: theme.palette.custom.tableRow,
                 borderRadius: 1,
                 '& .MuiInputBase-input': { height: '16px' },
               }}
             />
             <Box sx={{ width: 100, textAlign: 'right' }}>
-              <Typography variant="caption" sx={{ color: '#A0A0A0', fontSize: '0.7rem' }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.7rem' }}>
                 Diferencia
               </Typography>
               <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>{formatMoney(m.differenceVal)}</Typography>
             </Box>
           </Paper>
         ))}
-      </Box>      <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', mb: 1, p: 1, bgcolor: '#1A1A1A', borderRadius: 2, border: '1px solid #333' }}>
+      </Box>      <Box sx={{ display: 'flex', alignItems: 'center', justify: 'space-between', mb: 1, p: 1, bgcolor: theme.palette.background.paper, borderRadius: 2, border: `1px solid ${theme.palette.custom.tableBorder}` }}>
         <Typography variant="h6" sx={{ fontSize: '1rem' }}>
           Justificaciones ({justificacionesOriginales.length} originales)
         </Typography>
@@ -465,16 +468,16 @@ export default function Modificar({ cierre, onClose, onSave }) {
                 size="small"
                 sx={{
                   '& .MuiSwitch-thumb': {
-                    backgroundColor: modificarJustificaciones ? '#4caf50' : '#666',
+                    backgroundColor: modificarJustificaciones ? theme.palette.success.main : theme.palette.text.disabled,
                   },
                   '& .MuiSwitch-track': {
-                    backgroundColor: modificarJustificaciones ? 'rgba(76, 175, 80, 0.5)' : 'rgba(255, 255, 255, 0.3)',
+                    backgroundColor: modificarJustificaciones ? alpha(theme.palette.success.main, 0.5) : alpha(theme.palette.text.primary, 0.3),
                   },
                 }}
               />
             }
             label={
-              <Typography variant="body2" sx={{ fontSize: '0.8rem', color: modificarJustificaciones ? '#4caf50' : '#888' }}>
+              <Typography variant="body2" sx={{ fontSize: '0.8rem', color: modificarJustificaciones ? theme.palette.success.main : theme.palette.text.disabled }}>
                 {modificarJustificaciones ? 'Modificando justificaciones' : 'Preservar justificaciones originales'}
               </Typography>
             }
@@ -486,7 +489,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
               size="small"
               variant="outlined"
               onClick={addJust}
-              sx={{ borderRadius: 2, borderColor: '#444', fontSize: '0.8rem' }}
+              sx={{ borderRadius: 2, borderColor: theme.palette.custom.tableBorder, fontSize: '0.8rem' }}
             >
               Nueva
             </Button>
@@ -495,7 +498,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
       </Box>
         {/* Mostrar advertencia si no se van a modificar las justificaciones */}
       {!modificarJustificaciones && justificacionesOriginales.length > 0 && (
-        <Alert severity="info" sx={{ mb: 1.5, bgcolor: '#1a2332', borderColor: '#2196f3' }}>
+        <Alert severity="info" sx={{ mb: 1.5, bgcolor: alpha(theme.palette.info.main, 0.1), borderColor: theme.palette.info.main }}>
           <Typography variant="body2" sx={{ fontSize: '0.8rem' }}>
             Las justificaciones se mantendrán sin cambios. Active la modificación si desea editarlas.
           </Typography>
@@ -505,7 +508,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
       {/* Mostrar justificaciones originales en modo solo lectura */}
       {!modificarJustificaciones && justificacionesOriginales.length > 0 && (
         <Box sx={{ mb: 1.5 }}>
-          <Typography variant="subtitle2" sx={{ mb: 1, fontSize: '0.9rem', color: '#A0A0A0' }}>
+          <Typography variant="subtitle2" sx={{ mb: 1, fontSize: '0.9rem', color: theme.palette.text.secondary }}>
             Justificaciones actuales (solo lectura):
           </Typography>
           <Box sx={{ display: 'grid', gap: 1 }}>
@@ -518,16 +521,16 @@ export default function Modificar({ cierre, onClose, onSave }) {
                   display: 'flex',
                   gap: 1.5,
                   alignItems: 'center',
-                  bgcolor: '#1A1A1A',
+                  bgcolor: theme.palette.background.paper,
                   borderRadius: 2,
-                  border: '1px solid #333',
+                  border: `1px solid ${theme.palette.custom.tableBorder}`,
                   opacity: 0.8,
                 }}
               >
                 <Box sx={{ 
                   width: 80, 
                   fontSize: '0.8rem', 
-                  color: '#A0A0A0',
+                  color: theme.palette.text.secondary,
                   textAlign: 'center',
                   fontFamily: 'monospace'
                 }}>
@@ -536,7 +539,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
                 <Box sx={{ 
                   width: 120, 
                   fontSize: '0.8rem', 
-                  color: '#E0E0E0',
+                  color: theme.palette.text.primary,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
@@ -546,12 +549,12 @@ export default function Modificar({ cierre, onClose, onSave }) {
                 <Box sx={{ 
                   width: 90, 
                   fontSize: '0.8rem', 
-                  color: '#A0A0A0',
+                  color: theme.palette.text.secondary,
                   textAlign: 'right',
                   fontFamily: 'monospace'
                 }}>
                   {/* Mostrar el monto_dif (valor de la diferencia) */}
-                  <Typography variant="caption" sx={{ color: '#888', fontSize: '0.6rem', display: 'block' }}>
+                  <Typography variant="caption" sx={{ color: theme.palette.text.disabled, fontSize: '0.6rem', display: 'block' }}>
                     Diferencia:
                   </Typography>
                   {j.monto_dif || '-'}
@@ -559,11 +562,11 @@ export default function Modificar({ cierre, onClose, onSave }) {
                 <Box sx={{ 
                   width: 90, 
                   fontSize: '0.8rem', 
-                  color: j.ajuste > 0 ? '#4caf50' : j.ajuste < 0 ? '#f44336' : '#A0A0A0',
+                  color: j.ajuste > 0 ? theme.palette.success.main : j.ajuste < 0 ? theme.palette.error.main : theme.palette.text.secondary,
                   textAlign: 'right',
                   fontFamily: 'monospace'
                 }}>
-                  <Typography variant="caption" sx={{ color: '#888', fontSize: '0.6rem', display: 'block' }}>
+                  <Typography variant="caption" sx={{ color: theme.palette.text.disabled, fontSize: '0.6rem', display: 'block' }}>
                     Ajuste:
                   </Typography>
                   {formatMoney(j.ajuste || 0)}
@@ -571,7 +574,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
                 <Box sx={{ 
                   flex: 1, 
                   fontSize: '0.8rem', 
-                  color: '#A0A0A0',
+                  color: theme.palette.text.secondary,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap'
@@ -601,13 +604,13 @@ export default function Modificar({ cierre, onClose, onSave }) {
               display: 'flex',
               gap: 1.5,
               alignItems: 'center',
-              bgcolor: '#1E1E1E',
+              bgcolor: theme.palette.background.paper,
               borderRadius: 2,
             }}
           >
             <IconButton
               onClick={() => delJust(i)}
-              sx={{ color: '#f44336', p: 0.5 }}
+              sx={{ color: theme.palette.error.main, p: 0.5 }}
               size="small"
             >
               <DeleteIcon fontSize="small" />
@@ -619,7 +622,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
               size="small"
               sx={{ 
                 width: 80, 
-                bgcolor: '#2A2A2A', 
+                bgcolor: theme.palette.custom.tableRow, 
                 borderRadius: 1,
                 '& .MuiInputBase-input': { height: '16px' },
               }}
@@ -632,7 +635,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
               size="small"
               sx={{ 
                 width: 120, 
-                bgcolor: '#2A2A2A', 
+                bgcolor: theme.palette.custom.tableRow, 
                 borderRadius: 1,
                 '& .MuiInputBase-input': { height: '16px' },
               }}
@@ -642,10 +645,10 @@ export default function Modificar({ cierre, onClose, onSave }) {
               flexDirection: 'column',
               width: 90,
             }}>
-              <Typography variant="caption" sx={{ color: '#888', fontSize: '0.6rem' }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.disabled, fontSize: '0.6rem' }}>
                 Diferencia
               </Typography>
-              <Typography variant="body2" sx={{ fontSize: '0.8rem', color: '#ccc' }}>
+              <Typography variant="body2" sx={{ fontSize: '0.8rem', color: theme.palette.text.secondary }}>
                 {j.monto_dif || '$ 0'}
               </Typography>
             </Box>
@@ -658,7 +661,7 @@ export default function Modificar({ cierre, onClose, onSave }) {
               size="small"
               sx={{ 
                 width: 80, 
-                bgcolor: '#2A2A2A', 
+                bgcolor: theme.palette.custom.tableRow, 
                 borderRadius: 1,
                 '& .MuiInputBase-input': { height: '16px' },
               }}
@@ -668,17 +671,17 @@ export default function Modificar({ cierre, onClose, onSave }) {
               size="small" 
               sx={{ 
                 flex: 1, 
-                bgcolor: '#2A2A2A', 
+                bgcolor: theme.palette.custom.tableRow, 
                 borderRadius: 1,
                 '& .MuiInputBase-input': { height: '16px' },
               }}
             >
-              <InputLabel sx={{ color: '#A0A0A0' }}>Motivo</InputLabel>
+              <InputLabel sx={{ color: theme.palette.text.secondary }}>Motivo</InputLabel>
               <Select
                 value={j.motivo || ''}
                 onChange={e => handleJustChange(i, 'motivo', e.target.value)}
                 sx={{ 
-                  color: '#E0E0E0',
+                  color: theme.palette.text.primary,
                   '& .MuiSelect-select': { height: '16px' },
                 }}
               >
@@ -707,14 +710,14 @@ export default function Modificar({ cierre, onClose, onSave }) {
         fullWidth
         sx={{ 
           mb: 2, 
-          bgcolor: '#2A2A2A', 
+          bgcolor: theme.palette.custom.tableRow, 
           borderRadius: 2,
           '& .MuiInputBase-input': { fontSize: '0.9rem' },
         }}
       />
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-        <Button onClick={onClose} variant="text" sx={{ color: '#bbb', borderRadius: 2, fontSize: '0.9rem' }}>
+        <Button onClick={onClose} variant="text" sx={{ color: theme.palette.text.secondary, borderRadius: 2, fontSize: '0.9rem' }}>
           Cancelar
         </Button>
         <Button onClick={handleSave} variant="contained" startIcon={<SaveIcon />} sx={{ borderRadius: 2, fontSize: '0.9rem' }}>

@@ -91,20 +91,20 @@ const ESTADOS_CIERRE = {
   CORRECTO: {
     label: 'Correcto',
     icon: <CheckCircleIcon color="success" />,
-    color: '#4caf50',
-    bgColor: 'rgba(76, 175, 80, 0.1)',
+    color: 'success.main',
+    bgColor: 'success.light',
   },
   DIFERENCIA_MENOR: {
     label: 'Diferencia menor',
     icon: <WarningIcon color="warning" />,
-    color: '#ff9800',
-    bgColor: 'rgba(255, 152, 0, 0.1)',
+    color: 'warning.main',
+    bgColor: 'warning.light',
   },
   DIFERENCIA_GRAVE: {
     label: 'Diferencia grave',
     icon: <ErrorIcon color="error" />,
-    color: '#f44336',
-    bgColor: 'rgba(244, 67, 54, 0.1)',
+    color: 'error.main',
+    bgColor: 'error.light',
   },
 };
 
@@ -170,7 +170,7 @@ function getValidacionInfo(cierre) {
     return {
       label: 'Validado',
       icon: <CheckCircleIcon color="success" fontSize="small" />,
-      color: '#4caf50',
+      color: 'success.main',
       usuario: cierre.usuario_validacion,
       fecha: cierre.fecha_validacion
     };
@@ -178,7 +178,7 @@ function getValidacionInfo(cierre) {
   return {
     label: 'Sin validar',
     icon: <ErrorIcon color="error" fontSize="small" />,
-    color: '#f44336',
+    color: 'error.main',
     usuario: null,
     fecha: null
   };
@@ -195,23 +195,19 @@ const TiendaCard = React.memo(function TiendaCard({
   const theme = useTheme();
   const porcentajeErrores = totalCierres > 0 ? (cierresConErrores / totalCierres) * 100 : 0;
   
-  // Colores más sutiles y sofisticados
+  // Usar colores del tema basados en porcentaje de errores
   const getCardColor = () => {
-    if (porcentajeErrores === 0) return '#2E3440'; // Gris azulado oscuro
-    if (porcentajeErrores <= 20) return '#3B4252'; // Gris medio
-    return '#434C5E'; // Gris más claro
+    return theme.palette.background.paper;
   };
 
   const getAccentColor = () => {
-    if (porcentajeErrores === 0) return '#A3BE8C'; // Verde sutil
-    if (porcentajeErrores <= 20) return '#EBCB8B'; // Amarillo sutil
-    return '#BF616A'; // Rojo sutil
+    if (porcentajeErrores === 0) return theme.palette.success.main;
+    if (porcentajeErrores <= 20) return theme.palette.warning.main;
+    return theme.palette.error.main;
   };
 
   const getTextColor = () => {
-    if (porcentajeErrores === 0) return '#D8DEE9'; // Texto claro
-    if (porcentajeErrores <= 20) return '#E5E9F0';
-    return '#ECEFF4';
+    return theme.palette.text.primary;
   };
 
   const formatMoney = (amount) => {
@@ -314,7 +310,7 @@ const TiendaCard = React.memo(function TiendaCard({
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  color: totalDiferencia > 0 ? '#BF616A' : '#A3BE8C',
+                  color: totalDiferencia > 0 ? theme.palette.negative.main : theme.palette.positive.main,
                   fontWeight: 600,
                   fontSize: '0.8rem',
                   lineHeight: 1,
@@ -631,8 +627,8 @@ export default function ControlMensual() {
       p={3}
       sx={{
         fontFamily: 'Inter',
-        bgcolor: '#121212',
-        color: '#ffffff',
+        bgcolor: theme.palette.background.default,
+        color: theme.palette.text.primary,
         minHeight: '100vh'
       }}
     >
@@ -641,8 +637,8 @@ export default function ControlMensual() {
         sx={{
           p: 4,
           borderRadius: 2,
-          bgcolor: '#1e1e1e',
-          color: '#ffffff'
+          bgcolor: theme.palette.background.paper,
+          color: theme.palette.text.primary
         }}
       >
         {/* Filtros */}
@@ -650,16 +646,16 @@ export default function ControlMensual() {
           <Grid container spacing={2} alignItems="center">
             <Grid item xs={12} sm={6} md={1.5}>
               <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
-                <InputLabel sx={{ color: '#ffffff', fontSize: '0.9rem', top: '-4px' }}>Mes</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.primary, fontSize: '0.9rem', top: '-4px' }}>Mes</InputLabel>
                 <Select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
                   label="Mes"
                   sx={{
-                    color: '#ffffff',
-                    '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                    '.MuiSvgIcon-root': { color: '#ffffff' },
+                    color: theme.palette.text.primary,
+                    '.MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.custom.tableBorder },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.text.secondary },
+                    '.MuiSvgIcon-root': { color: theme.palette.text.primary },
                     borderRadius: 2,
                     minHeight: 32,
                     fontSize: '0.9rem',
@@ -677,16 +673,16 @@ export default function ControlMensual() {
             </Grid>
             <Grid item xs={12} sm={6} md={1.5}>
               <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
-                <InputLabel sx={{ color: '#ffffff', fontSize: '0.9rem', top: '-4px' }}>Año</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.primary, fontSize: '0.9rem', top: '-4px' }}>Año</InputLabel>
                 <Select
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
                   label="Año"
                   sx={{
-                    color: '#ffffff',
-                    '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                    '.MuiSvgIcon-root': { color: '#ffffff' },
+                    color: theme.palette.text.primary,
+                    '.MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.custom.tableBorder },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.text.secondary },
+                    '.MuiSvgIcon-root': { color: theme.palette.text.primary },
                     borderRadius: 2,
                     minHeight: 32,
                     fontSize: '0.9rem',
@@ -704,16 +700,16 @@ export default function ControlMensual() {
             </Grid>
             <Grid item xs={12} sm={6} md={2.5}>
               <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
-                <InputLabel sx={{ color: '#ffffff', fontSize: '0.9rem', top: '-4px' }}>Tienda</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.primary, fontSize: '0.9rem', top: '-4px' }}>Tienda</InputLabel>
                 <Select
                   value={selectedTienda || ''}
                   onChange={(e) => setSelectedTienda(e.target.value || null)}
                   label="Tienda"
                   sx={{
-                    color: '#ffffff',
-                    '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                    '.MuiSvgIcon-root': { color: '#ffffff' },
+                    color: theme.palette.text.primary,
+                    '.MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.custom.tableBorder },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.text.secondary },
+                    '.MuiSvgIcon-root': { color: theme.palette.text.primary },
                     borderRadius: 2,
                     minHeight: 32,
                     fontSize: '0.9rem',
@@ -734,16 +730,16 @@ export default function ControlMensual() {
             </Grid>
             <Grid item xs={12} sm={6} md={2.5}>
               <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
-                <InputLabel sx={{ color: '#ffffff', fontSize: '0.9rem', top: '-4px' }}>Motivo</InputLabel>
+                <InputLabel sx={{ color: theme.palette.text.primary, fontSize: '0.9rem', top: '-4px' }}>Motivo</InputLabel>
                 <Select
                   value={selectedMotivo || ''}
                   onChange={(e) => setSelectedMotivo(e.target.value || null)}
                   label="Motivo"
                   sx={{
-                    color: '#ffffff',
-                    '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                    '.MuiSvgIcon-root': { color: '#ffffff' },
+                    color: theme.palette.text.primary,
+                    '.MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.custom.tableBorder },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.text.secondary },
+                    '.MuiSvgIcon-root': { color: theme.palette.text.primary },
                     borderRadius: 2,
                     minHeight: 32,
                     fontSize: '0.9rem',
@@ -769,9 +765,9 @@ export default function ControlMensual() {
                 disabled={loading}
                 startIcon={<RefreshIcon />}
                 sx={{
-                  color: '#ffffff',
-                  borderColor: '#444',
-                  '&:hover': { borderColor: '#888' },
+                  color: theme.palette.text.primary,
+                  borderColor: theme.palette.custom.tableBorder,
+                  '&:hover': { borderColor: theme.palette.text.secondary },
                   height: '36px',
                   width: '100%',
                   fontSize: '0.8rem',
@@ -792,10 +788,10 @@ export default function ControlMensual() {
                     minWidth: 35, 
                     px: 0.5, 
                     fontSize: '0.75rem', 
-                    color: '#fff', 
-                    borderColor: '#fff', 
-                    bgcolor: '#222', 
-                    '&:hover': { bgcolor: '#444', borderColor: '#fff' } 
+                    color: theme.palette.text.primary, 
+                    borderColor: theme.palette.custom.tableBorder, 
+                    bgcolor: theme.palette.background.paper, 
+                    '&:hover': { bgcolor: theme.palette.custom.tableRowHover, borderColor: theme.palette.text.primary } 
                   }} 
                   onClick={handleExportCSV}
                 >
@@ -809,10 +805,10 @@ export default function ControlMensual() {
                     minWidth: 35, 
                     px: 0.5, 
                     fontSize: '0.75rem', 
-                    color: '#D16D6D', 
-                    borderColor: '#D16D6D', 
-                    bgcolor: '#222', 
-                    '&:hover': { bgcolor: '#3a2323', borderColor: '#D16D6D' } 
+                    color: theme.palette.error.main, 
+                    borderColor: theme.palette.error.main, 
+                    bgcolor: theme.palette.background.paper, 
+                    '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.1), borderColor: theme.palette.error.main } 
                   }} 
                   onClick={handleExportPDF}
                 >
@@ -826,10 +822,10 @@ export default function ControlMensual() {
                     minWidth: 35, 
                     px: 0.5, 
                     fontSize: '0.75rem', 
-                    color: '#4CAF50', 
-                    borderColor: '#4CAF50', 
-                    bgcolor: '#222', 
-                    '&:hover': { bgcolor: '#233a23', borderColor: '#4CAF50' } 
+                    color: theme.palette.success.main, 
+                    borderColor: theme.palette.success.main, 
+                    bgcolor: theme.palette.background.paper, 
+                    '&:hover': { bgcolor: alpha(theme.palette.success.main, 0.1), borderColor: theme.palette.success.main } 
                   }} 
                   onClick={handleExportXLSX}
                 >
@@ -840,7 +836,7 @@ export default function ControlMensual() {
           </Grid>
         </Box>
 
-        <Divider sx={{ mb: 3, borderColor: '#444' }} />
+        <Divider sx={{ mb: 3, borderColor: theme.palette.custom.tableBorder }} />
 
         {/* Mensaje de error */}
         {error && (
@@ -852,37 +848,37 @@ export default function ControlMensual() {
         {/* Tabla de justificaciones */}
         <Box sx={{ mt: 4 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h6" sx={{ color: '#ffffff' }}>
+            <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
               Justificaciones {selectedTienda ? `de ${selectedTienda}` : 'de todas las tiendas'}
             </Typography>
           </Box>
           
           <TableContainer component={Paper} sx={{ 
-            bgcolor: '#2a2a2a', 
+            bgcolor: theme.palette.background.paper, 
             borderRadius: 3,
             overflow: 'hidden',
-            border: '1px solid #444'
+            border: `1px solid ${theme.palette.custom.tableBorder}`
           }}>
             <Table stickyHeader size="small">
               <TableHead>
                 <TableRow sx={{
-                  bgcolor: '#3a3a3a',
+                  bgcolor: theme.palette.custom.tableRow,
                   '& th': {
                     fontWeight: 'bold',
-                    color: '#ffffff',
-                    borderBottom: '2px solid #A3BE8C'
+                    color: theme.palette.text.primary,
+                    borderBottom: `2px solid ${theme.palette.success.main}`
                   }
                 }}>
-                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>ID</TableCell>
-                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Fecha</TableCell>
-                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Tienda</TableCell>
-                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Usuario</TableCell>
-                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Cliente</TableCell>
-                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Orden</TableCell>
-                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Motivo</TableCell>
-                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Ajuste ($)</TableCell>
-                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Medio de Pago</TableCell>
-                  <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Validado</TableCell>
+                  <TableCell sx={{ bgcolor: theme.palette.custom.tableRow, color: theme.palette.text.primary }}>ID</TableCell>
+                  <TableCell sx={{ bgcolor: theme.palette.custom.tableRow, color: theme.palette.text.primary }}>Fecha</TableCell>
+                  <TableCell sx={{ bgcolor: theme.palette.custom.tableRow, color: theme.palette.text.primary }}>Tienda</TableCell>
+                  <TableCell sx={{ bgcolor: theme.palette.custom.tableRow, color: theme.palette.text.primary }}>Usuario</TableCell>
+                  <TableCell sx={{ bgcolor: theme.palette.custom.tableRow, color: theme.palette.text.primary }}>Cliente</TableCell>
+                  <TableCell sx={{ bgcolor: theme.palette.custom.tableRow, color: theme.palette.text.primary }}>Orden</TableCell>
+                  <TableCell sx={{ bgcolor: theme.palette.custom.tableRow, color: theme.palette.text.primary }}>Motivo</TableCell>
+                  <TableCell sx={{ bgcolor: theme.palette.custom.tableRow, color: theme.palette.text.primary }}>Ajuste ($)</TableCell>
+                  <TableCell sx={{ bgcolor: theme.palette.custom.tableRow, color: theme.palette.text.primary }}>Medio de Pago</TableCell>
+                  <TableCell sx={{ bgcolor: theme.palette.custom.tableRow, color: theme.palette.text.primary }}>Validado</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -890,50 +886,50 @@ export default function ControlMensual() {
                   <TableRow 
                     key={justificacion.id || index} 
                     sx={{ 
-                      '&:hover': { bgcolor: '#3a3a3a' },
-                      bgcolor: '#2a2a2a'
+                      '&:hover': { bgcolor: theme.palette.custom.tableRowHover },
+                      bgcolor: theme.palette.background.paper
                     }}
                   >
-                    <TableCell sx={{ color: '#ffffff', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                    <TableCell sx={{ color: theme.palette.text.primary, fontFamily: 'monospace', fontSize: '0.8rem' }}>
                       {justificacion.id || 'N/A'}
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff' }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
                       {justificacion.fecha ? justificacion.fecha.format('DD/MM/YYYY') : 'N/A'}
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff' }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
                       {justificacion.tienda || 'N/A'}
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff' }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
                       {justificacion.usuario || 'N/A'}
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff' }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
                       {justificacion.cliente || '-'}
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff' }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
                       {justificacion.orden || '-'}
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff', maxWidth: 300 }}>
+                    <TableCell sx={{ color: theme.palette.text.primary, maxWidth: 300 }}>
                       <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
                         {justificacion.motivo || 'Sin motivo'}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ 
-                      color: '#EBCB8B',
+                      color: theme.palette.warning.main,
                       fontWeight: 600,
                       fontFamily: 'monospace'
                     }}>
                       {formatCurrency(processAjusteValue(justificacion.ajuste, justificacion.monto_dif))}
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff' }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
                       {justificacion.medio_pago || 'N/A'}
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff' }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
                       <Chip
                         label={justificacion.validado ? 'Validado' : 'Sin validar'}
                         size="small"
                         sx={{
-                          backgroundColor: justificacion.validado ? '#4caf50' : '#f44336',
-                          color: '#ffffff',
+                          backgroundColor: justificacion.validado ? theme.palette.success.main : theme.palette.error.main,
+                          color: theme.palette.text.primary,
                           fontSize: '0.7rem',
                           height: 20,
                         }}
@@ -944,16 +940,16 @@ export default function ControlMensual() {
                 {/* Fila de totales */}
                 {filteredJustificaciones.length > 0 && (
                   <TableRow sx={{ 
-                    bgcolor: '#3a3a3a',
-                    borderTop: '2px solid #A3BE8C'
+                    bgcolor: theme.palette.custom.tableRow,
+                    borderTop: `2px solid ${theme.palette.success.main}`
                   }}>
-                    <TableCell sx={{ color: '#ffffff', fontWeight: 'bold' }} colSpan={7}>
+                    <TableCell sx={{ color: theme.palette.text.primary, fontWeight: 'bold' }} colSpan={7}>
                       TOTAL
                     </TableCell>
                     <TableCell sx={{ 
                       color: filteredJustificaciones.reduce((total, justificacion) => 
                         total + processAjusteValue(justificacion.ajuste, justificacion.monto_dif), 0
-                      ) >= 0 ? '#4caf50' : '#f44336',
+                      ) >= 0 ? theme.palette.success.main : theme.palette.error.main,
                       fontWeight: 700,
                       fontFamily: 'monospace',
                       fontSize: '1rem'
@@ -964,7 +960,7 @@ export default function ControlMensual() {
                         )
                       )}
                     </TableCell>
-                    <TableCell sx={{ color: '#ffffff' }}>
+                    <TableCell sx={{ color: theme.palette.text.primary }}>
                       {/* Celda vacía para alinear con la columna "Validado" */}
                     </TableCell>
                   </TableRow>
@@ -975,7 +971,7 @@ export default function ControlMensual() {
           
           {filteredJustificaciones.length === 0 && (
             <Box sx={{ textAlign: 'center', py: 4 }}>
-              <Typography variant="body1" sx={{ color: '#b0b0b0' }}>
+              <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
                 No se encontraron justificaciones para el período seleccionado
               </Typography>
             </Box>

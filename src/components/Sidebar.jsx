@@ -7,20 +7,28 @@ import BalanceIcon from '@mui/icons-material/Balance';
 import StoreIcon from '@mui/icons-material/Store';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import SettingsIcon from '@mui/icons-material/Settings';
+import { useAuth } from '../contexts/AuthContext';
+import { canAccessPage } from '../utils/permissions';
 
 function Sidebar({ activePage, setActivePage }) {
   const theme = useTheme();
+  const { currentUser } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [hovered, setHovered] = useState(null);
 
   const pages = [
-    { name: "Home", icon: <HomeIcon fontSize="small" /> },
-    { name: "Cerrar caja", icon: <PointOfSaleIcon fontSize="small" /> },
-    { name: "Control de cajas", icon: <BalanceIcon fontSize="small" /> },
-    { name: "Control de Boutiques", icon: <StoreIcon fontSize="small" /> },
-    { name: "Exportar", icon: <FileDownloadIcon fontSize="small" /> },
-    { name: "Ajustes", icon: <SettingsIcon fontSize="small" /> },
+    { name: "Home", icon: <HomeIcon fontSize="small" />, pageKey: "home" },
+    { name: "Cerrar caja", icon: <PointOfSaleIcon fontSize="small" />, pageKey: "cierrecaja" },
+    { name: "Control de cajas", icon: <BalanceIcon fontSize="small" />, pageKey: "controlmensual" },
+    { name: "Control de Boutiques", icon: <StoreIcon fontSize="small" />, pageKey: "diferencias" },
+    { name: "Exportar", icon: <FileDownloadIcon fontSize="small" />, pageKey: "exportar" },
+    { name: "Ajustes", icon: <SettingsIcon fontSize="small" />, pageKey: "ajustes" },
   ];
+
+  // Filtrar páginas según permisos del usuario
+  const accessiblePages = pages.filter(page => 
+    canAccessPage(currentUser, page.pageKey)
+  );
 
   return (
     <Box
@@ -33,8 +41,11 @@ function Sidebar({ activePage, setActivePage }) {
         flexDirection: 'column',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         height: '100vh',
-        overflow: 'hidden',
-        position: 'relative',
+        minHeight: '100vh',
+        maxHeight: '100vh',
+        overflow: 'auto',
+        position: 'sticky',
+        top: 0,
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -53,7 +64,7 @@ function Sidebar({ activePage, setActivePage }) {
         setHovered(null);
       }}
     >
-      {pages.map((page) => {
+      {accessiblePages.map((page) => {
         const isActive = activePage === page.name;
         return (
           <Button

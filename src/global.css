@@ -1,0 +1,15 @@
+/* Estilos globales para tamaño de fuente dinámico */
+html {
+  /* El fontSize se establecerá dinámicamente desde index.js */
+  font-size: 14px; /* Valor por defecto */
+}
+
+/* Asegurar que todos los elementos hereden correctamente */
+body {
+  font-size: 1rem;
+}
+
+/* Los componentes de Material-UI también respetarán este tamaño base */
+* {
+  box-sizing: border-box;
+}

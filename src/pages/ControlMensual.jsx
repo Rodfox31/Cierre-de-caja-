@@ -1,23 +1,26 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { alpha } from '@mui/material/styles';
 import {
   Box,
   Paper,
+  Alert,
+  Snackbar,
+  Divider,
+  useTheme,
   Typography,
+  Modal,
+  Fade,
+  CircularProgress,
   Grid,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   Button,
-  Card,
-  CardContent,
-  Alert,
-  Snackbar,
-  Chip,
-  Divider,
-  useTheme,
-  Switch,
-  FormControlLabel,
+  IconButton,
+  ButtonGroup,
+  Tabs,
+  Tab,
   Table,
   TableBody,
   TableCell,
@@ -25,16 +28,12 @@ import {
   TableHead,
   TableRow,
   Checkbox,
-  Collapse,
-  IconButton,
-  Modal,
-  Fade,
-  Tabs,
-  Tab,
-  Tooltip,
+  Chip,
+  Card,
+  CardContent,
   Stack,
-  Avatar,
-  alpha
+  Tooltip,
+  Collapse
 } from '@mui/material';
 import {
   Store as StoreIcon,
@@ -42,20 +41,26 @@ import {
   Warning as WarningIcon,
   Error as ErrorIcon,
   CheckCircle as CheckCircleIcon,
+  Info as InfoIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
   Visibility as VisibilityIcon,
   Person as PersonIcon,
   Receipt as ReceiptIcon,
+  Assignment as AssignmentIcon,
   AccountBalance as AccountBalanceIcon,
   DateRange as DateRangeIcon,
-  Assignment as AssignmentIcon,
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
-  Info as InfoIcon
+  FilterList as FilterListIcon,
+  RadioButtonUnchecked as RadioButtonUncheckedIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  ArrowDownward as ArrowDownwardIcon,
+  UnfoldMore as UnfoldMoreIcon
 } from '@mui/icons-material';
 import moment from 'moment';
 import { fetchWithFallback, axiosWithFallback } from '../config';
+import DetallesCierre from './DetallesCierre';
 
 // Función para formatear moneda
 function formatCurrency(value) {
@@ -174,23 +179,19 @@ const TiendaCard = React.memo(function TiendaCard({
     .reduce((sum, cierre) => sum + (Number(cierre.grand_difference_total) || 0), 0) || 0;
   const diferenciaSinValidar = totalDiferencia - diferenciaValidada;
   
-  // Colores más sutiles y sofisticados
+  // Usar colores del tema basados en porcentaje de errores
   const getCardColor = () => {
-    if (porcentajeErrores === 0) return '#2E3440'; // Gris azulado oscuro
-    if (porcentajeErrores <= 20) return '#3B4252'; // Gris medio
-    return '#434C5E'; // Gris más claro
+    return theme.palette.background.paper;
   };
 
   const getAccentColor = () => {
-    if (porcentajeErrores === 0) return '#A3BE8C'; // Verde sutil
-    if (porcentajeErrores <= 20) return '#EBCB8B'; // Amarillo sutil
-    return '#BF616A'; // Rojo sutil
+    if (porcentajeErrores === 0) return theme.palette.success.main;
+    if (porcentajeErrores <= 20) return theme.palette.warning.main;
+    return theme.palette.error.main;
   };
 
   const getTextColor = () => {
-    if (porcentajeErrores === 0) return '#D8DEE9'; // Texto claro
-    if (porcentajeErrores <= 20) return '#E5E9F0';
-    return '#ECEFF4';
+    return theme.palette.text.primary;
   };
 
   const formatMoney = (amount) => {
@@ -308,7 +309,7 @@ const TiendaCard = React.memo(function TiendaCard({
             <Typography 
               variant="h6" 
               sx={{ 
-                color: erroresNoValidados > 0 ? '#BF616A' : '#A3BE8C', 
+                color: erroresNoValidados > 0 ? theme.palette.error.main : theme.palette.success.main, 
                 fontWeight: 700,
                 fontSize: '1.1rem',
                 lineHeight: 1,
@@ -319,7 +320,7 @@ const TiendaCard = React.memo(function TiendaCard({
             <Typography 
               variant="caption" 
               sx={{ 
-                color: `${getTextColor()}70`,
+                color: alpha(theme.palette.text.secondary, 0.7),
                 fontSize: '0.65rem',
                 display: 'block',
               }}
@@ -333,7 +334,7 @@ const TiendaCard = React.memo(function TiendaCard({
             <Typography 
               variant="body2" 
               sx={{ 
-                color: '#A3BE8C', 
+                color: theme.palette.success.main, 
                 fontWeight: 600,
                 fontSize: '0.9rem',
                 lineHeight: 1,
@@ -344,7 +345,7 @@ const TiendaCard = React.memo(function TiendaCard({
             <Typography 
               variant="caption" 
               sx={{ 
-                color: `${getTextColor()}70`,
+                color: alpha(theme.palette.text.secondary, 0.7),
                 fontSize: '0.65rem',
                 display: 'block',
               }}
@@ -358,7 +359,7 @@ const TiendaCard = React.memo(function TiendaCard({
             <Typography 
               variant="body2" 
               sx={{ 
-                color: cierresSinValidar > 0 ? '#EBCB8B' : '#A3BE8C', 
+                color: cierresSinValidar > 0 ? theme.palette.warning.main : theme.palette.success.main, 
                 fontWeight: 600,
                 fontSize: '0.9rem',
                 lineHeight: 1,
@@ -369,7 +370,7 @@ const TiendaCard = React.memo(function TiendaCard({
             <Typography 
               variant="caption" 
               sx={{ 
-                color: `${getTextColor()}70`,
+                color: alpha(theme.palette.text.secondary, 0.7),
                 fontSize: '0.65rem',
                 display: 'block',
               }}
@@ -381,12 +382,12 @@ const TiendaCard = React.memo(function TiendaCard({
 
         {/* Mostrar detalles de diferencias solo si está seleccionada */}
         <Collapse in={isSelected && totalDiferencia !== 0} timeout={400} unmountOnExit>
-          <Box sx={{ borderTop: `1px solid ${getAccentColor()}20`, pt: 1, mt: 1, transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>
+          <Box sx={{ borderTop: `1px solid ${alpha(getAccentColor(), 0.2)}`, pt: 1, mt: 1, transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  color: totalDiferencia > 0 ? '#BF616A' : '#A3BE8C',
+                  color: totalDiferencia > 0 ? theme.palette.negative.main : theme.palette.positive.main,
                   fontWeight: 600,
                   fontSize: '0.85rem',
                 }}
@@ -396,7 +397,7 @@ const TiendaCard = React.memo(function TiendaCard({
               <Typography 
                 variant="body2" 
                 sx={{ 
-                  color: totalDiferencia > 0 ? '#BF616A' : '#A3BE8C',
+                  color: totalDiferencia > 0 ? theme.palette.negative.main : theme.palette.positive.main,
                   fontWeight: 700,
                   fontSize: '0.85rem',
                 }}
@@ -409,7 +410,7 @@ const TiendaCard = React.memo(function TiendaCard({
                 <Typography 
                   variant="caption" 
                   sx={{ 
-                    color: `${getTextColor()}80`,
+                    color: alpha(theme.palette.text.secondary, 0.8),
                     fontSize: '0.7rem',
                   }}
                 >
@@ -417,7 +418,7 @@ const TiendaCard = React.memo(function TiendaCard({
                 </Typography>
                 <Typography 
                   variant="caption"
-                  sx={{ color: '#EBCB8B', fontWeight: 700, fontSize: '0.8rem' }}
+                  sx={{ color: theme.palette.warning.main, fontWeight: 700, fontSize: '0.8rem' }}
                 >
                   {diferenciaSinValidar > 0 ? '+' : ''}{formatMoney(diferenciaSinValidar)}
                 </Typography>
@@ -455,7 +456,7 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
           '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.05) },
         }}
       >
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
+        <TableCell sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <Checkbox
             size="small"
             checked={isSelected}
@@ -463,30 +464,30 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
             disabled={false}
           />
         </TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
+        <TableCell sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <IconButton
             aria-label="expand row"
             size="small"
             onClick={() => setOpen(!open)}
             disabled={numJustificaciones === 0}
             sx={{ 
-              color: numJustificaciones > 0 ? '#A3BE8C' : '#666',
-              '&:disabled': { color: '#333' }
+              color: numJustificaciones > 0 ? theme.palette.success.main : theme.palette.text.disabled,
+              '&:disabled': { color: alpha(theme.palette.text.disabled, 0.3) }
             }}
           >
             {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
+        <TableCell sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
             {cierre.id}
           </Typography>
         </TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
+        <TableCell sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <Typography variant="body2">{cierre.fecha.format('DD/MM/YYYY')}</Typography>
         </TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>{cierre.usuario}</TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
+        <TableCell sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>{cierre.usuario}</TableCell>
+        <TableCell sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <Chip
             icon={estado.icon}
             label={estado.label}
@@ -498,7 +499,7 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
             }}
           />
         </TableCell>
-        <TableCell sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
+        <TableCell sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <Tooltip
             title={
               validacionInfo.usuario
@@ -525,34 +526,34 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
             />
           </Tooltip>
         </TableCell>
-        <TableCell align="right" sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
+        <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <ExactValue value={diferencia} />
         </TableCell>
-        <TableCell align="right" sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
+        <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <ExactValue value={diferenciaJustificada} />
         </TableCell>
-        <TableCell align="right" sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
+        <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <ExactValue value={saldoSinJustificar} />
         </TableCell>
-        <TableCell align="center" sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
+        <TableCell align="center" sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Chip 
               label={numJustificaciones} 
               size="small"
               sx={{
-                backgroundColor: numJustificaciones > 0 ? '#A3BE8C20' : '#66666620',
-                color: numJustificaciones > 0 ? '#A3BE8C' : '#666',
+                backgroundColor: numJustificaciones > 0 ? alpha(theme.palette.success.main, 0.2) : alpha(theme.palette.text.disabled, 0.2),
+                color: numJustificaciones > 0 ? theme.palette.success.main : theme.palette.text.disabled,
                 fontWeight: 'bold',
               }}
             />
             {numJustificaciones > 0 && (
-              <Typography variant="caption" sx={{ color: '#A3BE8C', fontSize: '0.7rem' }}>
+              <Typography variant="caption" sx={{ color: theme.palette.success.main, fontSize: '0.7rem' }}>
                 justif.
               </Typography>
             )}
           </Box>
         </TableCell>
-        <TableCell align="center" sx={{ borderBottom: '1px solid rgba(81, 81, 81, 1)' }}>
+        <TableCell align="center" sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <IconButton size="small" onClick={() => setModalDetalle(cierre)}>
             <VisibilityIcon />
           </IconButton>
@@ -561,39 +562,39 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
       <TableRow>
         <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={12}>
           <Collapse in={open} timeout="auto" unmountOnExit>
-            <Box sx={{ margin: 1, padding: 2, backgroundColor: '#2E3440', borderRadius: 2 }}>
-              <Typography variant="h6" gutterBottom component="div" sx={{ color: '#ECEFF4', fontSize: '1rem' }}>
+            <Box sx={{ margin: 1, padding: 2, backgroundColor: alpha(theme.palette.background.paper, 0.6), borderRadius: 2 }}>
+              <Typography variant="h6" gutterBottom component="div" sx={{ color: theme.palette.text.primary, fontSize: '1rem' }}>
                 Justificaciones ({numJustificaciones})
               </Typography>
               {numJustificaciones > 0 ? (
                 <Table size="small" aria-label="justificaciones">
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Fecha</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Usuario</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Cliente</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Orden</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Medio de Pago</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }}>Motivo</TableCell>
-                      <TableCell sx={{ color: '#D8DEE9', fontWeight: 'bold' }} align="right">Ajuste</TableCell>
+                      <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 'bold' }}>Fecha</TableCell>
+                      <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 'bold' }}>Usuario</TableCell>
+                      <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 'bold' }}>Cliente</TableCell>
+                      <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 'bold' }}>Orden</TableCell>
+                      <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 'bold' }}>Medio de Pago</TableCell>
+                      <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 'bold' }}>Motivo</TableCell>
+                      <TableCell sx={{ color: theme.palette.text.secondary, fontWeight: 'bold' }} align="right">Ajuste</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {cierre.justificaciones.map((justificacion, index) => (
                       <TableRow key={justificacion.id || index}>
-                        <TableCell sx={{ color: '#E5E9F0' }}>
+                        <TableCell sx={{ color: theme.palette.text.primary }}>
                           {justificacion.fecha ? moment(justificacion.fecha).format('DD/MM/YYYY') : '-'}
                         </TableCell>
-                        <TableCell sx={{ color: '#E5E9F0' }}>{justificacion.usuario || '-'}</TableCell>
-                        <TableCell sx={{ color: '#E5E9F0' }}>{justificacion.cliente || '-'}</TableCell>
-                        <TableCell sx={{ color: '#E5E9F0' }}>{justificacion.orden || '-'}</TableCell>
-                        <TableCell sx={{ color: '#E5E9F0' }}>{justificacion.medio_pago || '-'}</TableCell>
-                        <TableCell sx={{ color: '#E5E9F0', maxWidth: 300 }}>
+                        <TableCell sx={{ color: theme.palette.text.primary }}>{justificacion.usuario || '-'}</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary }}>{justificacion.cliente || '-'}</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary }}>{justificacion.orden || '-'}</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary }}>{justificacion.medio_pago || '-'}</TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary, maxWidth: 300 }}>
                           <Typography variant="body2" sx={{ wordBreak: 'break-word' }}>
                             {justificacion.motivo || 'Sin motivo'}
                           </Typography>
                         </TableCell>
-                        <TableCell align="right" sx={{ color: '#EBCB8B', fontWeight: 'bold' }}>
+                        <TableCell align="right" sx={{ color: theme.palette.custom.accent, fontWeight: 'bold' }}>
                           {formatMoney(justificacion.ajuste || 0)}
                         </TableCell>
                       </TableRow>
@@ -601,7 +602,7 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
                   </TableBody>
                 </Table>
               ) : (
-                <Typography variant="body2" sx={{ color: '#D8DEE9', fontStyle: 'italic' }}>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontStyle: 'italic' }}>
                   No hay justificaciones para este cierre
                 </Typography>
               )}
@@ -630,12 +631,60 @@ export default function ControlMensual() {
   const [modalDetalle, setModalDetalle] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   const [selectedCierresIds, setSelectedCierresIds] = useState(new Set());
-  // Nuevo estado para el filtro de validación
   const [showValidados, setShowValidados] = useState(false);
-  // Nuevo estado para el tercer switch
   const [showTodos, setShowTodos] = useState(false);
-  // Nuevo estado para la tarjeta seleccionada
   const [selectedCard, setSelectedCard] = useState(null);
+  // Estados para ordenamiento
+  const [orderBy, setOrderBy] = useState('fecha'); // 'fecha', 'usuario', 'estado', 'validacion', 'diferencia'
+  const [orderDirection, setOrderDirection] = useState('desc'); // 'asc' o 'desc'
+  // Estados para filtros específicos
+  const [estadoFilter, setEstadoFilter] = useState('todos'); // 'todos', 'correcto', 'menor', 'grave'
+  const [validacionFilter, setValidacionFilter] = useState('todos'); // 'todos', 'validado', 'sin_validar', 'revisar'
+
+  // Función para transformar datos de cierre al formato de impresión
+  const transformarDatosParaImprimir = (cierre) => {
+    if (!cierre) return {};
+    
+    // Formatear medios de pago
+    const mediosPago = cierre.medios_pago?.map(m => ({
+      medio: m.medio,
+      facturado: m.facturado,
+      facturadoVal: m.facturado,
+      cobrado: m.cobrado,
+      cobradoVal: m.cobrado,
+      difference: m.differenceVal,
+      differenceVal: m.differenceVal
+    })) || [];
+
+    // Calcular totales
+    const granTotalMedios = mediosPago.reduce((sum, m) => sum + (parseFloat(m.facturado) || 0), 0);
+    const granTotalMediosCobrado = mediosPago.reduce((sum, m) => sum + (parseFloat(m.cobrado) || 0), 0);
+    const balanceSinJustificar = cierre.grand_difference_total || 0;
+
+    return {
+      fecha: cierre.fecha ? cierre.fecha.format('DD/MM/YYYY') : moment().format('DD/MM/YYYY'),
+      tienda: cierre.tienda || 'N/A',
+      usuario: cierre.usuario || 'N/A',
+      responsable: cierre.usuario || 'N/A',
+      mediosPago: mediosPago,
+      granTotalMedios: granTotalMedios,
+      granTotalMediosCobrado: granTotalMediosCobrado,
+      balanceSinJustificar: balanceSinJustificar,
+      justificaciones: cierre.justificaciones?.map(j => ({
+        fecha: j.fecha || cierre.fecha?.format('DD/MM/YYYY') || '',
+        usuario: j.usuario || cierre.usuario || '',
+        cliente: j.cliente || '',
+        orden: j.orden || '',
+        medio_pago: j.medio_pago || '',
+        motivo: j.motivo || '',
+        ajuste: j.monto_dif || j.ajuste || 0
+      })) || [],
+      validado: cierre.validado || false,
+      usuario_validacion: cierre.usuario_validacion || '',
+      fecha_validacion: cierre.fecha_validacion || '',
+      comentarios: cierre.comentarios || ''
+    };
+  };
 
   // Funciones auxiliares
   const showSnackbar = useCallback((message, severity = 'info') => {
@@ -786,44 +835,188 @@ export default function ControlMensual() {
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ];
 
-  // Efecto para actualizar la tabla cuando cambie cualquier switch
+  // Efecto para aplicar filtros cuando cambian los filtros o la tienda seleccionada
   useEffect(() => {
-    if (selectedTienda) {
-      handleTiendaClick(selectedTienda);
+    if (selectedTienda && estadisticasPorTienda.length > 0) {
+      const tiendaStats = estadisticasPorTienda.find(stats => stats.tienda === selectedTienda);
+      if (tiendaStats) {
+        console.log('🔍 Aplicando filtros:', { estadoFilter, validacionFilter });
+        console.log('📊 Total de cierres antes de filtrar:', tiendaStats.todosCierres.length);
+        
+        // Filtrar según los nuevos filtros
+        let cierresFiltrados = tiendaStats.todosCierres;
+
+        // Filtro por estado
+        if (estadoFilter !== 'todos') {
+          cierresFiltrados = cierresFiltrados.filter(cierre => {
+            const estado = getEstado(cierre);
+            switch (estadoFilter) {
+              case 'correcto':
+                return estado.label === ESTADOS_CIERRE.CORRECTO.label;
+              case 'menor':
+                return estado.label === ESTADOS_CIERRE.DIFERENCIA_MENOR.label;
+              case 'grave':
+                return estado.label === ESTADOS_CIERRE.DIFERENCIA_GRAVE.label;
+              default:
+                return true;
+            }
+          });
+          console.log(`✅ Después de filtrar por estado "${estadoFilter}":`, cierresFiltrados.length);
+        }
+
+        // Filtro por validación
+        if (validacionFilter !== 'todos') {
+          cierresFiltrados = cierresFiltrados.filter(cierre => {
+            switch (validacionFilter) {
+              case 'validado':
+                return cierre.validado === true || cierre.validado === 1;
+              case 'sin_validar':
+                return !cierre.validado || cierre.validado === false || cierre.validado === 0;
+              case 'revisar':
+                return cierre.estado === 'revisar' || cierre.revisar === true || cierre.revisar === 1;
+              default:
+                return true;
+            }
+          });
+          console.log(`✅ Después de filtrar por validación "${validacionFilter}":`, cierresFiltrados.length);
+        }
+
+        console.log('📈 Total de cierres después de filtrar:', cierresFiltrados.length);
+        setSelectedCierres(cierresFiltrados);
+        setSelectedCierresIds(new Set());
+      }
     }
-    // Mantener la selección de tarjeta al cambiar filtros
-  }, [showWithoutErrors, showValidados, showTodos]); // Se ejecuta cuando cambia cualquiera de los switches
+  }, [selectedTienda, estadoFilter, validacionFilter, estadisticasPorTienda]);
 
   const handleTiendaClick = (tienda) => {
     // Si hacemos clic en la misma tienda, toggle la selección
     if (selectedCard === tienda) {
       setSelectedCard(null);
+      setSelectedTienda(null);
+      setSelectedCierres([]);
     } else {
       setSelectedCard(tienda);
-    }
-    
-    // Encontrar la tienda en las estadísticas
-    const tiendaStats = estadisticasPorTienda.find(stats => stats.tienda === tienda);
-    if (tiendaStats) {
-      // Filtrar según los switches
-      let cierresFiltrados = tiendaStats.todosCierres;
-      if (!showTodos) {
-        if (!showWithoutErrors) {
-          cierresFiltrados = cierresFiltrados.filter(cierre => {
-            const estado = getEstado(cierre);
-            return estado === ESTADOS_CIERRE.DIFERENCIA_MENOR || estado === ESTADOS_CIERRE.DIFERENCIA_GRAVE;
-          });
-        }
-        if (showValidados) {
-          cierresFiltrados = cierresFiltrados.filter(cierre => cierre.validado);
-        } else {
-          cierresFiltrados = cierresFiltrados.filter(cierre => !cierre.validado);
-        }
-      }
       setSelectedTienda(tienda);
-      setSelectedCierres(cierresFiltrados);
-      setSelectedCierresIds(new Set()); // Limpiar selección al cambiar de tienda
+      // El useEffect se encargará de aplicar los filtros
     }
+  };
+
+  // Función para manejar el ordenamiento
+  const handleSort = (column) => {
+    if (orderBy === column) {
+      // Si ya estamos ordenando por esta columna, invertir dirección
+      setOrderDirection(orderDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Nueva columna, empezar con descendente
+      setOrderBy(column);
+      setOrderDirection('desc');
+    }
+  };
+
+  // Funciones para manejar los filtros
+  const handleEstadoFilter = (value) => {
+    setEstadoFilter(value);
+  };
+
+  const handleValidacionFilter = (value) => {
+    setValidacionFilter(value);
+  };
+
+  // Ordenar los cierres seleccionados
+  const sortedCierres = useMemo(() => {
+    if (!selectedCierres || selectedCierres.length === 0) return [];
+    
+    const sorted = [...selectedCierres].sort((a, b) => {
+      let compareA, compareB;
+      
+      switch (orderBy) {
+        case 'fecha':
+          compareA = a.fecha ? a.fecha.valueOf() : 0;
+          compareB = b.fecha ? b.fecha.valueOf() : 0;
+          break;
+        case 'usuario':
+          compareA = (a.usuario || '').toLowerCase();
+          compareB = (b.usuario || '').toLowerCase();
+          break;
+        case 'estado':
+          const estadoA = getEstado(a);
+          const estadoB = getEstado(b);
+          // Orden: CORRECTO < DIFERENCIA_MENOR < DIFERENCIA_GRAVE
+          const estadoOrder = { 
+            [ESTADOS_CIERRE.CORRECTO.label]: 0, 
+            [ESTADOS_CIERRE.DIFERENCIA_MENOR.label]: 1, 
+            [ESTADOS_CIERRE.DIFERENCIA_GRAVE.label]: 2 
+          };
+          compareA = estadoOrder[estadoA.label] || 0;
+          compareB = estadoOrder[estadoB.label] || 0;
+          break;
+        case 'validacion':
+          compareA = a.validado ? 1 : 0;
+          compareB = b.validado ? 1 : 0;
+          break;
+        case 'diferencia':
+          compareA = Math.abs(Number(a.grand_difference_total) || 0);
+          compareB = Math.abs(Number(b.grand_difference_total) || 0);
+          break;
+        default:
+          return 0;
+      }
+      
+      if (compareA < compareB) return orderDirection === 'asc' ? -1 : 1;
+      if (compareA > compareB) return orderDirection === 'asc' ? 1 : -1;
+      return 0;
+    });
+    
+    return sorted;
+  }, [selectedCierres, orderBy, orderDirection]);
+
+  // Función para determinar el tab activo basado en los filtros actuales
+  const getCurrentTabValue = () => {
+    if (showTodos) return 'todos';
+    if (!showWithoutErrors && !showValidados) return 'atencion'; // Con errores, sin validar
+    if (!showWithoutErrors && showValidados) return 'validados'; // Con errores, validados
+    if (showWithoutErrors && !showValidados) return 'pendientes'; // Sin errores, sin validar
+    return 'todos'; // Default
+  };
+
+  // Función para manejar cambios en los tabs
+  const handleTabChange = (event, newValue) => {
+    switch (newValue) {
+      case 'todos':
+        setShowTodos(true);
+        setShowWithoutErrors(false);
+        setShowValidados(false);
+        break;
+      case 'atencion':
+        setShowTodos(false);
+        setShowWithoutErrors(false);
+        setShowValidados(false);
+        break;
+      case 'pendientes':
+        setShowTodos(false);
+        setShowWithoutErrors(true);
+        setShowValidados(false);
+        break;
+      case 'validados':
+        setShowTodos(false);
+        setShowWithoutErrors(false);
+        setShowValidados(true);
+        break;
+      default:
+        break;
+    }
+  };
+
+  // Función para obtener el label del ordenamiento actual
+  const getOrderLabel = () => {
+    const labels = {
+      fecha: 'Fecha',
+      usuario: 'Usuario',
+      estado: 'Estado',
+      validacion: 'Validación',
+      diferencia: 'Diferencia'
+    };
+    return labels[orderBy] || 'Fecha';
   };
 
   const handleCheckboxChange = (cierreId, checked) => {
@@ -1163,8 +1356,8 @@ export default function ControlMensual() {
       p={3}
       sx={{
         fontFamily: 'Inter',
-        bgcolor: '#121212',
-        color: '#ffffff',
+        bgcolor: theme.palette.background.default,
+        color: theme.palette.text.primary,
         minHeight: '100vh'
       }}
     >
@@ -1173,8 +1366,8 @@ export default function ControlMensual() {
         sx={{
           p: 4,
           borderRadius: 2,
-          bgcolor: '#1e1e1e',
-          color: '#ffffff'
+          bgcolor: theme.palette.background.paper,
+          color: theme.palette.text.primary
         }}
       >
         {/* Mensajes de error primero */}
@@ -1184,257 +1377,299 @@ export default function ControlMensual() {
           </Alert>
         )}
 
-        {/* ...eliminado banner de resumen ejecutivo... */}
+        {/* PANEL DE CONTROL - STICKY Y LIMPIO */}
+        <Paper
+          elevation={2}
+          sx={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 100,
+            mb: 3,
+            p: 2,
+            borderRadius: 1,
+            backgroundColor: theme.palette.background.paper,
+            borderLeft: `4px solid ${theme.palette.primary.main}`,
+          }}
+        >
+          {/* Fila 1: Período y Actualizar */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+            {/* Período */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <DateRangeIcon sx={{ color: theme.palette.text.secondary, fontSize: 20 }} />
+              <FormControl size="small" sx={{ minWidth: 90 }}>
+                <InputLabel>Año</InputLabel>
+                <Select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} label="Año">
+                  {years.map((year) => (
+                    <MenuItem key={year} value={year}>{year}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: 120 }}>
+                <InputLabel>Mes</InputLabel>
+                <Select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} label="Mes">
+                  {months.map((month, index) => (
+                    <MenuItem key={index} value={index}>{month}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
 
-        {/* Fila de controles secundarios y acciones principales enmarcados - AHORA ARRIBA DE LOS STORE BOX */}
-        <Card sx={{ mb: 3, p: 2, borderRadius: 2, bgcolor: '#232323', boxShadow: '0 2px 8px #A3BE8C15', border: '1px solid #A3BE8C20', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 2, justifyContent: 'space-between' }}>
-          {/* Grupo principal: Año, Mes, Validar, Revisar, Switches */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, bgcolor: '#232323', borderRadius: 2, px: 2, py: 1 }}>
-            <FormControl fullWidth size="small" sx={{ minWidth: 100, maxWidth: 120 }}>
-              <InputLabel sx={{ color: '#ffffff', fontSize: '0.95rem', top: '-4px' }}>Año</InputLabel>
-              <Select
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                label="Año"
-                sx={{
-                  color: '#ffffff',
-                  '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                  '.MuiSvgIcon-root': { color: '#ffffff' },
-                  borderRadius: 2,
-                  minHeight: 32,
-                  fontSize: '0.95rem',
-                  height: 36,
-                }}
-                MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
-              >
-                {years.map((year) => (
-                  <MenuItem key={year} value={year} sx={{ fontSize: '0.95rem', minHeight: 32 }}>
-                    {year}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl fullWidth size="small" sx={{ minWidth: 100, maxWidth: 120 }}>
-              <InputLabel sx={{ color: '#ffffff', fontSize: '0.95rem', top: '-4px' }}>Mes</InputLabel>
-              <Select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                label="Mes"
-                sx={{
-                  color: '#ffffff',
-                  '.MuiOutlinedInput-notchedOutline': { borderColor: '#444' },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#888' },
-                  '.MuiSvgIcon-root': { color: '#ffffff' },
-                  borderRadius: 2,
-                  minHeight: 32,
-                  fontSize: '0.95rem',
-                  height: 36,
-                }}
-                MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
-              >
-                {months.map((month, index) => (
-                  <MenuItem key={index} value={index} sx={{ fontSize: '0.95rem', minHeight: 32 }}>
-                    {month}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Divider orientation="vertical" flexItem />
+
+            {/* Botón Actualizar */}
             <Button
               variant="contained"
-              onClick={handleValidarDiferencias}
-              disabled={selectedCierresIds.size === 0}
-              sx={{
-                backgroundColor: '#4CAF50',
-                color: '#ffffff',
-                '&:hover': { backgroundColor: '#45A049' },
-                '&:disabled': { backgroundColor: '#3a3a3a', color: '#666666' },
-                borderRadius: 2,
-                px: 2,
-                fontSize: '0.8rem',
-                minHeight: 32,
-                minWidth: 110,
-              }}
-            >
-              Validar ({selectedCierresIds.size})
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handlePasarRevision}
-              disabled={selectedCierresIds.size === 0}
-              sx={{
-                backgroundColor: '#F44336',
-                color: '#ffffff',
-                '&:hover': { backgroundColor: '#D32F2F' },
-                '&:disabled': { backgroundColor: '#3a3a3a', color: '#666666' },
-                borderRadius: 2,
-                px: 2,
-                fontSize: '0.8rem',
-                minHeight: 32,
-                minWidth: 110,
-              }}
-            >
-              Revisar ({selectedCierresIds.size})
-            </Button>
-            <FormControlLabel
-              sx={{ alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32, display: 'flex', alignItems: 'center', flexDirection: 'row' }}
-              control={
-                <Switch
-                  checked={showWithoutErrors}
-                  onChange={(e) => setShowWithoutErrors(e.target.checked)}
-                  size="small"
-                  disabled={showTodos}
-                  sx={{
-                    width: 38,
-                    height: 22,
-                    p: 0.5,
-                    '& .MuiSwitch-switchBase': {
-                      color: showTodos ? '#888' : (showWithoutErrors ? '#4caf50' : '#f44336'),
-                      padding: 0.5,
-                    },
-                    '& .MuiSwitch-switchBase.Mui-checked': {
-                      color: showTodos ? '#888' : '#4caf50',
-                    },
-                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                      backgroundColor: showTodos ? '#888' : '#4caf50',
-                      opacity: 0.7,
-                    },
-                    '& .MuiSwitch-switchBase + .MuiSwitch-track': {
-                      backgroundColor: showTodos ? '#888' : '#f44336',
-                      opacity: 0.7,
-                    },
-                    '& .MuiSwitch-track': {
-                      backgroundColor: showTodos ? '#888' : (showWithoutErrors ? '#4caf50' : '#f44336'),
-                      borderRadius: 11,
-                      opacity: 0.5,
-                    },
-                    '& .MuiSwitch-thumb': {
-                      boxShadow: 'none',
-                      width: 16,
-                      height: 16,
-                    },
-                  }}
-                />
-              }
-              label={
-                <Typography sx={{ color: showTodos ? '#888' : (showWithoutErrors ? '#4caf50' : '#f44336'), fontSize: '0.85rem', fontWeight: 500, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap' }}>
-                  {showWithoutErrors ? 'Sin errores' : 'Con errores'}
-                </Typography>
-              }
-            />
-            <FormControlLabel
-              sx={{ alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32, display: 'flex', alignItems: 'center', flexDirection: 'row' }}
-              control={
-                <Switch
-                  checked={showValidados}
-                  onChange={(e) => setShowValidados(e.target.checked)}
-                  size="small"
-                  disabled={showTodos}
-                  sx={{
-                    width: 38,
-                    height: 22,
-                    p: 0.5,
-                    '& .MuiSwitch-switchBase': {
-                      color: showTodos ? '#888' : (showValidados ? '#4caf50' : '#FFD700'),
-                      padding: 0.5,
-                    },
-                    '& .MuiSwitch-switchBase.Mui-checked': {
-                      color: showTodos ? '#888' : '#4caf50',
-                    },
-                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                      backgroundColor: showTodos ? '#888' : '#4caf50',
-                      opacity: 0.7,
-                    },
-                    '& .MuiSwitch-switchBase + .MuiSwitch-track': {
-                      backgroundColor: showTodos ? '#888' : '#FFD700',
-                      opacity: 0.7,
-                    },
-                    '& .MuiSwitch-track': {
-                      backgroundColor: showTodos ? '#888' : (showValidados ? '#4caf50' : '#FFD700'),
-                      borderRadius: 11,
-                      opacity: 0.5,
-                    },
-                    '& .MuiSwitch-thumb': {
-                      boxShadow: 'none',
-                      width: 16,
-                      height: 16,
-                    },
-                  }}
-                />
-              }
-              label={
-                <Typography sx={{ color: showTodos ? '#888' : (showValidados ? '#4caf50' : '#FFD700'), fontSize: '0.85rem', fontWeight: 500, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', whiteSpace: 'nowrap' }}>
-                  {showValidados ? 'Validados' : 'Sin validar'}
-                </Typography>
-              }
-            />
-            <FormControlLabel
-              sx={{ alignSelf: 'center', bgcolor: 'transparent', px: 1, py: 0, borderRadius: 1, boxShadow: 'none', height: 32 }}
-              control={
-                <Switch
-                  checked={showTodos}
-                  onChange={(e) => setShowTodos(e.target.checked)}
-                  size="small"
-                  sx={{
-                    width: 38,
-                    height: 22,
-                    p: 0.5,
-                    '& .MuiSwitch-switchBase': {
-                      color: showTodos ? '#2196f3' : '#888',
-                      padding: 0.5,
-                    },
-                    '& .MuiSwitch-switchBase.Mui-checked': {
-                      color: '#2196f3',
-                    },
-                    '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                      backgroundColor: '#2196f3',
-                      opacity: 0.7,
-                    },
-                    '& .MuiSwitch-track': {
-                      backgroundColor: showTodos ? '#2196f3' : '#888',
-                      borderRadius: 11,
-                      opacity: 0.5,
-                    },
-                    '& .MuiSwitch-thumb': {
-                      boxShadow: 'none',
-                      width: 16,
-                      height: 16,
-                    },
-                  }}
-                />
-              }
-              label={
-                <Typography sx={{ color: showTodos ? '#2196f3' : '#888', fontSize: '0.85rem', fontWeight: 500 }}>
-                  Mostrar todos
-                </Typography>
-              }
-            />
-          </Box>
-          {/* Espacio vacío y grupo derecho: Actualizar, CSV, PDF */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 300, justifyContent: 'flex-end', flex: 1 }}>
-            <Box sx={{ flex: 1 }} />
-            <Button
-              variant="outlined"
+              size="small"
               onClick={fetchCierres}
               disabled={loading}
-              startIcon={<RefreshIcon />}
-              sx={{
-                color: '#ffffff',
-                borderColor: '#444',
-                '&:hover': { borderColor: '#888' },
-                height: '36px',
-                fontSize: '0.95rem',
-                borderRadius: 2,
-                px: 1.5,
-              }}
+              startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon />}
+              sx={{ textTransform: 'none', fontWeight: 600 }}
             >
               {loading ? 'Cargando...' : 'Actualizar'}
             </Button>
-            <Button variant="outlined" size="small" sx={{ borderRadius: 2, minWidth: 40, px: 1, fontSize: '0.85rem', color: '#fff', borderColor: '#fff', bgcolor: '#222', '&:hover': { bgcolor: '#444', borderColor: '#fff' } }} onClick={handleExportCSV}>CSV</Button>
-            <Button variant="outlined" size="small" sx={{ borderRadius: 2, minWidth: 40, px: 1, fontSize: '0.85rem', color: '#D16D6D', borderColor: '#D16D6D', bgcolor: '#222', '&:hover': { bgcolor: '#3a2323', borderColor: '#D16D6D' } }} onClick={handleExportPDF}>PDF</Button>
-          </Box>
-        </Card>
 
+            {/* Espaciador */}
+            <Box sx={{ flexGrow: 1 }} />
+
+            {/* Acciones Rápidas */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Button
+                variant="contained"
+                size="small"
+                color="success"
+                onClick={handleValidarDiferencias}
+                disabled={selectedCierresIds.size === 0}
+                startIcon={<CheckCircleIcon />}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                Validar ({selectedCierresIds.size})
+              </Button>
+              <Button
+                variant="outlined"
+                size="small"
+                color="error"
+                onClick={handlePasarRevision}
+                disabled={selectedCierresIds.size === 0}
+                startIcon={<WarningIcon />}
+                sx={{ textTransform: 'none', fontWeight: 600 }}
+              >
+                Revisar ({selectedCierresIds.size})
+              </Button>
+            </Box>
+          </Box>
+
+          <Divider sx={{ mb: 2 }} />
+
+          {/* Fila 2: Filtros Específicos del Controlador */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+            {/* Filtro por Estado */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mr: 0.5 }}>
+                Estado:
+              </Typography>
+              <Button
+                variant={estadoFilter === 'todos' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleEstadoFilter('todos')}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 'auto',
+                  px: 1.5,
+                  fontSize: '0.8rem',
+                  ...(estadoFilter === 'todos' && {
+                    backgroundColor: theme.palette.primary.main,
+                    color: '#fff',
+                  })
+                }}
+              >
+                Todos
+              </Button>
+              <Button
+                variant={estadoFilter === 'correcto' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleEstadoFilter('correcto')}
+                startIcon={<CheckCircleIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 'auto',
+                  px: 1.5,
+                  fontSize: '0.8rem',
+                  ...(estadoFilter === 'correcto' && {
+                    backgroundColor: theme.palette.success.main,
+                    color: '#fff',
+                  })
+                }}
+              >
+                Correcto
+              </Button>
+              <Button
+                variant={estadoFilter === 'menor' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleEstadoFilter('menor')}
+                startIcon={<WarningIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 'auto',
+                  px: 1.5,
+                  fontSize: '0.8rem',
+                  ...(estadoFilter === 'menor' && {
+                    backgroundColor: theme.palette.warning.main,
+                    color: '#fff',
+                  })
+                }}
+              >
+                Dif. Menor
+              </Button>
+              <Button
+                variant={estadoFilter === 'grave' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleEstadoFilter('grave')}
+                startIcon={<ErrorIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 'auto',
+                  px: 1.5,
+                  fontSize: '0.8rem',
+                  ...(estadoFilter === 'grave' && {
+                    backgroundColor: theme.palette.error.main,
+                    color: '#fff',
+                  })
+                }}
+              >
+                Dif. Grave
+              </Button>
+            </Box>
+
+            <Divider orientation="vertical" flexItem />
+
+            {/* Filtro por Validación */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mr: 0.5 }}>
+                Validación:
+              </Typography>
+              <Button
+                variant={validacionFilter === 'todos' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleValidacionFilter('todos')}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 'auto',
+                  px: 1.5,
+                  fontSize: '0.8rem',
+                  ...(validacionFilter === 'todos' && {
+                    backgroundColor: theme.palette.primary.main,
+                    color: '#fff',
+                  })
+                }}
+              >
+                Todos
+              </Button>
+              <Button
+                variant={validacionFilter === 'validado' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleValidacionFilter('validado')}
+                startIcon={<CheckCircleIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 'auto',
+                  px: 1.5,
+                  fontSize: '0.8rem',
+                  ...(validacionFilter === 'validado' && {
+                    backgroundColor: theme.palette.success.main,
+                    color: '#fff',
+                  })
+                }}
+              >
+                Validado
+              </Button>
+              <Button
+                variant={validacionFilter === 'sin_validar' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleValidacionFilter('sin_validar')}
+                startIcon={<InfoIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 'auto',
+                  px: 1.5,
+                  fontSize: '0.8rem',
+                  ...(validacionFilter === 'sin_validar' && {
+                    backgroundColor: theme.palette.warning.main,
+                    color: '#fff',
+                  })
+                }}
+              >
+                Sin Validar
+              </Button>
+              <Button
+                variant={validacionFilter === 'revisar' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => handleValidacionFilter('revisar')}
+                startIcon={<AssignmentIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 'auto',
+                  px: 1.5,
+                  fontSize: '0.8rem',
+                  ...(validacionFilter === 'revisar' && {
+                    backgroundColor: theme.palette.info.main,
+                    color: '#fff',
+                  })
+                }}
+              >
+                Revisar Boutique
+              </Button>
+            </Box>
+          </Box>
+
+          {/* Indicador de resultados */}
+          {(selectedCierres.length > 0 || allCierres.length > 0) && (
+            <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
+                {selectedCierres.length > 0
+                  ? `📊 ${selectedCierres.length} cierres de ${selectedTienda || 'todas las tiendas'}`
+                  : `📊 ${allCierres.length} cierres totales en ${months[selectedMonth]} ${selectedYear}`
+                }
+                {selectedCierresIds.size > 0 && ` • ✓ ${selectedCierresIds.size} seleccionados`}
+              </Typography>
+
+              {/* Exportación */}
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleExportCSV}
+                  sx={{ textTransform: 'none', minWidth: 'auto', fontWeight: 600 }}
+                >
+                  CSV
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleExportPDF}
+                  sx={{ textTransform: 'none', minWidth: 'auto', fontWeight: 600 }}
+                >
+                  PDF
+                </Button>
+              </Box>
+            </Box>
+          )}
+        </Paper>
+
+        {/* Mostrar loading o contenido */}
+        {loading ? (
+          <Box display="flex" justifyContent="center" alignItems="center" minHeight="300px">
+            <CircularProgress />
+          </Box>
+        ) : (
+          <>
         {/* Fila principal: TiendaCards */}
         <Box sx={{ mb: 3, display: 'flex', flexDirection: 'row', gap: 2, flexWrap: 'nowrap', justifyContent: 'flex-start', alignItems: 'stretch', overflowX: 'auto', width: '100%' }}>
           {tiendasAMostrar.map((stats) => (
@@ -1455,7 +1690,7 @@ export default function ControlMensual() {
         {/* Mensaje si no hay tiendas */}
         {tiendas.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography variant="h6" sx={{ color: '#b0b0b0' }}>
+            <Typography variant="h6" sx={{ color: theme.palette.text.secondary }}>
               No se encontraron tiendas configuradas
             </Typography>
           </Box>
@@ -1464,7 +1699,7 @@ export default function ControlMensual() {
         {/* Mensaje si no hay tiendas con errores */}
         {tiendas.length > 0 && tiendasAMostrar.length === 0 && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
-            <Typography variant="h6" sx={{ color: '#b0b0b0' }}>
+            <Typography variant="h6" sx={{ color: theme.palette.text.secondary }}>
               No se encontraron tiendas en el período seleccionado
             </Typography>
           </Box>
@@ -1474,13 +1709,13 @@ export default function ControlMensual() {
         {selectedTienda && (
           <Box sx={{ mt: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-              <Typography variant="h6" sx={{ color: '#ffffff' }}>
+              <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
                 Cierres de {selectedTienda}
               </Typography>
               <Button
                 variant="text"
                 onClick={() => setSelectedTienda(null)}
-                sx={{ color: '#b0b0b0', minWidth: 'auto' }}
+                sx={{ color: theme.palette.text.secondary, minWidth: 'auto' }}
               >
                 <KeyboardArrowUpIcon />
               </Button>
@@ -1489,68 +1724,154 @@ export default function ControlMensual() {
 
             
             <TableContainer component={Paper} sx={{ 
-              bgcolor: '#2a2a2a', 
+              bgcolor: theme.palette.custom.tableRow, 
               borderRadius: 3,
               overflow: 'hidden',
-              border: '1px solid #444'
+              border: `1px solid ${theme.palette.custom.tableBorder}`
             }}>
               <Table stickyHeader size="small">
                 <TableHead>
                   <TableRow sx={{
-                    bgcolor: '#3a3a3a',
+                    bgcolor: theme.palette.custom.tableRowHover,
                     '& th': {
                       fontWeight: 'bold',
-                      color: '#ffffff',
-                      borderBottom: '2px solid #A3BE8C'
+                      color: theme.palette.text.primary,
+                      borderBottom: `2px solid ${theme.palette.success.main}`
                     }
                   }}>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}>
+                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary, width: 50 }}>
                       <Checkbox 
                         sx={{ 
-                          color: '#A3BE8C', 
-                          '&.Mui-checked': { color: '#A3BE8C' } 
+                          color: theme.palette.success.main, 
+                          '&.Mui-checked': { color: theme.palette.success.main } 
                         }} 
                         checked={selectedCierres.length > 0 && selectedCierresIds.size === selectedCierres.filter(c => !c.validado).length} 
                         indeterminate={selectedCierresIds.size > 0 && selectedCierresIds.size < selectedCierres.filter(c => !c.validado).length} 
                         onChange={(e) => handleSelectAll(e.target.checked)} 
                       />
                     </TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff', width: 50 }}>Ver</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>ID</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Fecha</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Usuario</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Estado</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Validación</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
+                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary, width: 50 }}>Ver</TableCell>
+                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }}>ID</TableCell>
+                    <TableCell 
+                      sx={{ 
+                        bgcolor: theme.palette.custom.tableRowHover, 
+                        color: theme.palette.text.primary,
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
+                      }}
+                      onClick={() => handleSort('fecha')}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        Fecha
+                        {orderBy === 'fecha' ? (
+                          orderDirection === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                        ) : (
+                          <UnfoldMoreIcon fontSize="small" sx={{ opacity: 0.5 }} />
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell 
+                      sx={{ 
+                        bgcolor: theme.palette.custom.tableRowHover, 
+                        color: theme.palette.text.primary,
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
+                      }}
+                      onClick={() => handleSort('usuario')}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        Usuario
+                        {orderBy === 'usuario' ? (
+                          orderDirection === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                        ) : (
+                          <UnfoldMoreIcon fontSize="small" sx={{ opacity: 0.5 }} />
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell 
+                      sx={{ 
+                        bgcolor: theme.palette.custom.tableRowHover, 
+                        color: theme.palette.text.primary,
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
+                      }}
+                      onClick={() => handleSort('estado')}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        Estado
+                        {orderBy === 'estado' ? (
+                          orderDirection === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                        ) : (
+                          <UnfoldMoreIcon fontSize="small" sx={{ opacity: 0.5 }} />
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell 
+                      sx={{ 
+                        bgcolor: theme.palette.custom.tableRowHover, 
+                        color: theme.palette.text.primary,
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
+                      }}
+                      onClick={() => handleSort('validacion')}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                        Validación
+                        {orderBy === 'validacion' ? (
+                          orderDirection === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                        ) : (
+                          <UnfoldMoreIcon fontSize="small" sx={{ opacity: 0.5 }} />
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell 
+                      sx={{ 
+                        bgcolor: theme.palette.custom.tableRowHover, 
+                        color: theme.palette.text.primary,
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        '&:hover': { backgroundColor: alpha(theme.palette.primary.main, 0.1) }
+                      }}
+                      onClick={() => handleSort('diferencia')}
+                    >
                       <Tooltip title="Diferencia total del cierre antes de ajustes" arrow>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                           <span>Diferencia Total</span>
-                          <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
+                          {orderBy === 'diferencia' ? (
+                            orderDirection === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                          ) : (
+                            <UnfoldMoreIcon fontSize="small" sx={{ opacity: 0.5 }} />
+                          )}
+                          <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: theme.palette.info.main }} />
                         </Box>
                       </Tooltip>
                     </TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
+                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }}>
                       <Tooltip title="Total de todas las justificaciones realizadas" arrow>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           <span>Diferencia Justificada</span>
-                          <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
+                          <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: theme.palette.info.main }} />
                         </Box>
                       </Tooltip>
                     </TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>
+                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }}>
                       <Tooltip title="Saldo sin justificar (Diferencia Total - Justificaciones)" arrow>
                         <Box sx={{ display: 'flex', alignItems: 'center' }}>
                           <span>Saldo Sin Justificar</span>
-                          <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: '#88C0D0' }} />
+                          <InfoIcon fontSize="small" sx={{ ml: 0.5, fontSize: '0.7rem', color: theme.palette.info.main }} />
                         </Box>
                       </Tooltip>
                     </TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }} align="center">Justif.</TableCell>
-                    <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }} align="center">Acciones</TableCell>
+                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }} align="center">Justif.</TableCell>
+                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }} align="center">Acciones</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {selectedCierres.map((cierre) => (
+                  {sortedCierres.map((cierre) => (
                     <CierreRow
                       key={cierre.id}
                       cierre={cierre}
@@ -1567,187 +1888,23 @@ export default function ControlMensual() {
             
             {selectedCierres.length === 0 && (
               <Box sx={{ textAlign: 'center', py: 4 }}>
-                <Typography variant="body1" sx={{ color: '#b0b0b0' }}>
+                <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
                   No se encontraron cierres {!showWithoutErrors ? 'con errores ' : ''}para esta tienda en el período seleccionado
                 </Typography>
               </Box>
             )}
           </Box>
         )}
+          </>
+        )}
       </Paper>
 
-      {/* Modal de detalle */}
-      <Modal open={!!modalDetalle} onClose={() => { setModalDetalle(null); setTabValue(0); }}>
-        <Fade in={!!modalDetalle}>
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              width: { xs: '95%', md: '80%' },
-              maxWidth: 1000,
-              bgcolor: '#1e1e1e',
-              color: '#ffffff',
-              boxShadow: 24,
-              p: 3,
-              borderRadius: 2,
-              outline: 'none',
-              maxHeight: '90vh',
-              overflowY: 'auto',
-              transition: 'transform 0.3s ease',
-            }}
-          >
-            <Typography variant="h5" gutterBottom sx={{ color: '#ffffff' }}>
-              Detalle completo del cierre – {modalDetalle?.fecha ? modalDetalle.fecha.format('DD/MM/YYYY') : 'N/A'}
-            </Typography>
-            <Tabs
-              value={tabValue}
-              onChange={(_, nv) => setTabValue(nv)}
-              sx={{ 
-                mb: 3,
-                '& .MuiTab-root': { color: '#b0b0b0' },
-                '& .Mui-selected': { color: '#A3BE8C' },
-                '& .MuiTabs-indicator': { backgroundColor: '#A3BE8C' },
-              }}
-            >
-              <Tab label="Información" />
-              <Tab label="Medios de pago" />
-              {modalDetalle?.justificaciones?.length > 0 && (
-                <Tab label="Justificaciones" />
-              )}
-            </Tabs>
-
-            {tabValue === 0 && modalDetalle && (
-              <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="h6" sx={{ mb: 2, color: '#ffffff' }}>Información básica</Typography>
-                  <Typography variant="body1" sx={{ color: '#ffffff' }}><strong>Tienda:</strong> {modalDetalle.tienda}</Typography>
-                  <Typography variant="body1" sx={{ color: '#ffffff' }}><strong>Usuario:</strong> {modalDetalle.usuario}</Typography>
-                  <Typography variant="body1" sx={{ color: '#ffffff' }}><strong>Estado:</strong> {getEstado(modalDetalle).label}</Typography>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="h6" sx={{ mb: 2, color: '#ffffff' }}>Totales</Typography>
-                  <Typography variant="body1" sx={{ color: '#ffffff' }}><strong>Facturado:</strong> <ExactValue value={processNumericValue(modalDetalle.total_facturado)} /></Typography>
-                  <Typography variant="body1" sx={{ color: '#ffffff' }}><strong>Cobrado:</strong> <ExactValue value={processNumericValue(modalDetalle.total_cobrado)} /></Typography>
-                  <Typography variant="body1" sx={{ color: '#ffffff' }}><strong>Diferencia:</strong> <ExactValue value={modalDetalle.grand_difference_total} /></Typography>
-                </Grid>
-                <Grid item xs={12} md={6}>
-                  <Typography variant="h6" sx={{ mb: 2, color: '#ffffff' }}>Validación</Typography>
-                  {modalDetalle.validado ? (
-                    <Box>
-                      <Chip icon={<CheckCircleIcon />} label="Validado" color="success" sx={{ mb: 1 }} />
-                      <Typography variant="body2" sx={{ color: '#4caf50' }}>
-                        Usuario: {modalDetalle.usuario_validacion}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: '#4caf50' }}>
-                        Fecha: {modalDetalle.fecha_validacion}
-                      </Typography>
-                    </Box>
-                  ) : (
-                    <Chip icon={<ErrorIcon />} label="Sin validar" color="error" />
-                  )}
-                </Grid>
-              </Grid>
-            )}
-
-            {tabValue === 1 && modalDetalle && (
-              <>
-                <Typography variant="h6" sx={{ mt: 3, mb: 2, color: '#ffffff' }}>Medios de pago</Typography>
-                <TableContainer component={Paper} sx={{ bgcolor: '#2a2a2a' }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Medio</TableCell>
-                        <TableCell align="right" sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Facturado</TableCell>
-                        <TableCell align="right" sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Cobrado</TableCell>
-                        <TableCell align="right" sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Diferencia</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {modalDetalle.medios_pago.map((m, i) => {
-                        return (
-                          <TableRow key={m.medio ? m.medio + '-' + i : i} sx={{ bgcolor: '#2a2a2a' }}>
-                            <TableCell sx={{ color: '#ffffff' }}>{m.medio}</TableCell>
-                            <TableCell align="right" sx={{ color: '#ffffff' }}>$ {m.facturado}</TableCell>
-                            <TableCell align="right" sx={{ color: '#ffffff' }}>$ {m.cobrado}</TableCell>
-                            <TableCell align="right" sx={{ color: '#ffffff' }}>$ {m.differenceVal}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </>
-            )}
-
-            {tabValue === 2 && modalDetalle?.justificaciones?.length > 0 && (
-              <>
-                <Typography variant="h6" sx={{ mt: 3, mb: 2, color: '#ffffff' }}>Justificaciones</Typography>
-                <TableContainer component={Paper} sx={{ bgcolor: '#2a2a2a' }}>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Motivo</TableCell>
-                        <TableCell align="right" sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Monto</TableCell>
-                        <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Cliente</TableCell>
-                        <TableCell sx={{ bgcolor: '#3a3a3a', color: '#ffffff' }}>Orden</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {modalDetalle.justificaciones.map((j, i) => {
-                        // Procesar el monto_dif que puede venir como texto con "$" y comas
-                        let monto = j.monto_dif;
-                        if (typeof monto === 'string') {
-                          // Limpiar el string: remover $ y espacios, luego procesar formato argentino
-                          monto = monto.replace(/\$/g, '').trim();
-                          // En formato argentino: punto = separador de miles, coma = separador decimal
-                          // Ej: "20.500" = 20500, "20.500,50" = 20500.50, "20,50" = 20.50
-                          if (monto.includes(',')) {
-                            // Tiene coma decimal: "20.500,50" -> partes: ["20.500", "50"]
-                            const partes = monto.split(',');
-                            const entero = partes[0].replace(/\./g, ''); // Remover puntos de miles
-                            const decimal = partes[1] || '0';
-                            monto = entero + '.' + decimal;
-                          } else {
-                            // No tiene coma decimal: "20.500" -> 20500 (punto como separador de miles)
-                            monto = monto.replace(/\./g, '');
-                          }
-                        }
-                        const numeroMonto = Number(monto);
-                        const montoValido = !isNaN(numeroMonto) ? numeroMonto : 0;
-                        
-                        return (
-                          <TableRow key={j.id ? j.id : `${j.motivo}-${j.cliente}-${j.orden}-${i}`} sx={{ bgcolor: '#2a2a2a' }}>
-                            <TableCell sx={{ color: '#ffffff' }}><Typography variant="body2">{j.motivo}</Typography></TableCell>
-                            <TableCell align="right" sx={{ color: '#ffffff' }}><ExactValue value={montoValido} /></TableCell>
-                            <TableCell sx={{ color: '#ffffff' }}>{j.cliente || '-'}</TableCell>
-                            <TableCell sx={{ color: '#ffffff' }}>{j.orden || '-'}</TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </>
-            )}
-
-            <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
-              <Button 
-                variant="contained" 
-                onClick={() => { setModalDetalle(null); setTabValue(0); }} 
-                sx={{ 
-                  borderRadius: 1,
-                  backgroundColor: '#A3BE8C',
-                  '&:hover': { backgroundColor: '#8FA882' }
-                }}
-              >
-                Cerrar
-              </Button>
-            </Box>
-          </Box>
-        </Fade>
-      </Modal>
+      {/* Modal de detalle usando el componente DetallesCierre */}
+      <DetallesCierre 
+        resumenData={transformarDatosParaImprimir(modalDetalle)}
+        onClose={() => { setModalDetalle(null); setTabValue(0); }}
+        open={!!modalDetalle}
+      />
 
       {/* Snackbar */}
       <Snackbar

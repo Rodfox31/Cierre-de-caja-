@@ -4,6 +4,8 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
 const moment = require('moment'); // Importar moment
+const BackupManager = require('./backup-manager'); // Sistema de respaldos
+const bcrypt = require('bcryptjs'); // Para hashear contraseñas
 
 app.use(express.json());
 
@@ -28,6 +30,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
     console.log("Conectado a la DB SQLite.");
   }
 });
+
+// ── NUEVO: Inicializar sistema de respaldos automáticos ──
+const backupManager = new BackupManager(dbPath);
+backupManager.scheduleAutoBackups();
 
 // ── MODIFICADO: Crear la tabla 'cierres' con las nuevas columnas ──
 const createTableQuery = [
@@ -153,6 +159,63 @@ db.run(createJustificacionesTable, (err) => {
             console.log("Columna 'medio_pago' agregada exitosamente a justificaciones.");
           }
         });
+      }
+    });
+  }
+});
+
+// ── NUEVO: Crear tabla de usuarios para autenticación ──
+const createUsersTable = `
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'cajero',
+    permissions TEXT,
+    sucursales TEXT,
+    active INTEGER DEFAULT 1,
+    created_at TEXT,
+    last_login TEXT
+  )
+`;
+
+db.run(createUsersTable, async (err) => {
+  if (err) {
+    console.error("Error al crear la tabla users:", err.message);
+  } else {
+    console.log("Tabla 'users' lista.");
+    
+    // Verificar si existe al menos un usuario admin
+    db.get('SELECT COUNT(*) as count FROM users WHERE role = ?', ['admin'], async (err, row) => {
+      if (err) {
+        console.error("Error verificando usuarios admin:", err.message);
+        return;
+      }
+      
+      // Si no hay admin, crear uno por defecto
+      if (row.count === 0) {
+        try {
+          const defaultPassword = 'admin123'; // Contraseña temporal
+          const hashedPassword = await bcrypt.hash(defaultPassword, 10);
+          const createdAt = new Date().toISOString();
+          
+          db.run(
+            `INSERT INTO users (username, email, password, role, permissions, active, created_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            ['admin', 'admin@empresa.com', hashedPassword, 'admin', JSON.stringify(['*']), 1, createdAt],
+            function(err) {
+              if (err) {
+                console.error("Error creando usuario admin por defecto:", err.message);
+              } else {
+                console.log("✅ Usuario admin creado (username: admin, password: admin123)");
+                console.log("⚠️  IMPORTANTE: Cambia la contraseña del admin en Ajustes");
+              }
+            }
+          );
+        } catch (error) {
+          console.error("Error hasheando contraseña:", error);
+        }
       }
     });
   }
@@ -922,14 +985,6 @@ const defaultConfig = {
   tiendas: ["Recoleta", "Alto Palermo", "Unicenter", "Solar", "Cordoba", "Rosario"],
   motivos_error_pago: ["Cobro doble", "Cobro de Mas", "Cobro de Menos", "Inversion de medio de pago", "Diferencia Generada por Anulación"],
   medios_pago: ["Efectivo", "MPoint", "Mp - Qr", "MPoint - Contingencia", "Payway", "AppaGift"],
-  asignaciones: {
-    "Recoleta": [],
-    "Alto Palermo": [],
-    "Unicenter": [],
-    "Solar": [],
-    "Cordoba": [],
-    "Rosario": []
-  },
   config_font_size: 14,
   config_theme: "Oscuro",
   config_language: "Español",
@@ -962,12 +1017,13 @@ app.get('/localStorage', (req, res) => {
       delete parsedData.usuarios;
       delete parsedData.cajas;
       delete parsedData.usuario_legacy;
+      delete parsedData.asignaciones; // Ya no se usa, los usuarios están en la DB
+      
       // Fusionar con la configuración por defecto para asegurar todas las claves
       const mergedData = {
         ...defaultConfig,
         ...parsedData,
         tiendas: parsedData.tiendas || defaultConfig.tiendas,
-        asignaciones: parsedData.asignaciones || defaultConfig.asignaciones,
         motivos_error_pago: parsedData.motivos_error_pago || defaultConfig.motivos_error_pago,
         medios_pago: parsedData.medios_pago || defaultConfig.medios_pago,
         config_font_size: parsedData.config_font_size !== undefined ? parsedData.config_font_size : defaultConfig.config_font_size,
@@ -991,6 +1047,8 @@ app.post('/localStorage', (req, res) => {
   delete newData.usuarios;
   delete newData.cajas;
   delete newData.usuario_legacy;
+  delete newData.asignaciones; // Ya no se usa, los usuarios están en la DB
+  
   fs.writeFile(localStoragePath, JSON.stringify(newData, null, 2), (err) => {
     if (err) {
       console.error("Error escribiendo el archivo localStorage.json:", err);
@@ -1184,6 +1242,1014 @@ app.put('/api/cierres-validar', (req, res) => {
     }
     res.json({ message: 'Cierres validados correctamente', count: this.changes });
   });
+});
+
+// ================================================================================================
+// ENDPOINTS DE SISTEMA DE RESPALDOS
+// ================================================================================================
+
+// ── POST /api/backup/create ── Crear respaldo manual
+app.post('/api/backup/create', async (req, res) => {
+  try {
+    const result = await backupManager.createBackup();
+    res.json({ 
+      success: true, 
+      message: 'Respaldo creado exitosamente',
+      backup: result
+    });
+  } catch (error) {
+    console.error('Error creando respaldo:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// ── GET /api/backup/list ── Listar todos los respaldos disponibles
+app.get('/api/backup/list', (req, res) => {
+  try {
+    const backups = backupManager.listBackups();
+    const stats = backupManager.getBackupStats();
+    res.json({ 
+      success: true, 
+      backups,
+      stats
+    });
+  } catch (error) {
+    console.error('Error listando respaldos:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// ── POST /api/backup/restore ── Restaurar desde un respaldo
+app.post('/api/backup/restore', async (req, res) => {
+  const { backupPath } = req.body;
+  
+  if (!backupPath) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Falta el parámetro backupPath' 
+    });
+  }
+  
+  try {
+    const result = await backupManager.restoreFromBackup(backupPath);
+    res.json({ 
+      success: true, 
+      message: 'Base de datos restaurada exitosamente',
+      details: result
+    });
+  } catch (error) {
+    console.error('Error restaurando respaldo:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// ── POST /api/backup/export-csv ── Exportar mes a CSV
+app.post('/api/backup/export-csv', async (req, res) => {
+  const { month, year } = req.body;
+  
+  if (!month || !year) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Faltan parámetros month y year' 
+    });
+  }
+  
+  try {
+    const result = await backupManager.exportToCSV(month, year);
+    
+    if (!result) {
+      return res.json({ 
+        success: true, 
+        message: 'No hay datos para exportar en el período seleccionado',
+        exported: false
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'CSV exportado exitosamente',
+      exported: true,
+      file: result
+    });
+  } catch (error) {
+    console.error('Error exportando CSV:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// ── POST /api/backup/verify ── Verificar integridad de un respaldo
+app.post('/api/backup/verify', async (req, res) => {
+  const { backupPath } = req.body;
+  
+  if (!backupPath) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Falta el parámetro backupPath' 
+    });
+  }
+  
+  try {
+    const result = await backupManager.verifyBackup(backupPath);
+    res.json({ 
+      success: true, 
+      message: 'Respaldo verificado correctamente',
+      details: result
+    });
+  } catch (error) {
+    console.error('Error verificando respaldo:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'El respaldo está corrupto o no es válido',
+      details: error.message 
+    });
+  }
+});
+
+// ── GET /api/backup/stats ── Obtener estadísticas de respaldos
+app.get('/api/backup/stats', (req, res) => {
+  try {
+    const stats = backupManager.getBackupStats();
+    res.json({ 
+      success: true, 
+      stats
+    });
+  } catch (error) {
+    console.error('Error obteniendo estadísticas:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// ── AUTENTICACIÓN Y GESTIÓN DE USUARIOS ──
+// ═══════════════════════════════════════════════════════════════════════
+
+// ── POST /api/auth/login ── Iniciar sesión
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password, username } = req.body;
+  
+  // Aceptar tanto email como username para compatibilidad
+  const identifier = email || username;
+  
+  if (!identifier || !password) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Se requiere email y contraseña' 
+    });
+  }
+  
+  try {
+    // Buscar por email o username
+    db.get(
+      'SELECT * FROM users WHERE (email = ? OR username = ?) AND active = 1',
+      [identifier, identifier],
+      async (err, user) => {
+        if (err) {
+          console.error('Error en login:', err);
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Error del servidor' 
+          });
+        }
+        
+        if (!user) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Email o contraseña incorrectos' 
+          });
+        }
+        
+        // Verificar contraseña
+        const isValidPassword = await bcrypt.compare(password, user.password);
+        
+        if (!isValidPassword) {
+          return res.status(401).json({ 
+            success: false, 
+            error: 'Email o contraseña incorrectos' 
+          });
+        }
+        
+        // Actualizar última conexión
+        const lastLogin = new Date().toISOString();
+        db.run(
+          'UPDATE users SET last_login = ? WHERE id = ?',
+          [lastLogin, user.id],
+          (err) => {
+            if (err) console.error('Error actualizando last_login:', err);
+          }
+        );
+        
+        // Parsear sucursales (están guardadas como JSON string)
+        const sucursales = user.sucursales ? JSON.parse(user.sucursales) : [];
+        
+        // Leer configuración de roles desde localStorage.json
+        let permissions = [];
+        try {
+          const localStoragePath = path.join(__dirname, '../localStorage.json');
+          const localStorageData = JSON.parse(fs.readFileSync(localStoragePath, 'utf8'));
+          const rolesConfig = localStorageData.roles_config || {};
+          
+          // Obtener permisos según el rol del usuario
+          if (rolesConfig[user.role]) {
+            permissions = rolesConfig[user.role];
+          } else {
+            // Permisos por defecto si no hay configuración
+            const defaultPermissions = {
+              admin: ['*'],
+              supervisor: [
+                'view_assigned_sucursales',
+                'view_cierres',
+                'modify_justifications',
+                'view_diferencias',
+                'view_reports',
+                'export_own_data',
+                'view_analytics',
+              ],
+              cajero: [
+                'create_cierre',
+                'view_own_cierres',
+                'view_own_sucursal',
+              ],
+            };
+            permissions = defaultPermissions[user.role] || [];
+          }
+        } catch (error) {
+          console.error('Error leyendo configuración de roles:', error);
+          // Si hay error, usar permisos por defecto
+          const defaultPermissions = {
+            admin: ['*'],
+            supervisor: [
+              'view_assigned_sucursales',
+              'view_cierres',
+              'modify_justifications',
+              'view_diferencias',
+              'view_reports',
+              'export_own_data',
+              'view_analytics',
+            ],
+            cajero: [
+              'create_cierre',
+              'view_own_cierres',
+              'view_own_sucursal',
+            ],
+          };
+          permissions = defaultPermissions[user.role] || [];
+        }
+        
+        // Retornar datos del usuario (sin la contraseña)
+        res.json({
+          success: true,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            permissions,
+            sucursales,
+            lastLogin
+          }
+        });
+      }
+    );
+  } catch (error) {
+    console.error('Error en login:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Error del servidor' 
+    });
+  }
+});
+
+// ── GET /api/users ── Listar todos los usuarios (solo admin)
+app.get('/api/users', (req, res) => {
+  db.all(
+    'SELECT id, username, full_name, email, role, permissions, sucursales, active, created_at, last_login FROM users ORDER BY created_at DESC',
+    [],
+    (err, users) => {
+      if (err) {
+        console.error('Error obteniendo usuarios:', err);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error del servidor' 
+        });
+      }
+      
+      // Parsear permissions y sucursales para cada usuario
+      const parsedUsers = users.map(user => ({
+        ...user,
+        permissions: user.permissions ? JSON.parse(user.permissions) : [],
+        sucursales: user.sucursales ? JSON.parse(user.sucursales) : []
+      }));
+      
+      res.json({ 
+        success: true, 
+        users: parsedUsers 
+      });
+    }
+  );
+});
+
+// ── GET /api/users/:id ── Obtener un usuario específico
+app.get('/api/users/:id', (req, res) => {
+  const { id } = req.params;
+  
+  db.get(
+    'SELECT id, username, email, role, permissions, sucursales, active, created_at, last_login FROM users WHERE id = ?',
+    [id],
+    (err, user) => {
+      if (err) {
+        console.error('Error obteniendo usuario:', err);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error del servidor' 
+        });
+      }
+      
+      if (!user) {
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Usuario no encontrado' 
+        });
+      }
+      
+      // Parsear permissions y sucursales
+      const parsedUser = {
+        ...user,
+        permissions: user.permissions ? JSON.parse(user.permissions) : [],
+        sucursales: user.sucursales ? JSON.parse(user.sucursales) : []
+      };
+      
+      res.json({ 
+        success: true, 
+        user: parsedUser 
+      });
+    }
+  );
+});
+
+// ── POST /api/users ── Crear nuevo usuario (solo admin)
+app.post('/api/users', async (req, res) => {
+  const { username, email, password, role, permissions, sucursales, createdBy } = req.body;
+  
+  // Validaciones
+  if (!username || !email || !password || !role) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Faltan campos requeridos (username, email, password, role)' 
+    });
+  }
+  
+  try {
+    // Hashear contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const createdAt = new Date().toISOString();
+    
+    // Convertir arrays a JSON strings
+    const permissionsJson = JSON.stringify(permissions || []);
+    const sucursalesJson = JSON.stringify(sucursales || []);
+    
+    db.run(
+      `INSERT INTO users (username, email, password, role, permissions, sucursales, active, created_at) 
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?)`,
+      [username, email, hashedPassword, role, permissionsJson, sucursalesJson, createdAt],
+      async function(err) {
+        if (err) {
+          if (err.message.includes('UNIQUE constraint failed')) {
+            return res.status(409).json({ 
+              success: false, 
+              error: 'El usuario o email ya existe' 
+            });
+          }
+          console.error('Error creando usuario:', err);
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Error del servidor' 
+          });
+        }
+        
+        const newUserId = this.lastID;
+        
+        // Log de auditoría: crear usuario
+        if (createdBy) {
+          try {
+            await logAudit({
+              userId: createdBy.id,
+              username: createdBy.username,
+              action: 'CREATE_USER',
+              entityType: 'user',
+              entityId: newUserId,
+              details: { 
+                newUser: username, 
+                email, 
+                role, 
+                sucursales 
+              },
+              ipAddress: req.ip || req.connection.remoteAddress
+            });
+          } catch (auditErr) {
+            console.error('Error al registrar auditoría:', auditErr);
+          }
+        }
+        
+        res.status(201).json({ 
+          success: true, 
+          message: 'Usuario creado exitosamente',
+          userId: newUserId 
+        });
+      }
+    );
+  } catch (error) {
+    console.error('Error creando usuario:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Error del servidor' 
+    });
+  }
+});
+
+// ── PUT /api/users/:id ── Actualizar usuario (solo admin)
+app.put('/api/users/:id', async (req, res) => {
+  const { id } = req.params;
+  const { username, email, password, role, permissions, sucursales, active, updatedBy } = req.body;
+  
+  try {
+    // Construir query dinámico basado en campos presentes
+    const updates = [];
+    const values = [];
+    const changes = {}; // Para auditoría
+    
+    if (username !== undefined) {
+      updates.push('username = ?');
+      values.push(username);
+      changes.username = username;
+    }
+    if (email !== undefined) {
+      updates.push('email = ?');
+      values.push(email);
+      changes.email = email;
+    }
+    if (password !== undefined && password !== '') {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updates.push('password = ?');
+      values.push(hashedPassword);
+      changes.passwordChanged = true;
+    }
+    if (role !== undefined) {
+      updates.push('role = ?');
+      values.push(role);
+      changes.role = role;
+    }
+    if (permissions !== undefined) {
+      updates.push('permissions = ?');
+      values.push(JSON.stringify(permissions));
+      changes.permissions = permissions;
+    }
+    if (sucursales !== undefined) {
+      updates.push('sucursales = ?');
+      values.push(JSON.stringify(sucursales));
+      changes.sucursales = sucursales;
+    }
+    if (active !== undefined) {
+      updates.push('active = ?');
+      values.push(active ? 1 : 0);
+      changes.active = active;
+    }
+    
+    if (updates.length === 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'No hay campos para actualizar' 
+      });
+    }
+    
+    values.push(id); // Para el WHERE
+    
+    const query = `UPDATE users SET ${updates.join(', ')} WHERE id = ?`;
+    
+    db.run(query, values, async function(err) {
+      if (err) {
+        if (err.message.includes('UNIQUE constraint failed')) {
+          return res.status(409).json({ 
+            success: false, 
+            error: 'El usuario o email ya existe' 
+          });
+        }
+        console.error('Error actualizando usuario:', err);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error del servidor' 
+        });
+      }
+      
+      if (this.changes === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Usuario no encontrado' 
+        });
+      }
+      
+      // Log de auditoría: actualizar usuario
+      if (updatedBy) {
+        try {
+          await logAudit({
+            userId: updatedBy.id,
+            username: updatedBy.username,
+            action: changes.passwordChanged ? 'CHANGE_PASSWORD' : 'UPDATE_USER',
+            entityType: 'user',
+            entityId: parseInt(id),
+            details: { 
+              targetUser: username || `ID: ${id}`,
+              changes 
+            },
+            ipAddress: req.ip || req.connection.remoteAddress
+          });
+        } catch (auditErr) {
+          console.error('Error al registrar auditoría:', auditErr);
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        message: 'Usuario actualizado exitosamente' 
+      });
+    });
+  } catch (error) {
+    console.error('Error actualizando usuario:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Error del servidor' 
+    });
+  }
+});
+
+// ── DELETE /api/users/:id ── Eliminar usuario (solo admin)
+app.delete('/api/users/:id', (req, res) => {
+  const { id } = req.params;
+  const { deletedBy } = req.body;
+  
+  // Verificar que no sea el último admin
+  db.get(
+    'SELECT COUNT(*) as count FROM users WHERE role = ? AND active = 1',
+    ['admin'],
+    (err, result) => {
+      if (err) {
+        console.error('Error verificando admins:', err);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error del servidor' 
+        });
+      }
+      
+      // Si solo hay un admin, verificar que no sea el que se está eliminando
+      if (result.count === 1) {
+        db.get('SELECT role FROM users WHERE id = ?', [id], (err, user) => {
+          if (err) {
+            return res.status(500).json({ 
+              success: false, 
+              error: 'Error del servidor' 
+            });
+          }
+          
+          if (user && user.role === 'admin') {
+            return res.status(403).json({ 
+              success: false, 
+              error: 'No se puede eliminar el último administrador' 
+            });
+          }
+          
+          // Eliminar usuario
+          deleteUser(id, res, deletedBy, req);
+        });
+      } else {
+        // Eliminar usuario
+        deleteUser(id, res, deletedBy, req);
+      }
+    }
+  );
+});
+
+// Función auxiliar para eliminar usuario
+async function deleteUser(id, res, deletedBy, req) {
+  // Primero obtener los datos del usuario antes de eliminar (para auditoría)
+  db.get('SELECT username, email, role FROM users WHERE id = ?', [id], async (err, userToDelete) => {
+    if (err) {
+      console.error('Error obteniendo usuario:', err);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Error del servidor' 
+      });
+    }
+    
+    if (!userToDelete) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Usuario no encontrado' 
+      });
+    }
+    
+    db.run('DELETE FROM users WHERE id = ?', [id], async function(err) {
+      if (err) {
+        console.error('Error eliminando usuario:', err);
+        return res.status(500).json({ 
+          success: false, 
+          error: 'Error del servidor' 
+        });
+      }
+      
+      if (this.changes === 0) {
+        return res.status(404).json({ 
+          success: false, 
+          error: 'Usuario no encontrado' 
+        });
+      }
+      
+      // Log de auditoría: eliminar usuario
+      if (deletedBy) {
+        try {
+          await logAudit({
+            userId: deletedBy.id,
+            username: deletedBy.username,
+            action: 'DELETE_USER',
+            entityType: 'user',
+            entityId: parseInt(id),
+            details: { 
+              deletedUser: userToDelete.username,
+              email: userToDelete.email,
+              role: userToDelete.role
+            },
+            ipAddress: req?.ip || req?.connection?.remoteAddress
+          });
+        } catch (auditErr) {
+          console.error('Error al registrar auditoría:', auditErr);
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        message: 'Usuario eliminado exitosamente' 
+      });
+    });
+  });
+}
+
+// ── POST /api/users/assign-tienda ── Asignar o remover tienda de un usuario
+app.post('/api/users/assign-tienda', (req, res) => {
+  const { userId, tienda, action, assignedBy } = req.body; // action: 'add' o 'remove'
+  
+  if (!userId || !tienda || !action) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Faltan parámetros requeridos (userId, tienda, action)' 
+    });
+  }
+  
+  // Obtener el usuario actual
+  db.get('SELECT username, sucursales FROM users WHERE id = ?', [userId], async (err, user) => {
+    if (err) {
+      console.error('Error obteniendo usuario:', err);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Error del servidor' 
+      });
+    }
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Usuario no encontrado' 
+      });
+    }
+    
+    // Parsear sucursales actuales
+    let sucursales = [];
+    try {
+      sucursales = user.sucursales ? JSON.parse(user.sucursales) : [];
+    } catch (e) {
+      sucursales = [];
+    }
+    
+    // Aplicar la acción
+    if (action === 'add') {
+      if (!sucursales.includes(tienda)) {
+        sucursales.push(tienda);
+      }
+    } else if (action === 'remove') {
+      sucursales = sucursales.filter(t => t !== tienda);
+    } else {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Acción inválida. Use "add" o "remove"' 
+      });
+    }
+    
+    // Actualizar en la DB
+    db.run(
+      'UPDATE users SET sucursales = ? WHERE id = ?',
+      [JSON.stringify(sucursales), userId],
+      async function(err) {
+        if (err) {
+          console.error('Error actualizando sucursales:', err);
+          return res.status(500).json({ 
+            success: false, 
+            error: 'Error del servidor' 
+          });
+        }
+        
+        // Log de auditoría: asignar/remover tienda
+        if (assignedBy) {
+          try {
+            await logAudit({
+              userId: assignedBy.id,
+              username: assignedBy.username,
+              action: action === 'add' ? 'ASSIGN_TIENDA' : 'REMOVE_TIENDA',
+              entityType: 'user',
+              entityId: userId,
+              details: { 
+                targetUser: user.username,
+                tienda,
+                newSucursales: sucursales
+              },
+              ipAddress: req.ip || req.connection.remoteAddress
+            });
+          } catch (auditErr) {
+            console.error('Error al registrar auditoría:', auditErr);
+          }
+        }
+        
+        res.json({ 
+          success: true, 
+          message: `Tienda ${action === 'add' ? 'asignada' : 'removida'} exitosamente`,
+          sucursales: sucursales
+        });
+      }
+    );
+  });
+});
+
+// ================================================================================================
+// ENDPOINTS DE AUDITORÍA
+// ================================================================================================
+
+/**
+ * Función helper para registrar eventos de auditoría
+ * @param {Object} params - Parámetros del log
+ * @param {number} params.userId - ID del usuario (opcional si es acción sin autenticación)
+ * @param {string} params.username - Nombre de usuario
+ * @param {string} params.action - Tipo de acción (LOGIN, CREATE_USER, etc.)
+ * @param {string} params.entityType - Tipo de entidad afectada (user, cierre, config)
+ * @param {number} params.entityId - ID de la entidad afectada
+ * @param {Object} params.details - Detalles adicionales en formato JSON
+ * @param {string} params.ipAddress - IP del cliente
+ */
+function logAudit({ userId = null, username, action, entityType = null, entityId = null, details = {}, ipAddress = null }) {
+  return new Promise((resolve, reject) => {
+    const detailsJSON = JSON.stringify(details);
+    
+    db.run(
+      `INSERT INTO audit_logs (user_id, username, action, entity_type, entity_id, details, ip_address)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [userId, username, action, entityType, entityId, detailsJSON, ipAddress],
+      function(err) {
+        if (err) {
+          console.error('❌ Error al registrar log de auditoría:', err);
+          reject(err);
+        } else {
+          console.log(`📝 Audit Log: [${action}] ${username} - ${entityType || 'N/A'}:${entityId || 'N/A'}`);
+          resolve(this.lastID);
+        }
+      }
+    );
+  });
+}
+
+// Endpoint para crear log de auditoría manualmente (uso interno)
+app.post('/api/audit/log', async (req, res) => {
+  const { userId, username, action, entityType, entityId, details } = req.body;
+  const ipAddress = req.ip || req.connection.remoteAddress;
+
+  try {
+    const logId = await logAudit({
+      userId,
+      username,
+      action,
+      entityType,
+      entityId,
+      details,
+      ipAddress
+    });
+    
+    res.json({ success: true, logId });
+  } catch (error) {
+    console.error('Error al crear log de auditoría:', error);
+    res.status(500).json({ error: 'Error al crear log de auditoría' });
+  }
+});
+
+// Endpoint para obtener logs de auditoría con filtros
+app.get('/api/audit/logs', (req, res) => {
+  const { 
+    userId, 
+    username, 
+    action, 
+    entityType, 
+    startDate, 
+    endDate, 
+    limit = 100, 
+    offset = 0 
+  } = req.query;
+
+  let query = 'SELECT * FROM audit_logs WHERE 1=1';
+  const params = [];
+
+  // Filtros opcionales
+  if (userId) {
+    query += ' AND user_id = ?';
+    params.push(userId);
+  }
+  
+  if (username) {
+    query += ' AND username LIKE ?';
+    params.push(`%${username}%`);
+  }
+  
+  if (action) {
+    query += ' AND action = ?';
+    params.push(action);
+  }
+  
+  if (entityType) {
+    query += ' AND entity_type = ?';
+    params.push(entityType);
+  }
+  
+  if (startDate) {
+    query += ' AND created_at >= ?';
+    params.push(startDate);
+  }
+  
+  if (endDate) {
+    query += ' AND created_at <= ?';
+    params.push(endDate);
+  }
+
+  // Ordenar por más reciente
+  query += ' ORDER BY created_at DESC';
+  
+  // Paginación
+  query += ' LIMIT ? OFFSET ?';
+  params.push(parseInt(limit), parseInt(offset));
+
+  db.all(query, params, (err, logs) => {
+    if (err) {
+      console.error('Error al obtener logs:', err);
+      return res.status(500).json({ error: 'Error al obtener logs de auditoría' });
+    }
+
+    // Parsear los detalles JSON
+    const logsWithDetails = logs.map(log => ({
+      ...log,
+      details: log.details ? JSON.parse(log.details) : null
+    }));
+
+    // Obtener el total de registros (sin paginación)
+    let countQuery = 'SELECT COUNT(*) as total FROM audit_logs WHERE 1=1';
+    const countParams = [];
+    
+    if (userId) {
+      countQuery += ' AND user_id = ?';
+      countParams.push(userId);
+    }
+    if (username) {
+      countQuery += ' AND username LIKE ?';
+      countParams.push(`%${username}%`);
+    }
+    if (action) {
+      countQuery += ' AND action = ?';
+      countParams.push(action);
+    }
+    if (entityType) {
+      countQuery += ' AND entity_type = ?';
+      countParams.push(entityType);
+    }
+    if (startDate) {
+      countQuery += ' AND created_at >= ?';
+      countParams.push(startDate);
+    }
+    if (endDate) {
+      countQuery += ' AND created_at <= ?';
+      countParams.push(endDate);
+    }
+
+    db.get(countQuery, countParams, (err, countResult) => {
+      if (err) {
+        console.error('Error al contar logs:', err);
+        return res.json({ logs: logsWithDetails, total: logs.length });
+      }
+
+      res.json({ 
+        logs: logsWithDetails, 
+        total: countResult.total,
+        limit: parseInt(limit),
+        offset: parseInt(offset)
+      });
+    });
+  });
+});
+
+// Endpoint para obtener estadísticas de auditoría
+app.get('/api/audit/stats', (req, res) => {
+  const { startDate, endDate } = req.query;
+
+  let dateFilter = '';
+  const params = [];
+  
+  if (startDate) {
+    dateFilter += ' AND created_at >= ?';
+    params.push(startDate);
+  }
+  if (endDate) {
+    dateFilter += ' AND created_at <= ?';
+    params.push(endDate);
+  }
+
+  const queries = {
+    totalLogs: `SELECT COUNT(*) as count FROM audit_logs WHERE 1=1${dateFilter}`,
+    byAction: `SELECT action, COUNT(*) as count FROM audit_logs WHERE 1=1${dateFilter} GROUP BY action ORDER BY count DESC`,
+    byUser: `SELECT username, COUNT(*) as count FROM audit_logs WHERE 1=1${dateFilter} GROUP BY username ORDER BY count DESC LIMIT 10`,
+    recentActivity: `SELECT DATE(created_at) as date, COUNT(*) as count FROM audit_logs WHERE 1=1${dateFilter} GROUP BY DATE(created_at) ORDER BY date DESC LIMIT 30`
+  };
+
+  const stats = {};
+
+  db.get(queries.totalLogs, params, (err, total) => {
+    if (err) {
+      return res.status(500).json({ error: 'Error al obtener estadísticas' });
+    }
+    stats.totalLogs = total.count;
+
+    db.all(queries.byAction, params, (err, byAction) => {
+      if (err) {
+        return res.status(500).json({ error: 'Error al obtener estadísticas por acción' });
+      }
+      stats.byAction = byAction;
+
+      db.all(queries.byUser, params, (err, byUser) => {
+        if (err) {
+          return res.status(500).json({ error: 'Error al obtener estadísticas por usuario' });
+        }
+        stats.byUser = byUser;
+
+        db.all(queries.recentActivity, params, (err, recentActivity) => {
+          if (err) {
+            return res.status(500).json({ error: 'Error al obtener actividad reciente' });
+          }
+          stats.recentActivity = recentActivity;
+
+          res.json(stats);
+        });
+      });
+    });
+  });
+});
+
+// Endpoint para limpiar logs antiguos (mantenimiento)
+app.delete('/api/audit/cleanup', (req, res) => {
+  const { daysToKeep = 90 } = req.body;
+  
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+  const cutoffDateStr = cutoffDate.toISOString();
+
+  db.run(
+    'DELETE FROM audit_logs WHERE created_at < ?',
+    [cutoffDateStr],
+    function(err) {
+      if (err) {
+        console.error('Error al limpiar logs:', err);
+        return res.status(500).json({ error: 'Error al limpiar logs antiguos' });
+      }
+
+      res.json({ 
+        success: true, 
+        deletedCount: this.changes,
+        message: `Se eliminaron ${this.changes} logs anteriores a ${cutoffDateStr}`
+      });
+    }
+  );
 });
 
 // -------------------------------
