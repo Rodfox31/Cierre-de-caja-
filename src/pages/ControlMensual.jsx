@@ -614,6 +614,169 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
   );
 }
 
+// Vista agrupada por usuarios
+const VistaAgrupadaUsuarios = React.memo(function VistaAgrupadaUsuarios({ allCierres, theme, onUsuarioClick }) {
+  // Agrupar cierres por usuario
+  const datosAgrupados = useMemo(() => {
+    const grupos = {};
+    
+    allCierres.forEach(cierre => {
+      const usuario = cierre.usuario;
+      if (!grupos[usuario]) {
+        grupos[usuario] = {
+          nombre: usuario,
+          total: 0,
+          correctos: 0,
+          menores: 0,
+          graves: 0,
+          validados: 0,
+          sinValidar: 0,
+          diferenciaTotal: 0,
+        };
+      }
+      
+      grupos[usuario].total += 1;
+      const estado = getEstado(cierre);
+      if (estado === ESTADOS_CIERRE.CORRECTO) grupos[usuario].correctos += 1;
+      else if (estado === ESTADOS_CIERRE.DIFERENCIA_MENOR) grupos[usuario].menores += 1;
+      else grupos[usuario].graves += 1;
+      
+      if (cierre.validado) grupos[usuario].validados += 1;
+      else grupos[usuario].sinValidar += 1;
+      
+      grupos[usuario].diferenciaTotal += Math.abs(Number(cierre.grand_difference_total) || 0);
+    });
+    
+    return Object.values(grupos).sort((a, b) => b.diferenciaTotal - a.diferenciaTotal);
+  }, [allCierres]);
+
+  if (datosAgrupados.length === 0) {
+    return (
+      <Box sx={{ py: 8, textAlign: 'center' }}>
+        <InfoIcon sx={{ fontSize: 60, mb: 2, color: theme.palette.text.secondary }} />
+        <Typography variant="h6" sx={{ color: theme.palette.text.primary }} gutterBottom>
+          No se encontraron resultados
+        </Typography>
+      </Box>
+    );
+  }
+
+  return (
+    <Grid container spacing={2} sx={{ p: 2 }}>
+      {datosAgrupados.map((grupo, index) => (
+        <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
+          <Paper
+            elevation={2}
+            onClick={() => onUsuarioClick && onUsuarioClick(grupo.nombre)}
+            sx={{
+              p: 2,
+              borderRadius: 2,
+              backgroundColor: theme.palette.background.paper,
+              cursor: 'pointer',
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 4,
+              },
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+              <PersonIcon sx={{ color: theme.palette.primary.main, mr: 1 }} />
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: theme.palette.primary.main }}>
+                {grupo.nombre}
+              </Typography>
+            </Box>
+            
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                  Total cierres:
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  {grupo.total}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ESTADOS_CIERRE.CORRECTO.color }} />
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '0.85rem' }}>
+                    Correctos:
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: ESTADOS_CIERRE.CORRECTO.color }}>
+                  {grupo.correctos}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ESTADOS_CIERRE.DIFERENCIA_MENOR.color }} />
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '0.85rem' }}>
+                    Menores:
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: ESTADOS_CIERRE.DIFERENCIA_MENOR.color }}>
+                  {grupo.menores}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ESTADOS_CIERRE.DIFERENCIA_GRAVE.color }} />
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontSize: '0.85rem' }}>
+                    Graves:
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: ESTADOS_CIERRE.DIFERENCIA_GRAVE.color }}>
+                  {grupo.graves}
+                </Typography>
+              </Box>
+
+              <Divider sx={{ my: 0.5 }} />
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" sx={{ color: theme.palette.success.main, fontSize: '0.85rem' }}>
+                  Validados:
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: theme.palette.success.main }}>
+                  {grupo.validados}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" sx={{ color: theme.palette.warning.main, fontSize: '0.85rem' }}>
+                  Sin validar:
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: theme.palette.warning.main }}>
+                  {grupo.sinValidar}
+                </Typography>
+              </Box>
+              
+              <Box 
+                sx={{ 
+                  mt: 1, 
+                  pt: 1, 
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  display: 'flex', 
+                  justifyContent: 'space-between' 
+                }}
+              >
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 'bold' }}>
+                  Diferencia total:
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 'bold', color: theme.palette.error.main }}>
+                  {formatCurrency(grupo.diferenciaTotal)}
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+        </Grid>
+      ))}
+    </Grid>
+  );
+});
+
 export default function ControlMensual() {
   const theme = useTheme();
   
@@ -640,6 +803,7 @@ export default function ControlMensual() {
   // Estados para filtros específicos
   const [estadoFilter, setEstadoFilter] = useState('todos'); // 'todos', 'correcto', 'menor', 'grave'
   const [validacionFilter, setValidacionFilter] = useState('todos'); // 'todos', 'validado', 'sin_validar', 'revisar'
+  const [vistaAgrupada, setVistaAgrupada] = useState('tiendas'); // 'tiendas', 'usuarios', 'lista'
 
   // Función para transformar datos de cierre al formato de impresión
   const transformarDatosParaImprimir = (cierre) => {
@@ -835,9 +999,51 @@ export default function ControlMensual() {
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
   ];
 
-  // Efecto para aplicar filtros cuando cambian los filtros o la tienda seleccionada
+  // Efecto para aplicar filtros cuando cambian los filtros, la tienda seleccionada o la vista
   useEffect(() => {
-    if (selectedTienda && estadisticasPorTienda.length > 0) {
+    // Si está en vista lista, mostrar todos los cierres
+    if (vistaAgrupada === 'lista') {
+      console.log('📋 Vista lista: mostrando todos los cierres');
+      let cierresFiltrados = allCierres;
+
+      // Filtro por estado
+      if (estadoFilter !== 'todos') {
+        cierresFiltrados = cierresFiltrados.filter(cierre => {
+          const estado = getEstado(cierre);
+          switch (estadoFilter) {
+            case 'correcto':
+              return estado.label === ESTADOS_CIERRE.CORRECTO.label;
+            case 'menor':
+              return estado.label === ESTADOS_CIERRE.DIFERENCIA_MENOR.label;
+            case 'grave':
+              return estado.label === ESTADOS_CIERRE.DIFERENCIA_GRAVE.label;
+            default:
+              return true;
+          }
+        });
+      }
+
+      // Filtro por validación
+      if (validacionFilter !== 'todos') {
+        cierresFiltrados = cierresFiltrados.filter(cierre => {
+          switch (validacionFilter) {
+            case 'validado':
+              return cierre.validado === true || cierre.validado === 1;
+            case 'sin_validar':
+              return !cierre.validado || cierre.validado === false || cierre.validado === 0;
+            case 'revisar':
+              return cierre.estado === 'revisar' || cierre.revisar === true || cierre.revisar === 1;
+            default:
+              return true;
+          }
+        });
+      }
+
+      setSelectedCierres(cierresFiltrados);
+      setSelectedCierresIds(new Set());
+    }
+    // Si hay tienda seleccionada, filtrar por tienda
+    else if (selectedTienda && estadisticasPorTienda.length > 0) {
       const tiendaStats = estadisticasPorTienda.find(stats => stats.tienda === selectedTienda);
       if (tiendaStats) {
         console.log('🔍 Aplicando filtros:', { estadoFilter, validacionFilter });
@@ -886,7 +1092,7 @@ export default function ControlMensual() {
         setSelectedCierresIds(new Set());
       }
     }
-  }, [selectedTienda, estadoFilter, validacionFilter, estadisticasPorTienda]);
+  }, [selectedTienda, estadoFilter, validacionFilter, estadisticasPorTienda, vistaAgrupada, allCierres]);
 
   const handleTiendaClick = (tienda) => {
     // Si hacemos clic en la misma tienda, toggle la selección
@@ -1627,6 +1833,72 @@ export default function ControlMensual() {
                 Revisar Boutique
               </Button>
             </Box>
+
+            <Divider orientation="vertical" flexItem />
+
+            {/* Filtro de Vista */}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600, mr: 0.5 }}>
+                Vista:
+              </Typography>
+              <Button
+                variant={vistaAgrupada === 'tiendas' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => setVistaAgrupada('tiendas')}
+                startIcon={<StoreIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 'auto',
+                  px: 1.5,
+                  fontSize: '0.8rem',
+                  ...(vistaAgrupada === 'tiendas' && {
+                    backgroundColor: theme.palette.primary.main,
+                    color: '#fff',
+                  })
+                }}
+              >
+                Tiendas
+              </Button>
+              <Button
+                variant={vistaAgrupada === 'usuarios' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => setVistaAgrupada('usuarios')}
+                startIcon={<PersonIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 'auto',
+                  px: 1.5,
+                  fontSize: '0.8rem',
+                  ...(vistaAgrupada === 'usuarios' && {
+                    backgroundColor: theme.palette.primary.main,
+                    color: '#fff',
+                  })
+                }}
+              >
+                Usuarios
+              </Button>
+              <Button
+                variant={vistaAgrupada === 'lista' ? "contained" : "outlined"}
+                size="small"
+                onClick={() => setVistaAgrupada('lista')}
+                startIcon={<ReceiptIcon />}
+                sx={{
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  minWidth: 'auto',
+                  px: 1.5,
+                  fontSize: '0.8rem',
+                  ...(vistaAgrupada === 'lista' && {
+                    backgroundColor: theme.palette.primary.main,
+                    color: '#fff',
+                  })
+                }}
+              >
+                Lista
+              </Button>
+            </Box>
           </Box>
 
           {/* Indicador de resultados */}
@@ -1670,25 +1942,38 @@ export default function ControlMensual() {
           </Box>
         ) : (
           <>
-        {/* Fila principal: TiendaCards */}
-        <Box sx={{ mb: 3, display: 'flex', flexDirection: 'row', gap: 2, flexWrap: 'nowrap', justifyContent: 'flex-start', alignItems: 'stretch', overflowX: 'auto', width: '100%' }}>
-          {tiendasAMostrar.map((stats) => (
-            <Box key={stats.tienda} sx={{ display: 'flex', alignItems: 'stretch', flex: '1 1 180px', minWidth: '180px', maxWidth: '220px' }}>
-              <TiendaCard
-                tienda={stats.tienda}
-                totalCierres={stats.totalCierres}
-                cierresConErrores={stats.cierresConErrores}
-                totalDiferencia={stats.totalDiferencia}
-                todosCierres={stats.todosCierres}
-                onClick={() => handleTiendaClick(stats.tienda)}
-                isSelected={selectedCard === stats.tienda}
-              />
-            </Box>
-          ))}
-        </Box>
+        {/* Vistas condicionales según selección */}
+        {vistaAgrupada === 'usuarios' ? (
+          // Vista agrupada por usuarios
+          <VistaAgrupadaUsuarios 
+            allCierres={allCierres}
+            theme={theme}
+            onUsuarioClick={(usuario) => {
+              // Opcional: implementar filtrado por usuario
+              console.log('Usuario seleccionado:', usuario);
+            }}
+          />
+        ) : vistaAgrupada === 'tiendas' ? (
+          // Vista agrupada por tiendas (original)
+          <Box sx={{ mb: 3, display: 'flex', flexDirection: 'row', gap: 2, flexWrap: 'nowrap', justifyContent: 'flex-start', alignItems: 'stretch', overflowX: 'auto', width: '100%' }}>
+            {tiendasAMostrar.map((stats) => (
+              <Box key={stats.tienda} sx={{ display: 'flex', alignItems: 'stretch', flex: '1 1 180px', minWidth: '180px', maxWidth: '220px' }}>
+                <TiendaCard
+                  tienda={stats.tienda}
+                  totalCierres={stats.totalCierres}
+                  cierresConErrores={stats.cierresConErrores}
+                  totalDiferencia={stats.totalDiferencia}
+                  todosCierres={stats.todosCierres}
+                  onClick={() => handleTiendaClick(stats.tienda)}
+                  isSelected={selectedCard === stats.tienda}
+                />
+              </Box>
+            ))}
+          </Box>
+        ) : null}
 
         {/* Mensaje si no hay tiendas */}
-        {tiendas.length === 0 && (
+        {tiendas.length === 0 && vistaAgrupada !== 'lista' && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography variant="h6" sx={{ color: theme.palette.text.secondary }}>
               No se encontraron tiendas configuradas
@@ -1697,7 +1982,7 @@ export default function ControlMensual() {
         )}
 
         {/* Mensaje si no hay tiendas con errores */}
-        {tiendas.length > 0 && tiendasAMostrar.length === 0 && (
+        {tiendas.length > 0 && tiendasAMostrar.length === 0 && vistaAgrupada !== 'lista' && (
           <Box sx={{ textAlign: 'center', py: 8 }}>
             <Typography variant="h6" sx={{ color: theme.palette.text.secondary }}>
               No se encontraron tiendas en el período seleccionado
@@ -1705,20 +1990,25 @@ export default function ControlMensual() {
           </Box>
         )}
 
-        {/* Tabla de cierres de la tienda seleccionada */}
-        {selectedTienda && (
+        {/* Tabla de cierres: mostrar si hay tienda seleccionada O si está en vista lista */}
+        {(selectedTienda || vistaAgrupada === 'lista') && (
           <Box sx={{ mt: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
-                Cierres de {selectedTienda}
+                {vistaAgrupada === 'lista' 
+                  ? `Todos los cierres de ${months[selectedMonth]} ${selectedYear}`
+                  : `Cierres de ${selectedTienda}`
+                }
               </Typography>
-              <Button
-                variant="text"
-                onClick={() => setSelectedTienda(null)}
-                sx={{ color: theme.palette.text.secondary, minWidth: 'auto' }}
-              >
-                <KeyboardArrowUpIcon />
-              </Button>
+              {selectedTienda && (
+                <Button
+                  variant="text"
+                  onClick={() => setSelectedTienda(null)}
+                  sx={{ color: theme.palette.text.secondary, minWidth: 'auto' }}
+                >
+                  <KeyboardArrowUpIcon />
+                </Button>
+              )}
             </Box>
             
 
