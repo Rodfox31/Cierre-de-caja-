@@ -1,8 +1,12 @@
 // Diferencias.jsx
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import moment from 'moment';
+import 'moment/locale/es'; // Importar locale español
 import { fetchWithFallback, axiosWithFallback } from '../config';
+
+// Configurar moment en español
+moment.locale('es');
 import {
   Box,
   Typography,
@@ -36,8 +40,13 @@ import {
   Slide,
   Snackbar,
   Alert,
+  Popover,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
+import { DateRangePicker } from 'react-date-range';
+import { es } from 'date-fns/locale';
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
 import {
   CheckCircle as CheckCircleIcon,
   Warning as WarningIcon,
@@ -240,6 +249,138 @@ const ExactValue = React.memo(function ExactValue({ value, currency = true }) {
   );
 });
 
+// Componente compacto para DateRangePicker
+const CompactDateRangePicker = React.memo(function CompactDateRangePicker({ 
+  fechaDesde, 
+  fechaHasta, 
+  onChange, 
+  disabled,
+  theme 
+}) {
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [selection, setSelection] = useState({
+    startDate: fechaDesde ? fechaDesde.toDate() : new Date(),
+    endDate: fechaHasta ? fechaHasta.toDate() : new Date(),
+    key: 'selection'
+  });
+
+  const handleClick = (event) => {
+    if (!disabled) {
+      setAnchorEl(event.currentTarget);
+    }
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleSelect = (ranges) => {
+    const { startDate, endDate } = ranges.selection;
+    setSelection(ranges.selection);
+    onChange(moment(startDate), moment(endDate));
+  };
+
+  const open = Boolean(anchorEl);
+  const displayText = fechaDesde && fechaHasta 
+    ? `${fechaDesde.format('DD/MM/YY')} - ${fechaHasta.format('DD/MM/YY')}`
+    : 'Seleccionar rango';
+
+  return (
+    <>
+      <TextField
+        size="small"
+        value={displayText}
+        onClick={handleClick}
+        disabled={disabled}
+        placeholder="Desde - Hasta"
+        InputProps={{
+          readOnly: true,
+          sx: {
+            cursor: disabled ? 'default' : 'pointer',
+            height: 32,
+            fontSize: '0.75rem',
+            backgroundColor: alpha(theme.palette.background.paper, 0.85),
+            color: theme.palette.text.primary,
+          }
+        }}
+        sx={{
+          width: 180,
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
+          },
+          '& .MuiInputBase-root:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: disabled ? undefined : theme.palette.primary.main,
+          },
+        }}
+      />
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'left',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'left',
+        }}
+        PaperProps={{
+          sx: {
+            mt: 0.5,
+            boxShadow: 3,
+            backgroundColor: '#fff',
+            '& .rdrCalendarWrapper': {
+              backgroundColor: '#fff',
+              color: '#000',
+            },
+            '& .rdrMonth': {
+              width: '280px',
+            },
+            '& .rdrMonthAndYearWrapper': {
+              backgroundColor: '#fff',
+              color: '#000',
+            },
+            '& .rdrMonthPicker select, & .rdrYearPicker select': {
+              backgroundColor: '#fff',
+              color: '#000',
+            },
+            '& .rdrWeekDay': {
+              color: '#000',
+            },
+            '& .rdrDayToday .rdrDayNumber span:after': {
+              backgroundColor: theme.palette.primary.main,
+            },
+            '& .rdrDay': {
+              color: '#000',
+            },
+            '& .rdrDayNumber span': {
+              color: '#000',
+            },
+            '& .rdrDayDisabled': {
+              backgroundColor: 'transparent',
+            },
+            '& .rdrDayPassive .rdrDayNumber span': {
+              color: '#d5dce0',
+            },
+          }
+        }}
+      >
+        <DateRangePicker
+          ranges={[selection]}
+          onChange={handleSelect}
+          locale={es}
+          months={2}
+          direction="horizontal"
+          showSelectionPreview={true}
+          moveRangeOnFirstSelection={false}
+          rangeColors={[theme.palette.primary.main]}
+        />
+      </Popover>
+    </>
+  );
+});
+
 function LoadingSkeleton({ columns }) {
   return (
     <>
@@ -270,6 +411,103 @@ function EmptyState() {
     </Box>
   );
 }
+
+// Vista agrupada por tienda o usuario
+const VistaAgrupada = React.memo(function VistaAgrupada({ datos, tipo, theme }) {
+  if (!datos || datos.length === 0) {
+    return <EmptyState />;
+  }
+
+  return (
+    <Grid container spacing={2} sx={{ p: 2 }}>
+      {datos.map((grupo, index) => (
+        <Grid item xs={12} sm={6} md={4} key={index}>
+          <Paper
+            elevation={2}
+            sx={{
+              p: 2,
+              borderRadius: 2,
+              backgroundColor: theme.palette.background.paper,
+              transition: 'transform 0.2s, box-shadow 0.2s',
+              '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: 4,
+              },
+            }}
+          >
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold', color: theme.palette.primary.main }}>
+              {grupo.nombre}
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                  Total cierres:
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                  {grupo.total}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ESTADOS_CIERRE.CORRECTO.color }} />
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    Correctos:
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: ESTADOS_CIERRE.CORRECTO.color }}>
+                  {grupo.correctos}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ESTADOS_CIERRE.DIFERENCIA_MENOR.color }} />
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    Diferencias menores:
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: ESTADOS_CIERRE.DIFERENCIA_MENOR.color }}>
+                  {grupo.menores}
+                </Typography>
+              </Box>
+              
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: ESTADOS_CIERRE.DIFERENCIA_GRAVE.color }} />
+                  <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                    Diferencias graves:
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', color: ESTADOS_CIERRE.DIFERENCIA_GRAVE.color }}>
+                  {grupo.graves}
+                </Typography>
+              </Box>
+              
+              <Box 
+                sx={{ 
+                  mt: 1, 
+                  pt: 1, 
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  display: 'flex', 
+                  justifyContent: 'space-between' 
+                }}
+              >
+                <Typography variant="body2" sx={{ color: theme.palette.text.secondary, fontWeight: 'bold' }}>
+                  Diferencia total:
+                </Typography>
+                <Typography variant="body1" sx={{ fontWeight: 'bold', color: theme.palette.error.main }}>
+                  {formatCurrency(grupo.diferenciaTotal)}
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+        </Grid>
+      ))}
+    </Grid>
+  );
+});
 
 const HeaderControls = React.memo(function HeaderControls({
   fechaDesde,
@@ -305,6 +543,13 @@ const HeaderControls = React.memo(function HeaderControls({
   selectedMonth,
   setSelectedMonth,
   handleMonthChange,
+  montoDesde,
+  setMontoDesde,
+  montoHasta,
+  setMontoHasta,
+  vistaAgrupada,
+  setVistaAgrupada,
+  userRole,
 }) {
   const theme = useTheme();
   const sharedSelectSx = {
@@ -384,217 +629,212 @@ const HeaderControls = React.memo(function HeaderControls({
   );
 
   return (
-    <Box mb={3}>
-      {/* Filtros principales en una sola fila */}
-      <Grid container spacing={1} alignItems="center" sx={{ mb: 2, flexWrap: 'nowrap', width: '100%', maxWidth: '100%', minWidth: 0 }}>
-        {/* PERIODO */}
-        <Grid item sx={{ flex: '1 1 120px', minWidth: 120 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel sx={sharedLabelSx}>Período</InputLabel>
-            <Select
-              label="Período"
-              value={selectedDatePreset}
-              onChange={handleDatePresetChange}
-              variant="outlined"
-              sx={sharedSelectSx}
-            >
-              <MenuItem value="custom">Personalizado</MenuItem>
-              <MenuItem value="last7days">Últimos 7 días</MenuItem>
-              <MenuItem value="last30days">Últimos 30 días</MenuItem>
-              <MenuItem value="thisMonth">Este mes</MenuItem>
-              <MenuItem value="lastMonth">Mes anterior</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-        {/* MES SOLO DEL AÑO ACTUAL */}
-        <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel sx={sharedLabelSx}>Mes</InputLabel>
-            <Select
-              label="Mes"
-              value={selectedMonth}
-              onChange={handleMonthChange}
-              variant="outlined"
-              sx={sharedSelectSx}
-            >
-              <MenuItem value="">Todos</MenuItem>
-              {["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"].map((mes, idx) => {
-                const value = `${moment().year()}-${String(idx+1).padStart(2,'0')}`;
-                return (
-                  <MenuItem key={value} value={value}>{mes}</MenuItem>
-                );
-              })}
-            </Select>
-          </FormControl>
-        </Grid>
-        {/* DESDE */}
-        <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
-          <TextField
-            fullWidth
-            size="small"
-            label="Desde"
-            type="date"
-            variant="outlined"
-            value={fechaDesde ? fechaDesde.format('YYYY-MM-DD') : ''}
-            onChange={handleFechaDesdeChange}
-            InputLabelProps={{ shrink: true }}
-            disabled={selectedDatePreset !== 'custom'}
-            sx={sharedDateFieldSx}
-          />
-        </Grid>
-        {/* HASTA */}
-        <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
-          <TextField
-            fullWidth
-            size="small"
-            label="Hasta"
-            type="date"
-            variant="outlined"
-            value={fechaHasta ? fechaHasta.format('YYYY-MM-DD') : ''}
-            onChange={handleFechaHastaChange}
-            InputLabelProps={{ shrink: true }}
-            disabled={selectedDatePreset !== 'custom'}
-            sx={sharedDateFieldSx}
-          />
-        </Grid>
-        {/* TIENDA */}
-        <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel sx={sharedLabelSx}>Tienda</InputLabel>
-            <Select
-              label="Tienda"
-              value={tiendaSeleccionada}
-              onChange={(e) => { setTiendaSeleccionada(e.target.value); setPage(0); }}
-              MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
-              variant="outlined"
-              sx={sharedSelectSx}
-            >
-              <MenuItem value="">Todas</MenuItem>
-              {tiendas.map((t) => (
-                <MenuItem key={t} value={t}>{t}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-        {/* USUARIO */}
-        <Grid item sx={{ flex: '1 1 110px', minWidth: 110 }}>
-          <FormControl fullWidth size="small">
-            <InputLabel sx={sharedLabelSx}>Usuario</InputLabel>
-            <Select
-              label="Usuario"
-              value={usuarioSeleccionado}
-              onChange={(e) => { setUsuarioSeleccionado(e.target.value); setPage(0); }}
-              disabled={!tiendaSeleccionada}
-              MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
-              variant="outlined"
-              sx={sharedSelectSx}
-            >
-              <MenuItem value="">Todos</MenuItem>
-              {usuarios.map((u) => (
-                <MenuItem key={u} value={u}>{u}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-      </Grid>
-      {/* Segunda fila: Filtros por tipo y botones de acción */}
-      <Grid container spacing={2} alignItems="center">
-        {/* FILTROS POR TIPO DE DIFERENCIA */}
-        <Grid item xs={12} md={7}>
-          <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-            <FormControlLabel
-              control={
-                <Checkbox 
-                  checked={showCorrectos} 
-                  onChange={e => { setShowCorrectos(e.target.checked); setPage(0); }}
-                  sx={{ color: theme.palette.success.main, '&.Mui-checked': { color: theme.palette.success.main }, p: 0.5 }}
-                  size="small"
-                />
-              }
-              label={<Typography variant="body2" sx={{ color: theme.palette.text.primary }}>Correctos</Typography>}
-              sx={{ mr: 1 }}
-            />
-            <FormControlLabel
-              control={
-                <Checkbox 
-                  checked={showDiferenciasMenores} 
-                  onChange={e => { setShowDiferenciasMenores(e.target.checked); setPage(0); }}
-                  sx={{ color: theme.palette.warning.main, '&.Mui-checked': { color: theme.palette.warning.main }, p: 0.5 }}
-                  size="small"
-                />
-              }
-              label={<Typography variant="body2" sx={{ color: theme.palette.text.primary }}>Menores</Typography>}
-              sx={{ mr: 1 }}
-            />
-            <FormControlLabel
-              control={
-                <Checkbox 
-                  checked={showDiferenciasGraves} 
-                  onChange={e => { setShowDiferenciasGraves(e.target.checked); setPage(0); }}
-                  sx={{ color: theme.palette.error.main, '&.Mui-checked': { color: theme.palette.error.main }, p: 0.5 }}
-                  size="small"
-                />
-              }
-              label={<Typography variant="body2" sx={{ color: theme.palette.text.primary }}>Graves</Typography>}
-              sx={{ mr: 1 }}
-            />
-          </Box>
-        </Grid>
+    <Box mb={2}>
+      {/* Fila única compacta con todos los controles */}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
+        {/* DATE RANGE PICKER COMPACTO */}
+        <CompactDateRangePicker
+          fechaDesde={fechaDesde}
+          fechaHasta={fechaHasta}
+          onChange={(start, end) => {
+            setFechaDesde(start);
+            setFechaHasta(end);
+            setPage(0);
+          }}
+          disabled={false}
+          theme={theme}
+        />
 
-        {/* BOTONES DE ACCIÓN */}
-        <Grid item xs={12} md={5}>
-          <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-            <Button
-              variant="outlined"
-              onClick={fetchData}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={16} /> : <RefreshIcon />}
-              size="small"
-              sx={{ 
-                minWidth: 100,
-                color: theme.palette.text.primary,
-                borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
-                '&:hover': { borderColor: theme.palette.primary.main }
-              }}
-            >
-              {loading ? 'Cargando...' : 'Actualizar'}
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={handleDownloadCSV}
-              startIcon={<DownloadIcon />}
-              size="small"
-              sx={{ 
-                minWidth: 100,
-                color: theme.palette.text.primary,
-                borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
-                '&:hover': { borderColor: theme.palette.primary.main }
-              }}
-            >
-              CSV
-            </Button>
-            <Button
-              variant="outlined"
-              onClick={handleOpenColumnModal}
-              startIcon={<TuneIcon />}
-              size="small"
-              sx={{ 
-                minWidth: 100,
-                color: theme.palette.text.primary,
-                borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
-                '&:hover': { borderColor: theme.palette.primary.main }
-              }}
-            >
-              Columnas
-            </Button>
+        {/* TIENDA */}
+        <FormControl size="small" sx={{ minWidth: 80 }}>
+          <InputLabel sx={{ ...sharedLabelSx, fontSize: '0.75rem' }}>Tienda</InputLabel>
+          <Select
+            label="Tienda"
+            value={tiendaSeleccionada}
+            onChange={(e) => { setTiendaSeleccionada(e.target.value); setPage(0); }}
+            MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
+            variant="outlined"
+            sx={{ ...sharedSelectSx, fontSize: '0.75rem', height: 32 }}
+          >
+            <MenuItem value="" sx={{ fontSize: '0.75rem' }}>Todas</MenuItem>
+            {tiendas.map((t) => (
+              <MenuItem key={t} value={t} sx={{ fontSize: '0.75rem' }}>{t}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {/* USUARIO */}
+        <FormControl size="small" sx={{ minWidth: 80 }}>
+          <InputLabel sx={{ ...sharedLabelSx, fontSize: '0.75rem' }}>Usuario</InputLabel>
+          <Select
+            label="Usuario"
+            value={usuarioSeleccionado}
+            onChange={(e) => { setUsuarioSeleccionado(e.target.value); setPage(0); }}
+            disabled={!tiendaSeleccionada}
+            MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
+            variant="outlined"
+            sx={{ ...sharedSelectSx, fontSize: '0.75rem', height: 32 }}
+          >
+            <MenuItem value="" sx={{ fontSize: '0.75rem' }}>Todos</MenuItem>
+            {usuarios.map((u) => (
+              <MenuItem key={u} value={u} sx={{ fontSize: '0.75rem' }}>{u}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        {/* FILTROS POR TIPO - Checkboxes compactos */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={showCorrectos} 
+                onChange={e => { setShowCorrectos(e.target.checked); setPage(0); }}
+                sx={{ color: theme.palette.success.main, '&.Mui-checked': { color: theme.palette.success.main }, p: 0.3 }}
+                size="small"
+              />
+            }
+            label={<Typography variant="caption" sx={{ color: theme.palette.text.primary, fontSize: '0.7rem' }}>OK</Typography>}
+            sx={{ mr: 0.5 }}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={showDiferenciasMenores} 
+                onChange={e => { setShowDiferenciasMenores(e.target.checked); setPage(0); }}
+                sx={{ color: theme.palette.warning.main, '&.Mui-checked': { color: theme.palette.warning.main }, p: 0.3 }}
+                size="small"
+              />
+            }
+            label={<Typography variant="caption" sx={{ color: theme.palette.text.primary, fontSize: '0.7rem' }}>Menor</Typography>}
+            sx={{ mr: 0.5 }}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox 
+                checked={showDiferenciasGraves} 
+                onChange={e => { setShowDiferenciasGraves(e.target.checked); setPage(0); }}
+                sx={{ color: theme.palette.error.main, '&.Mui-checked': { color: theme.palette.error.main }, p: 0.3 }}
+                size="small"
+              />
+            }
+            label={<Typography variant="caption" sx={{ color: theme.palette.text.primary, fontSize: '0.7rem' }}>Grave</Typography>}
+            sx={{ mr: 0.5 }}
+          />
+        </Box>
+
+        {/* RANGO DE MONTO */}
+        <TextField
+          size="small"
+          label="Monto desde"
+          type="number"
+          value={montoDesde}
+          onChange={(e) => { setMontoDesde(e.target.value); setPage(0); }}
+          InputLabelProps={{ sx: { fontSize: '0.75rem' } }}
+          sx={{ 
+            width: 90,
+            '& .MuiInputBase-input': { fontSize: '0.75rem', height: 32, padding: '4px 8px' },
+            ...sharedDateFieldSx
+          }}
+        />
+        <TextField
+          size="small"
+          label="Monto hasta"
+          type="number"
+          value={montoHasta}
+          onChange={(e) => { setMontoHasta(e.target.value); setPage(0); }}
+          InputLabelProps={{ sx: { fontSize: '0.75rem' } }}
+          sx={{ 
+            width: 90,
+            '& .MuiInputBase-input': { fontSize: '0.75rem', height: 32, padding: '4px 8px' },
+            ...sharedDateFieldSx
+          }}
+        />
+
+        {/* VISTA AGRUPADA */}
+        <FormControl size="small" sx={{ minWidth: 85 }}>
+          <InputLabel sx={{ ...sharedLabelSx, fontSize: '0.75rem' }}>Vista</InputLabel>
+          <Select
+            label="Vista"
+            value={vistaAgrupada}
+            onChange={(e) => { setVistaAgrupada(e.target.value); setPage(0); }}
+            variant="outlined"
+            sx={{ ...sharedSelectSx, fontSize: '0.75rem', height: 32 }}
+          >
+            <MenuItem value="lista" sx={{ fontSize: '0.75rem' }}>Lista</MenuItem>
+            <MenuItem value="tienda" sx={{ fontSize: '0.75rem' }}>Por Tienda</MenuItem>
+            <MenuItem value="usuario" sx={{ fontSize: '0.75rem' }}>Por Usuario</MenuItem>
+          </Select>
+        </FormControl>
+
+        {/* Espaciador flexible */}
+        <Box sx={{ flexGrow: 1 }} />
+
+        {/* BOTONES DE ACCIÓN - Compactos */}
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Button
+            variant="outlined"
+            onClick={fetchData}
+            disabled={loading}
+            startIcon={loading ? <CircularProgress size={14} /> : <RefreshIcon sx={{ fontSize: 16 }} />}
+            size="small"
+            sx={{ 
+              minWidth: 'auto',
+              px: 1,
+              fontSize: '0.7rem',
+              height: 28,
+              color: theme.palette.text.primary,
+              borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
+              '&:hover': { borderColor: theme.palette.primary.main }
+            }}
+          >
+            {loading ? 'Cargando...' : 'Actualizar'}
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleDownloadCSV}
+            startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
+            size="small"
+            sx={{ 
+              minWidth: 'auto',
+              px: 1,
+              fontSize: '0.7rem',
+              height: 28,
+              color: theme.palette.text.primary,
+              borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
+              '&:hover': { borderColor: theme.palette.primary.main }
+            }}
+          >
+            CSV
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={handleOpenColumnModal}
+            startIcon={<TuneIcon sx={{ fontSize: 16 }} />}
+            size="small"
+            sx={{ 
+              minWidth: 'auto',
+              px: 1,
+              fontSize: '0.7rem',
+              height: 28,
+              color: theme.palette.text.primary,
+              borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
+              '&:hover': { borderColor: theme.palette.primary.main }
+            }}
+          >
+            Columnas
+          </Button>
+          {(userRole === 'admin' || userRole === 'supervisor') && (
             <Button
               variant="outlined"
               onClick={onDeleteSelected}
               disabled={!selectedId}
-              startIcon={<DeleteIcon />}
+              startIcon={<DeleteIcon sx={{ fontSize: 16 }} />}
               size="small"
               sx={{ 
-                minWidth: 100,
+                minWidth: 'auto',
+                px: 1,
+                fontSize: '0.7rem',
+                height: 28,
                 color: !selectedId ? theme.palette.text.disabled : theme.palette.error.main,
                 borderColor: !selectedId ? theme.palette.action.disabledBackground : theme.palette.error.main,
                 '&:hover': { borderColor: !selectedId ? theme.palette.action.disabledBackground : theme.palette.error.light }
@@ -602,9 +842,9 @@ const HeaderControls = React.memo(function HeaderControls({
             >
               Eliminar
             </Button>
-          </Box>
-        </Grid>
-      </Grid>
+          )}
+        </Box>
+      </Box>
     </Box>
   );
 });
@@ -618,6 +858,7 @@ export default function Diferencias() {
   const [error, setError] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [selectedId, setSelectedId] = useState(null);
+  const [userRole, setUserRole] = useState(''); // Rol del usuario actual
 
   const [fechaDesde, setFechaDesde] = useState(moment().subtract(1, 'month'));
   const [fechaHasta, setFechaHasta] = useState(moment());
@@ -653,6 +894,11 @@ export default function Diferencias() {
   const [editCierre, setEditCierre] = useState(null);
 
   const [selectedMonth, setSelectedMonth] = useState(''); // formato 'YYYY-MM'
+
+  // Nuevos filtros
+  const [montoDesde, setMontoDesde] = useState('');
+  const [montoHasta, setMontoHasta] = useState('');
+  const [vistaAgrupada, setVistaAgrupada] = useState('lista'); // lista, tienda, usuario
 
   const showSnackbar = useCallback((message, severity = 'info') => {
     setSnackbar({ open: true, message, severity });
@@ -868,6 +1114,13 @@ export default function Diferencias() {
         setMotivos(configData.motivos_error_pago || []);
         setTiendas(configData.tiendas || []);
         setMediosPagoConfig(configData.medios_pago || []);
+        
+        // Obtener el rol del usuario actual desde localStorage del navegador
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        let role = (currentUser.rol || currentUser.role || '').toLowerCase();
+        // Compatibilidad con 'Administrador'
+        if (role === 'administrador') role = 'admin';
+        setUserRole(role);
       } catch (err) {
         console.error(err);
         showSnackbar('Error al cargar la configuración inicial.', 'error');
@@ -916,10 +1169,17 @@ export default function Diferencias() {
   const cierresFiltrados = useMemo(
     () =>
       allCierres.filter((c) => {
+        // Filtro por estado (correcto/menor/grave)
         const estado = getEstado(c);
         if (estado === ESTADOS_CIERRE.CORRECTO && !showCorrectos) return false;
         if (estado === ESTADOS_CIERRE.DIFERENCIA_MENOR && !showDiferenciasMenores) return false;
         if (estado === ESTADOS_CIERRE.DIFERENCIA_GRAVE && !showDiferenciasGraves) return false;
+        
+        // Filtro por rango de monto
+        const diferencia = Math.abs(Number(c.grand_difference_total) || 0);
+        if (montoDesde && diferencia < Number(montoDesde)) return false;
+        if (montoHasta && diferencia > Number(montoHasta)) return false;
+        
         return true;
       }),
     [
@@ -927,6 +1187,8 @@ export default function Diferencias() {
       showCorrectos,
       showDiferenciasMenores,
       showDiferenciasGraves,
+      montoDesde,
+      montoHasta,
     ]
   );
 
@@ -939,6 +1201,38 @@ export default function Diferencias() {
     () => sortedCierres, // Ya vienen paginados del servidor
     [sortedCierres]
   );
+
+  // Datos agrupados para vistas resumidas
+  const datosAgrupados = useMemo(() => {
+    if (vistaAgrupada === 'lista') return null;
+    
+    const grupos = {};
+    const campoAgrupacion = vistaAgrupada === 'tienda' ? 'tienda' : 'usuario';
+    
+    cierresFiltrados.forEach(cierre => {
+      const clave = cierre[campoAgrupacion];
+      if (!grupos[clave]) {
+        grupos[clave] = {
+          nombre: clave,
+          total: 0,
+          correctos: 0,
+          menores: 0,
+          graves: 0,
+          diferenciaTotal: 0,
+        };
+      }
+      
+      grupos[clave].total += 1;
+      const estado = getEstado(cierre);
+      if (estado === ESTADOS_CIERRE.CORRECTO) grupos[clave].correctos += 1;
+      else if (estado === ESTADOS_CIERRE.DIFERENCIA_MENOR) grupos[clave].menores += 1;
+      else grupos[clave].graves += 1;
+      
+      grupos[clave].diferenciaTotal += Math.abs(Number(cierre.grand_difference_total) || 0);
+    });
+    
+    return Object.values(grupos).sort((a, b) => b.diferenciaTotal - a.diferenciaTotal);
+  }, [cierresFiltrados, vistaAgrupada]);
 
   const estadisticas = useMemo(
     () => calcularEstadisticas(cierresFiltrados),
@@ -1308,6 +1602,13 @@ export default function Diferencias() {
           selectedMonth={selectedMonth}
           setSelectedMonth={setSelectedMonth}
           handleMonthChange={handleMonthChange}
+          montoDesde={montoDesde}
+          setMontoDesde={setMontoDesde}
+          montoHasta={montoHasta}
+          setMontoHasta={setMontoHasta}
+          vistaAgrupada={vistaAgrupada}
+          setVistaAgrupada={setVistaAgrupada}
+          userRole={userRole}
         />
 
         {error && (
@@ -1352,6 +1653,9 @@ export default function Diferencias() {
         </Collapse>
 
         <Collapse in={!loading} timeout={600}>
+          {vistaAgrupada !== 'lista' ? (
+            <VistaAgrupada datos={datosAgrupados} tipo={vistaAgrupada} theme={theme} />
+          ) : (
           <Paper
             elevation={2}
             sx={{
@@ -1453,6 +1757,7 @@ export default function Diferencias() {
               sx={{ borderTop: `1px solid ${theme.palette.divider}` }}
             />
           </Paper>
+          )}
         </Collapse>
 
         {/* Modal de detalle usando el componente DetallesCierre */}
