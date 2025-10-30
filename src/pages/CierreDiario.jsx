@@ -18,7 +18,8 @@ import {
   TableContainer,
   Typography,
   Grid,
-  TextField
+  TextField,
+  Button
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -29,6 +30,7 @@ import {
 import moment from 'moment';
 import 'moment/locale/es';
 import { axiosWithFallback } from '../config';
+import { useAuth } from '../contexts/AuthContext';
 
 moment.locale('es');
 
@@ -44,6 +46,7 @@ function formatCurrency(value) {
 
 function CierreDiario() {
   const theme = useTheme();
+  const { currentUser } = useAuth();
   const [selectedYear, setSelectedYear] = useState(moment().year());
   const [selectedMonth, setSelectedMonth] = useState(moment().month());
   const [selectedDay, setSelectedDay] = useState(moment().date());
@@ -54,6 +57,9 @@ function CierreDiario() {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [mediosPagoData, setMediosPagoData] = useState([]);
   const [facturadoValues, setFacturadoValues] = useState({});
+  const [cobradoValues, setCobradoValues] = useState({}); // Nuevo: valores de cobrado editables
+  const [calendarioData, setCalendarioData] = useState({}); // Nuevo: datos para el calendario
+  const [comentarioDiario, setComentarioDiario] = useState(''); // Comentario del cierre diario
 
   // Generar años (últimos 5 años)
   const years = useMemo(() => {
@@ -96,16 +102,23 @@ function CierreDiario() {
     }
   }, [selectedYear, selectedMonth, selectedDay, selectedTienda, mediosPagoConfig]);
 
+  // NUEVO: Cargar datos del mes completo para el calendario
+  useEffect(() => {
+    if (mediosPagoConfig.length > 0) {
+      fetchCalendarioData();
+    }
+  }, [selectedYear, selectedMonth, selectedTienda, mediosPagoConfig]);
+
   const fetchCierres = async () => {
     setLoading(true);
     try {
       const response = await axiosWithFallback('/api/cierres-completo');
       let allCierres = response.data;
 
-      // Filtrar por fecha específica
+      // Filtrar por fecha específica - FORMATO DD/MM/YYYY
       allCierres = allCierres.filter(cierre => {
         if (!cierre.fecha) return false;
-        const cierreFecha = moment(cierre.fecha);
+        const cierreFecha = moment(cierre.fecha, 'DD/MM/YYYY');
         return cierreFecha.year() === selectedYear && 
                cierreFecha.month() === selectedMonth &&
                cierreFecha.date() === selectedDay;
@@ -126,7 +139,75 @@ function CierreDiario() {
     }
   };
 
-  // Calcular totales por medio de pago usando la configuración
+  // NUEVO: Obtener datos de todo el mes para el calendario
+  const fetchCalendarioData = async () => {
+    try {
+      const response = await axiosWithFallback('/api/cierres-completo');
+      let allCierres = response.data;
+
+      // Filtrar por mes y año - FORMATO DD/MM/YYYY
+      allCierres = allCierres.filter(cierre => {
+        if (!cierre.fecha) return false;
+        const cierreFecha = moment(cierre.fecha, 'DD/MM/YYYY');
+        return cierreFecha.year() === selectedYear && 
+               cierreFecha.month() === selectedMonth;
+      });
+
+      // Filtrar por tienda si está seleccionada
+      if (selectedTienda) {
+        allCierres = allCierres.filter(cierre => cierre.tienda === selectedTienda);
+      }
+
+      // Agrupar por día
+      const datosPorDia = {};
+      allCierres.forEach(cierre => {
+        const dia = moment(cierre.fecha, 'DD/MM/YYYY').date();
+        if (!datosPorDia[dia]) {
+          datosPorDia[dia] = {
+            totalCobrado: 0,
+            totalFacturado: 0,
+            diferencia: 0,
+            cierresCount: 0
+          };
+        }
+
+        // Procesar medios de pago
+        if (cierre.medios_pago) {
+          const medios = Array.isArray(cierre.medios_pago) 
+            ? cierre.medios_pago 
+            : JSON.parse(cierre.medios_pago);
+
+          if (Array.isArray(medios)) {
+            medios.forEach(medio => {
+              // Limpiar el formato de cobrado (ej: "71.500,00" -> 71500.00)
+              let cobrado = 0;
+              if (typeof medio.cobrado === 'string') {
+                cobrado = parseFloat(medio.cobrado.replace(/\./g, '').replace(',', '.')) || 0;
+              } else {
+                cobrado = Number(medio.cobrado) || 0;
+              }
+              
+              datosPorDia[dia].totalCobrado += cobrado;
+              datosPorDia[dia].totalFacturado += Number(medio.facturado) || 0;
+            });
+          }
+        }
+        datosPorDia[dia].cierresCount++;
+      });
+
+      // Calcular diferencias
+      Object.keys(datosPorDia).forEach(dia => {
+        datosPorDia[dia].diferencia = 
+          datosPorDia[dia].totalCobrado - datosPorDia[dia].totalFacturado;
+      });
+
+      setCalendarioData(datosPorDia);
+    } catch (error) {
+      console.error('Error al cargar datos del calendario:', error);
+    }
+  };
+
+  // MODIFICADO: Calcular totales por medio de pago - cobrado viene de la DB (Sistema)
   const calcularMediosPago = (cierresData) => {
     // Usar los medios de pago de la configuración
     const mediosMap = {};
@@ -135,11 +216,11 @@ function CierreDiario() {
     mediosPagoConfig.forEach(medio => {
       mediosMap[medio] = {
         medio: medio,
-        cobrado: 0
+        cobrado: 0 // cobrado = lo que viene del sistema (DB)
       };
     });
 
-    // Sumar los valores de los cierres
+    // Sumar los valores de "cobrado" de los cierres (que es lo del sistema Sieben)
     cierresData.forEach(cierre => {
       if (!cierre.medios_pago) return;
 
@@ -151,7 +232,14 @@ function CierreDiario() {
         medios.forEach(medio => {
           const nombre = medio.medio || 'Sin nombre';
           if (mediosMap[nombre]) {
-            mediosMap[nombre].cobrado += Number(medio.cobrado) || 0;
+            // Limpiar el formato de cobrado (ej: "71.500,00" -> 71500.00)
+            let cobrado = 0;
+            if (typeof medio.cobrado === 'string') {
+              cobrado = parseFloat(medio.cobrado.replace(/\./g, '').replace(',', '.')) || 0;
+            } else {
+              cobrado = Number(medio.cobrado) || 0;
+            }
+            mediosMap[nombre].cobrado += cobrado;
           }
         });
       }
@@ -160,6 +248,18 @@ function CierreDiario() {
     // Convertir a array manteniendo el orden de la configuración
     const mediosArray = mediosPagoConfig.map(medio => mediosMap[medio]);
     setMediosPagoData(mediosArray);
+
+    // Actualizar los valores de cobrado (sistema) para mostrar en la columna de solo lectura
+    const nuevosCobradoValuesDB = {};
+    mediosArray.forEach(medio => {
+      if (medio.cobrado > 0) {
+        nuevosCobradoValuesDB[medio.medio] = medio.cobrado.toFixed(2);
+      }
+    });
+    setFacturadoValues(nuevosCobradoValuesDB); // facturadoValues guarda lo del sistema
+
+    // NO pre-llenar cobradoValues - dejar en blanco para que el usuario complete (lo REAL)
+    setCobradoValues({});
   };
 
   const handleFacturadoChange = (medioNombre, value) => {
@@ -169,9 +269,115 @@ function CierreDiario() {
     }));
   };
 
+  const handleCobradoChange = (medioNombre, value) => {
+    setCobradoValues(prev => ({
+      ...prev,
+      [medioNombre]: value
+    }));
+  };
+
   const calcularDiferencia = (medio) => {
-    const facturado = parseFloat(facturadoValues[medio.medio]) || 0;
-    return medio.cobrado - facturado;
+    const facturadoReal = parseFloat(cobradoValues[medio.medio]) || 0; // Lo que ingresa el usuario (REAL)
+    const cobradoSistema = parseFloat(facturadoValues[medio.medio]) || 0; // Lo que viene de la DB (Sistema)
+    return facturadoReal - cobradoSistema; // Diferencia = Real - Sistema
+  };
+
+  // Calcular totales
+  const calcularTotales = () => {
+    let totalFacturado = 0;
+    let totalCobrado = 0;
+    let totalDiferencia = 0;
+
+    mediosPagoData.forEach(medio => {
+      const facturado = parseFloat(cobradoValues[medio.medio]) || 0;
+      const cobrado = parseFloat(facturadoValues[medio.medio]) || 0;
+      const diferencia = facturado - cobrado;
+
+      totalFacturado += facturado;
+      totalCobrado += cobrado;
+      totalDiferencia += diferencia;
+    });
+
+    return {
+      totalFacturado,
+      totalCobrado,
+      totalDiferencia
+    };
+  };
+
+  const handleGuardarCierreDiario = async () => {
+    try {
+      // Validar que hay un usuario logueado
+      if (!currentUser || !currentUser.username) {
+        setSnackbar({ 
+          open: true, 
+          message: 'Error: No hay usuario autenticado', 
+          severity: 'error' 
+        });
+        return;
+      }
+
+      // Construir el array de medios de pago con la información completa
+      const mediosPagoParaGuardar = mediosPagoData.map(medio => {
+        const facturadoReal = parseFloat(cobradoValues[medio.medio]) || 0; // Lo que el usuario ingresó (REAL)
+        const cobradoSistema = parseFloat(facturadoValues[medio.medio]) || 0; // Lo de la DB (Sistema)
+        const diferencia = facturadoReal - cobradoSistema;
+        
+        // IMPORTANTE: En la DB, "facturado" es lo REAL y "cobrado" es lo del SISTEMA
+        return {
+          medio: medio.medio,
+          facturado: facturadoReal,  // Lo que el usuario ingresó manualmente (REAL del cierre)
+          cobrado: cobradoSistema,   // Lo que viene del sistema (esperado)
+          diferencia: diferencia
+        };
+      });
+
+      // Formatear la fecha en DD/MM/YYYY
+      const fechaFormateada = moment()
+        .year(selectedYear)
+        .month(selectedMonth)
+        .date(selectedDay)
+        .format('DD/MM/YYYY');
+
+      const datosParaGuardar = {
+        fecha: fechaFormateada,
+        usuario: currentUser.username,
+        tienda: selectedTienda || 'Todas',
+        medios_pago: mediosPagoParaGuardar,
+        comentarios: comentarioDiario || ''
+      };
+
+      console.log('Guardando cierre diario:', datosParaGuardar);
+
+      // Enviar al backend
+      const response = await axiosWithFallback('/api/cierres-diarios', {
+        method: 'POST',
+        data: datosParaGuardar,
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.data.success) {
+        setSnackbar({ 
+          open: true, 
+          message: '✓ Cierre diario guardado exitosamente', 
+          severity: 'success' 
+        });
+        
+        // Limpiar el comentario después de guardar
+        setComentarioDiario('');
+      } else {
+        throw new Error('Error al guardar');
+      }
+    } catch (error) {
+      console.error('Error al guardar cierre diario:', error);
+      setSnackbar({ 
+        open: true, 
+        message: 'Error al guardar el cierre diario: ' + (error.message || 'Error desconocido'), 
+        severity: 'error' 
+      });
+    }
   };
 
   return (
@@ -299,7 +505,7 @@ function CierreDiario() {
                         color: theme.palette.text.primary,
                         borderBottom: `2px solid ${theme.palette.custom?.tableBorder || theme.palette.divider}`
                       }}>
-                        Cobrado
+                        Facturado
                       </TableCell>
                       <TableCell align="right" sx={{ 
                         fontWeight: 'bold', 
@@ -307,7 +513,7 @@ function CierreDiario() {
                         color: theme.palette.text.primary,
                         borderBottom: `2px solid ${theme.palette.custom?.tableBorder || theme.palette.divider}`
                       }}>
-                        Facturado
+                        Cobrado
                       </TableCell>
                       <TableCell align="right" sx={{ 
                         fontWeight: 'bold', 
@@ -350,40 +556,33 @@ function CierreDiario() {
                             }}>
                               {medio.medio}
                             </TableCell>
-                            <TableCell align="right" sx={{ 
-                              fontFamily: 'monospace', 
-                              fontWeight: 'bold',
-                              color: theme.palette.text.primary,
-                              py: 0.75
-                            }}>
-                              {formatCurrency(medio.cobrado)}
-                            </TableCell>
                             <TableCell align="right" sx={{ py: 0.75 }}>
                               <TextField
                                 fullWidth
                                 size="small"
-                                placeholder="0.00"
-                                value={facturadoValues[medio.medio] || ''}
-                                onChange={(e) => handleFacturadoChange(medio.medio, e.target.value)}
+                                placeholder="Ingrese monto real del cierre"
+                                value={cobradoValues[medio.medio] || ''}
+                                onChange={(e) => handleCobradoChange(medio.medio, e.target.value)}
                                 InputProps={{
                                   sx: {
                                     fontSize: '0.9rem',
                                     height: 36,
-                                    backgroundColor: alpha(theme.palette.custom?.tableRow || theme.palette.background.default, 0.5),
+                                    backgroundColor: alpha(theme.palette.primary.main, 0.05),
                                     borderRadius: 1.5,
                                     transition: 'all 0.2s ease',
                                     '& fieldset': { 
-                                      borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
+                                      borderColor: theme.palette.primary.main,
+                                      borderWidth: 2,
                                       transition: 'all 0.2s ease' 
                                     },
                                     '&:hover': {
-                                      backgroundColor: alpha(theme.palette.custom?.tableRow || theme.palette.background.default, 0.8),
-                                      '& fieldset': { borderColor: theme.palette.info.main }
+                                      backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                                      '& fieldset': { borderColor: theme.palette.primary.dark }
                                     },
                                     '&.Mui-focused': {
-                                      backgroundColor: alpha(theme.palette.custom?.tableRow || theme.palette.background.default, 0.9),
-                                      boxShadow: `0 0 0 2px ${alpha(theme.palette.info.main, 0.2)}`,
-                                      '& fieldset': { borderColor: theme.palette.info.main, borderWidth: 2 }
+                                      backgroundColor: alpha(theme.palette.primary.main, 0.15),
+                                      boxShadow: `0 0 0 3px ${alpha(theme.palette.primary.main, 0.2)}`,
+                                      '& fieldset': { borderColor: theme.palette.primary.dark, borderWidth: 2 }
                                     }
                                   }
                                 }}
@@ -391,11 +590,30 @@ function CierreDiario() {
                                   '& .MuiInputBase-input': { 
                                     color: theme.palette.text.primary, 
                                     fontFamily: 'monospace',
-                                    textAlign: 'right'
+                                    textAlign: 'right',
+                                    fontWeight: 'bold'
                                   }
                                 }}
                                 onInput={(e) => e.target.value = e.target.value.replace(/[^0-9.,]/g, "")}
                               />
+                            </TableCell>
+                            <TableCell align="right" sx={{ py: 0.75 }}>
+                              <Box sx={{
+                                px: 2,
+                                py: 0.5,
+                                borderRadius: 1,
+                                bgcolor: alpha(theme.palette.info.main, 0.1),
+                                border: `1px solid ${theme.palette.divider}`
+                              }}>
+                                <Typography sx={{ 
+                                  fontFamily: 'monospace',
+                                  fontWeight: 'bold',
+                                  fontSize: '0.9rem',
+                                  color: theme.palette.text.primary
+                                }}>
+                                  {formatCurrency(medio.cobrado)}
+                                </Typography>
+                              </Box>
                             </TableCell>
                             <TableCell 
                               align="right" 
@@ -415,39 +633,314 @@ function CierreDiario() {
                         );
                       })
                     )}
+
+                    {/* Fila de Totales */}
+                    {mediosPagoData.length > 0 && (() => {
+                      const totales = calcularTotales();
+                      return (
+                        <TableRow 
+                          sx={{
+                            bgcolor: alpha(theme.palette.primary.main, 0.08),
+                            borderTop: `2px solid ${theme.palette.primary.main}`,
+                            '&:hover': {
+                              bgcolor: alpha(theme.palette.primary.main, 0.12)
+                            }
+                          }}
+                        >
+                          <TableCell sx={{ 
+                            fontWeight: 'bold',
+                            color: theme.palette.primary.main,
+                            py: 1.5,
+                            fontSize: '1rem'
+                          }}>
+                            TOTALES
+                          </TableCell>
+                          <TableCell align="right" sx={{ py: 1.5 }}>
+                            <Typography sx={{ 
+                              fontFamily: 'monospace',
+                              fontWeight: 'bold',
+                              fontSize: '1rem',
+                              color: theme.palette.primary.main
+                            }}>
+                              {formatCurrency(totales.totalFacturado)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right" sx={{ py: 1.5 }}>
+                            <Typography sx={{ 
+                              fontFamily: 'monospace',
+                              fontWeight: 'bold',
+                              fontSize: '1rem',
+                              color: theme.palette.primary.main
+                            }}>
+                              {formatCurrency(totales.totalCobrado)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell 
+                            align="right" 
+                            sx={{ 
+                              py: 1.5
+                            }}
+                          >
+                            <Typography sx={{ 
+                              fontFamily: 'monospace',
+                              fontWeight: 'bold',
+                              fontSize: '1rem',
+                              color: totales.totalDiferencia === 0 ? theme.palette.text.primary : 
+                                     totales.totalDiferencia > 0 ? theme.palette.positive?.main || '#4caf50' : 
+                                     theme.palette.negative?.main || '#f44336'
+                            }}>
+                              {formatCurrency(totales.totalDiferencia)}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })()}
                   </TableBody>
                 </Table>
               </TableContainer>
             )}
+
+            {/* Box de Comentarios del Cierre Diario */}
+            {!loading && (
+              <Box sx={{ mt: 3 }}>
+                <Paper 
+                  elevation={2}
+                  sx={{ 
+                    p: 3,
+                    border: `1px solid ${theme.palette.custom?.tableBorder || theme.palette.divider}`,
+                    borderRadius: 1,
+                    bgcolor: theme.palette.background.paper
+                  }}
+                >
+                  <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    📝 Comentarios del Cierre Diario
+                  </Typography>
+                  
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    placeholder="Ingrese comentarios sobre el cierre del día..."
+                    value={comentarioDiario}
+                    onChange={(e) => setComentarioDiario(e.target.value)}
+                    sx={{
+                      mb: 2,
+                      '& .MuiOutlinedInput-root': {
+                        bgcolor: alpha(theme.palette.background.default, 0.5),
+                        '&:hover fieldset': {
+                          borderColor: theme.palette.primary.main,
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: theme.palette.primary.main,
+                        }
+                      }
+                    }}
+                  />
+                  
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                    <Typography variant="caption" sx={{ 
+                      color: theme.palette.text.secondary,
+                      alignSelf: 'center',
+                      flex: 1
+                    }}>
+                      {comentarioDiario.length} caracteres
+                    </Typography>
+                    
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      onClick={() => setComentarioDiario('')}
+                      disabled={!comentarioDiario}
+                      sx={{ minWidth: 100 }}
+                    >
+                      Limpiar
+                    </Button>
+                    
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={handleGuardarCierreDiario}
+                      disabled={!comentarioDiario && mediosPagoData.length === 0}
+                      sx={{ 
+                        minWidth: 150,
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      💾 Guardar Cierre Diario
+                    </Button>
+                  </Box>
+                </Paper>
+              </Box>
+            )}
           </Grid>
 
-          {/* Calendario Placeholder - Derecha */}
+          {/* Calendario Grid - Derecha */}
           <Grid item xs={12} md={4}>
             <Paper
               elevation={2}
               sx={{
-                p: 3,
+                p: 2,
                 height: '100%',
                 minHeight: 400,
                 border: `1px solid ${theme.palette.custom?.tableBorder || theme.palette.divider}`,
                 borderRadius: 1,
                 bgcolor: theme.palette.background.paper,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center'
               }}
             >
-              <CalendarTodayIcon sx={{ fontSize: 60, color: theme.palette.text.secondary, mb: 2 }} />
-              <Typography variant="h6" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
-                Calendario
+              <Typography variant="h6" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
+                <CalendarTodayIcon /> 
+                {months[selectedMonth]} {selectedYear}
               </Typography>
-              <Typography variant="body2" sx={{ color: theme.palette.text.secondary, textAlign: 'center' }}>
-                Vista de calendario mensual
-              </Typography>
-              <Typography variant="caption" sx={{ color: theme.palette.text.disabled, mt: 2 }}>
-                Próximamente...
-              </Typography>
+              
+              {/* Días de la semana */}
+              <Box sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(7, 1fr)', 
+                gap: 0.5,
+                mb: 1
+              }}>
+                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map(dia => (
+                  <Box key={dia} sx={{ 
+                    textAlign: 'center', 
+                    fontWeight: 'bold',
+                    fontSize: '0.75rem',
+                    color: theme.palette.text.secondary,
+                    py: 0.5
+                  }}>
+                    {dia}
+                  </Box>
+                ))}
+              </Box>
+
+              {/* Grid del calendario */}
+              <Box sx={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(7, 1fr)', 
+                gap: 0.5,
+              }}>
+                {(() => {
+                  // Calcular días vacíos al inicio
+                  const primerDia = moment().year(selectedYear).month(selectedMonth).date(1).day();
+                  const diasVacios = Array(primerDia).fill(null);
+                  
+                  return [...diasVacios, ...daysInMonth].map((dia, index) => {
+                    if (dia === null) {
+                      return <Box key={`empty-${index}`} />;
+                    }
+                    
+                    const datos = calendarioData[dia];
+                    const isSelected = dia === selectedDay;
+                    const isToday = dia === moment().date() && 
+                                   selectedMonth === moment().month() && 
+                                   selectedYear === moment().year();
+                    
+                    return (
+                      <Paper
+                        key={dia}
+                        elevation={isSelected ? 3 : 0}
+                        sx={{
+                          aspectRatio: '1',
+                          p: 0.5,
+                          cursor: 'pointer',
+                          bgcolor: isSelected ? alpha(theme.palette.primary.main, 0.2) : 
+                                  isToday ? alpha(theme.palette.info.main, 0.1) :
+                                  datos ? alpha(theme.palette.success.main, 0.05) : 'transparent',
+                          border: `2px solid ${
+                            isSelected ? theme.palette.primary.main : 
+                            isToday ? theme.palette.info.main :
+                            datos ? theme.palette.divider : 
+                            'transparent'
+                          }`,
+                          borderRadius: 1,
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          overflow: 'hidden',
+                          '&:hover': {
+                            bgcolor: alpha(theme.palette.primary.main, 0.1),
+                            transform: 'scale(1.05)',
+                            zIndex: 10,
+                            boxShadow: 2
+                          }
+                        }}
+                        onClick={() => setSelectedDay(dia)}
+                      >
+                        <Typography 
+                          variant="caption" 
+                          sx={{ 
+                            fontWeight: isSelected || isToday ? 'bold' : 'normal',
+                            fontSize: '0.7rem',
+                            color: isSelected ? theme.palette.primary.main : 
+                                   isToday ? theme.palette.info.main :
+                                   theme.palette.text.primary
+                          }}
+                        >
+                          {dia}
+                        </Typography>
+                        
+                        {datos && (
+                          <Box sx={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            gap: 0.2,
+                            alignItems: 'center'
+                          }}>
+                            <Typography 
+                              variant="caption" 
+                              sx={{ 
+                                fontSize: '0.6rem',
+                                fontWeight: 'bold',
+                                color: datos.diferencia === 0 ? 'text.secondary' :
+                                       datos.diferencia > 0 ? theme.palette.success.main :
+                                       theme.palette.error.main,
+                              }}
+                            >
+                              {datos.diferencia > 0 ? '+' : ''}
+                              {Math.abs(datos.diferencia) > 999 
+                                ? `${(datos.diferencia / 1000).toFixed(0)}k`
+                                : datos.diferencia.toFixed(0)
+                              }
+                            </Typography>
+                            <Box sx={{ 
+                              width: 6, 
+                              height: 6, 
+                              borderRadius: '50%',
+                              bgcolor: datos.cierresCount > 1 ? theme.palette.warning.main : theme.palette.success.main
+                            }} />
+                          </Box>
+                        )}
+                      </Paper>
+                    );
+                  });
+                })()}
+              </Box>
+
+              {/* Leyenda */}
+              <Box sx={{ mt: 2, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+                <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.65rem' }}>
+                  <Box component="span" sx={{ 
+                    display: 'inline-block', 
+                    width: 8, 
+                    height: 8, 
+                    borderRadius: '50%', 
+                    bgcolor: theme.palette.success.main,
+                    mr: 0.5
+                  }} />
+                  1 cierre
+                </Typography>
+                <Typography variant="caption" sx={{ display: 'block', mb: 0.5, fontSize: '0.65rem' }}>
+                  <Box component="span" sx={{ 
+                    display: 'inline-block', 
+                    width: 8, 
+                    height: 8, 
+                    borderRadius: '50%', 
+                    bgcolor: theme.palette.warning.main,
+                    mr: 0.5
+                  }} />
+                  Múltiples cierres
+                </Typography>
+              </Box>
             </Paper>
           </Grid>
         </Grid>

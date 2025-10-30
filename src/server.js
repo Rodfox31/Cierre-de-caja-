@@ -164,6 +164,27 @@ db.run(createJustificacionesTable, (err) => {
   }
 });
 
+// ── NUEVO: Crear tabla de cierres diarios ──
+const createCierresDiariosTable = `
+  CREATE TABLE IF NOT EXISTS cierres_diarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fecha TEXT NOT NULL,
+    usuario TEXT NOT NULL,
+    tienda TEXT,
+    medios_pago TEXT NOT NULL,
+    comentarios TEXT,
+    fecha_creacion TEXT DEFAULT (datetime('now', 'localtime'))
+  )
+`;
+
+db.run(createCierresDiariosTable, (err) => {
+  if (err) {
+    console.error("Error al crear la tabla cierres_diarios:", err.message);
+  } else {
+    console.log("Tabla 'cierres_diarios' lista.");
+  }
+});
+
 // ── NUEVO: Crear tabla de usuarios para autenticación ──
 const createUsersTable = `
   CREATE TABLE IF NOT EXISTS users (
@@ -2320,6 +2341,120 @@ app.delete('/api/audit/cleanup', (req, res) => {
       });
     }
   );
+});
+
+// ═══════════════════════════════════════════════════════════
+// ENDPOINTS PARA CIERRES DIARIOS
+// ═══════════════════════════════════════════════════════════
+
+// POST - Guardar un nuevo cierre diario
+app.post('/api/cierres-diarios', (req, res) => {
+  const { fecha, usuario, tienda, medios_pago, comentarios } = req.body;
+
+  if (!fecha || !usuario || !medios_pago) {
+    return res.status(400).json({ 
+      error: 'Faltan campos requeridos: fecha, usuario, medios_pago' 
+    });
+  }
+
+  // Convertir medios_pago a JSON string si es un objeto/array
+  const mediosPagoJSON = typeof medios_pago === 'string' 
+    ? medios_pago 
+    : JSON.stringify(medios_pago);
+
+  const query = `
+    INSERT INTO cierres_diarios 
+    (fecha, usuario, tienda, medios_pago, comentarios)
+    VALUES (?, ?, ?, ?, ?)
+  `;
+
+  db.run(
+    query,
+    [fecha, usuario, tienda || null, mediosPagoJSON, comentarios || null],
+    function(err) {
+      if (err) {
+        console.error('Error al guardar cierre diario:', err.message);
+        return res.status(500).json({ error: 'Error al guardar cierre diario' });
+      }
+
+      res.json({
+        success: true,
+        message: 'Cierre diario guardado exitosamente',
+        id: this.lastID
+      });
+    }
+  );
+});
+
+// GET - Obtener todos los cierres diarios
+app.get('/api/cierres-diarios', (req, res) => {
+  const query = 'SELECT * FROM cierres_diarios ORDER BY fecha DESC, id DESC';
+  
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      console.error('Error al obtener cierres diarios:', err.message);
+      return res.status(500).json({ error: 'Error al obtener cierres diarios' });
+    }
+
+    // Parsear medios_pago de JSON string a objeto
+    const cierresConMediosParsed = rows.map(cierre => ({
+      ...cierre,
+      medios_pago: typeof cierre.medios_pago === 'string' 
+        ? JSON.parse(cierre.medios_pago)
+        : cierre.medios_pago
+    }));
+
+    res.json(cierresConMediosParsed);
+  });
+});
+
+// GET - Obtener un cierre diario por ID
+app.get('/api/cierres-diarios/:id', (req, res) => {
+  const { id } = req.params;
+  const query = 'SELECT * FROM cierres_diarios WHERE id = ?';
+
+  db.get(query, [id], (err, row) => {
+    if (err) {
+      console.error('Error al obtener cierre diario:', err.message);
+      return res.status(500).json({ error: 'Error al obtener cierre diario' });
+    }
+
+    if (!row) {
+      return res.status(404).json({ error: 'Cierre diario no encontrado' });
+    }
+
+    // Parsear medios_pago
+    const cierreConMediosParsed = {
+      ...row,
+      medios_pago: typeof row.medios_pago === 'string'
+        ? JSON.parse(row.medios_pago)
+        : row.medios_pago
+    };
+
+    res.json(cierreConMediosParsed);
+  });
+});
+
+// DELETE - Eliminar un cierre diario
+app.delete('/api/cierres-diarios/:id', (req, res) => {
+  const { id } = req.params;
+  const query = 'DELETE FROM cierres_diarios WHERE id = ?';
+
+  db.run(query, [id], function(err) {
+    if (err) {
+      console.error('Error al eliminar cierre diario:', err.message);
+      return res.status(500).json({ error: 'Error al eliminar cierre diario' });
+    }
+
+    if (this.changes === 0) {
+      return res.status(404).json({ error: 'Cierre diario no encontrado' });
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Cierre diario eliminado exitosamente' 
+    });
+  });
 });
 
 // -------------------------------
