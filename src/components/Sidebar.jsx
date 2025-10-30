@@ -3,6 +3,7 @@ import { Box, Button, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import HomeIcon from '@mui/icons-material/Home';
 import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
+import AssessmentIcon from '@mui/icons-material/Assessment';
 import BalanceIcon from '@mui/icons-material/Balance';
 import StoreIcon from '@mui/icons-material/Store';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
@@ -19,6 +20,7 @@ function Sidebar({ activePage, setActivePage }) {
   const pages = [
     { name: "Home", icon: <HomeIcon fontSize="small" />, pageKey: "home" },
     { name: "Cerrar caja", icon: <PointOfSaleIcon fontSize="small" />, pageKey: "cierrecaja" },
+    { name: "Cierre diario", icon: <AssessmentIcon fontSize="small" />, pageKey: "cierrediario" },
     { name: "Control de cajas", icon: <BalanceIcon fontSize="small" />, pageKey: "controlmensual" },
     { name: "Control de Boutiques", icon: <StoreIcon fontSize="small" />, pageKey: "diferencias" },
     { name: "Exportar", icon: <FileDownloadIcon fontSize="small" />, pageKey: "exportar" },

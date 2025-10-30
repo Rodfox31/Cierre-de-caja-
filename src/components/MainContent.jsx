@@ -4,6 +4,7 @@ import { useTheme } from '@mui/material/styles';
 import LockIcon from '@mui/icons-material/Lock';
 import Home from '../pages/Home';
 import CierreCaja from '../pages/CierreCaja';
+import CierreDiario from '../pages/CierreDiario';
 import Diferencias from '../pages/Diferencias';
 import ControlMensual from '../pages/ControlMensual';
 import Exportar from '../pages/Exportar';
@@ -19,6 +20,7 @@ function MainContent({ activePage }) {
   const pageKeyMap = {
     'Home': 'home',
     'Cerrar caja': 'cierrecaja',
+    'Cierre diario': 'cierrediario',
     'Control de cajas': 'controlmensual',
     'Control de Boutiques': 'diferencias',
     'Exportar': 'exportar',
@@ -60,6 +62,7 @@ function MainContent({ activePage }) {
     switch (activePage) {
       case 'Home': return <Home />;
       case 'Cerrar caja': return <CierreCaja />;
+      case 'Cierre diario': return <CierreDiario />;
       case 'Control de cajas': return <Diferencias />;
       case 'Control de Boutiques': return <ControlMensual />;
       case 'Exportar': return <Exportar />;

@@ -949,20 +949,90 @@ app.put('/api/cierres-completo/:id', (req, res) => {
   });
 });
 
-// ── PUT /api/cierres-completo/:id/revisar ──
-app.put('/api/cierres-completo/:id/revisar', (req, res) => {
+// ── PUT /api/cierres-completo/:id/validar ──
+// Marca un cierre como validado (validado = 1)
+app.put('/api/cierres-completo/:id/validar', (req, res) => {
   const cierreId = req.params.id;
+  const { usuario_validacion = 'admin' } = req.body;
+  
   if (!cierreId) {
     return res.status(400).json({ error: 'Falta el parámetro id' });
   }
   
-  console.log(`Intentando marcar cierre ${cierreId} para revisión...`);
+  const fecha_validacion = moment().format('YYYY-MM-DD HH:mm:ss');
+  console.log(`Validando cierre ${cierreId}...`);
   
-  // Marcar el cierre como "revisar" reemplazando la validación
-  const updateQuery = 'UPDATE cierres SET validado = ?, usuario_validacion = ?, fecha_validacion = ? WHERE id = ?';
-  const params = [0, null, null, cierreId];
+  const updateQuery = `UPDATE cierres SET 
+    validado = 1, 
+    usuario_validacion = ?, 
+    fecha_validacion = ?
+    WHERE id = ?`;
   
-  db.run(updateQuery, params, function (err) {
+  db.run(updateQuery, [usuario_validacion, fecha_validacion, cierreId], function (err) {
+    if (err) {
+      console.error('Error validando cierre:', err.message);
+      return res.status(500).json({ error: 'Error validando cierre', details: err.message });
+    }
+    if (this.changes === 0) {
+      console.log(`No se encontró cierre con ID ${cierreId}`);
+      return res.status(404).json({ error: 'Cierre no encontrado' });
+    }
+    console.log(`Cierre ${cierreId} validado exitosamente. Filas afectadas: ${this.changes}`);
+    res.json({ message: 'Cierre validado correctamente' });
+  });
+});
+
+// ── PUT /api/cierres-completo/:id/desvalidar ──
+// Marca un cierre como sin validar (validado = 0)
+app.put('/api/cierres-completo/:id/desvalidar', (req, res) => {
+  const cierreId = req.params.id;
+  
+  if (!cierreId) {
+    return res.status(400).json({ error: 'Falta el parámetro id' });
+  }
+  
+  console.log(`Desvalidando cierre ${cierreId}...`);
+  
+  const updateQuery = `UPDATE cierres SET 
+    validado = 0, 
+    usuario_validacion = NULL, 
+    fecha_validacion = NULL
+    WHERE id = ?`;
+  
+  db.run(updateQuery, [cierreId], function (err) {
+    if (err) {
+      console.error('Error desvalidando cierre:', err.message);
+      return res.status(500).json({ error: 'Error desvalidando cierre', details: err.message });
+    }
+    if (this.changes === 0) {
+      console.log(`No se encontró cierre con ID ${cierreId}`);
+      return res.status(404).json({ error: 'Cierre no encontrado' });
+    }
+    console.log(`Cierre ${cierreId} desvalidado exitosamente. Filas afectadas: ${this.changes}`);
+    res.json({ message: 'Cierre marcado como sin validar' });
+  });
+});
+
+// ── PUT /api/cierres-completo/:id/revisar ──
+// Marca un cierre para revisar en boutique (validado = 2)
+app.put('/api/cierres-completo/:id/revisar', (req, res) => {
+  const cierreId = req.params.id;
+  const { usuario_validacion = 'admin' } = req.body;
+  
+  if (!cierreId) {
+    return res.status(400).json({ error: 'Falta el parámetro id' });
+  }
+  
+  const fecha_validacion = moment().format('YYYY-MM-DD HH:mm:ss');
+  console.log(`Marcando cierre ${cierreId} para revisión de boutique...`);
+  
+  const updateQuery = `UPDATE cierres SET 
+    validado = 2, 
+    usuario_validacion = ?, 
+    fecha_validacion = ?
+    WHERE id = ?`;
+  
+  db.run(updateQuery, [usuario_validacion, fecha_validacion, cierreId], function (err) {
     if (err) {
       console.error('Error actualizando estado revisar:', err.message);
       return res.status(500).json({ error: 'Error actualizando estado revisar', details: err.message });
@@ -971,8 +1041,8 @@ app.put('/api/cierres-completo/:id/revisar', (req, res) => {
       console.log(`No se encontró cierre con ID ${cierreId}`);
       return res.status(404).json({ error: 'Cierre no encontrado' });
     }
-    console.log(`Cierre ${cierreId} marcado para revisión exitosamente. Filas afectadas: ${this.changes}`);
-    res.json({ message: 'Cierre marcado para revisión correctamente' });
+    console.log(`Cierre ${cierreId} marcado para revisión de boutique exitosamente. Filas afectadas: ${this.changes}`);
+    res.json({ message: 'Cierre marcado para revisión de boutique' });
   });
 });
 

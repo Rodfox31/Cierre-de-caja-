@@ -41,6 +41,7 @@ import {
   Snackbar,
   Alert,
   Popover,
+  Divider,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { DateRangePicker } from 'react-date-range';
@@ -59,6 +60,7 @@ import {
   Visibility as VisibilityIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
@@ -549,6 +551,8 @@ const HeaderControls = React.memo(function HeaderControls({
   setMontoHasta,
   vistaAgrupada,
   setVistaAgrupada,
+  montoExpanded,
+  setMontoExpanded,
   userRole,
 }) {
   const theme = useTheme();
@@ -631,30 +635,64 @@ const HeaderControls = React.memo(function HeaderControls({
   return (
     <Box mb={2}>
       {/* Fila única compacta con todos los controles */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
-        {/* DATE RANGE PICKER COMPACTO */}
-        <CompactDateRangePicker
-          fechaDesde={fechaDesde}
-          fechaHasta={fechaHasta}
-          onChange={(start, end) => {
-            setFechaDesde(start);
-            setFechaHasta(end);
-            setPage(0);
-          }}
-          disabled={false}
-          theme={theme}
-        />
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 1, 
+        flexWrap: 'nowrap', 
+        mb: 1, 
+        overflowX: 'auto', 
+        py: 1,
+        px: 2,
+        bgcolor: 'background.paper',
+        borderRadius: 1,
+        minHeight: '48px',
+        width: '100%'
+      }}>
+        {/* DATE RANGE PICKER CON LABEL */}
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel sx={{ fontSize: '0.8rem', top: -8 }}>Fecha</InputLabel>
+          <Box sx={{ position: 'relative', pt: 0.5 }}>
+            <CompactDateRangePicker
+              fechaDesde={fechaDesde}
+              fechaHasta={fechaHasta}
+              onChange={(start, end) => {
+                setFechaDesde(start);
+                setFechaHasta(end);
+                setPage(0);
+              }}
+              disabled={false}
+              theme={theme}
+            />
+          </Box>
+        </FormControl>
+
+        {/* VISTA AGRUPADA */}
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel sx={{ fontSize: '0.75rem' }}>Vista</InputLabel>
+          <Select
+            label="Vista"
+            value={vistaAgrupada}
+            onChange={(e) => { setVistaAgrupada(e.target.value); setPage(0); }}
+            variant="outlined"
+            sx={{ fontSize: '0.75rem', height: 32 }}
+          >
+            <MenuItem value="lista" sx={{ fontSize: '0.75rem' }}>Lista</MenuItem>
+            <MenuItem value="tienda" sx={{ fontSize: '0.75rem' }}>Por Tienda</MenuItem>
+            <MenuItem value="usuario" sx={{ fontSize: '0.75rem' }}>Por Usuario</MenuItem>
+          </Select>
+        </FormControl>
 
         {/* TIENDA */}
-        <FormControl size="small" sx={{ minWidth: 80 }}>
-          <InputLabel sx={{ ...sharedLabelSx, fontSize: '0.75rem' }}>Tienda</InputLabel>
+        <FormControl size="small" sx={{ minWidth: 100, maxWidth: 140 }}>
+          <InputLabel sx={{ fontSize: '0.75rem' }}>Tienda</InputLabel>
           <Select
             label="Tienda"
             value={tiendaSeleccionada}
             onChange={(e) => { setTiendaSeleccionada(e.target.value); setPage(0); }}
             MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
             variant="outlined"
-            sx={{ ...sharedSelectSx, fontSize: '0.75rem', height: 32 }}
+            sx={{ fontSize: '0.75rem', height: 32 }}
           >
             <MenuItem value="" sx={{ fontSize: '0.75rem' }}>Todas</MenuItem>
             {tiendas.map((t) => (
@@ -663,9 +701,9 @@ const HeaderControls = React.memo(function HeaderControls({
           </Select>
         </FormControl>
 
-        {/* USUARIO */}
-        <FormControl size="small" sx={{ minWidth: 80 }}>
-          <InputLabel sx={{ ...sharedLabelSx, fontSize: '0.75rem' }}>Usuario</InputLabel>
+        {/* USUARIO SELECT */}
+        <FormControl size="small" sx={{ minWidth: 100, maxWidth: 140 }}>
+          <InputLabel sx={{ fontSize: '0.75rem' }}>Usuario</InputLabel>
           <Select
             label="Usuario"
             value={usuarioSeleccionado}
@@ -673,7 +711,7 @@ const HeaderControls = React.memo(function HeaderControls({
             disabled={!tiendaSeleccionada}
             MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
             variant="outlined"
-            sx={{ ...sharedSelectSx, fontSize: '0.75rem', height: 32 }}
+            sx={{ fontSize: '0.75rem', height: 32 }}
           >
             <MenuItem value="" sx={{ fontSize: '0.75rem' }}>Todos</MenuItem>
             {usuarios.map((u) => (
@@ -682,109 +720,152 @@ const HeaderControls = React.memo(function HeaderControls({
           </Select>
         </FormControl>
 
-        {/* FILTROS POR TIPO - Checkboxes compactos */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 1 }}>
-          <FormControlLabel
-            control={
-              <Checkbox 
-                checked={showCorrectos} 
-                onChange={e => { setShowCorrectos(e.target.checked); setPage(0); }}
-                sx={{ color: theme.palette.success.main, '&.Mui-checked': { color: theme.palette.success.main }, p: 0.3 }}
-                size="small"
-              />
-            }
-            label={<Typography variant="caption" sx={{ color: theme.palette.text.primary, fontSize: '0.7rem' }}>OK</Typography>}
-            sx={{ mr: 0.5 }}
-          />
-          <FormControlLabel
-            control={
-              <Checkbox 
-                checked={showDiferenciasMenores} 
-                onChange={e => { setShowDiferenciasMenores(e.target.checked); setPage(0); }}
-                sx={{ color: theme.palette.warning.main, '&.Mui-checked': { color: theme.palette.warning.main }, p: 0.3 }}
-                size="small"
-              />
-            }
-            label={<Typography variant="caption" sx={{ color: theme.palette.text.primary, fontSize: '0.7rem' }}>Menor</Typography>}
-            sx={{ mr: 0.5 }}
-          />
-          <FormControlLabel
-            control={
-              <Checkbox 
-                checked={showDiferenciasGraves} 
-                onChange={e => { setShowDiferenciasGraves(e.target.checked); setPage(0); }}
-                sx={{ color: theme.palette.error.main, '&.Mui-checked': { color: theme.palette.error.main }, p: 0.3 }}
-                size="small"
-              />
-            }
-            label={<Typography variant="caption" sx={{ color: theme.palette.text.primary, fontSize: '0.7rem' }}>Grave</Typography>}
-            sx={{ mr: 0.5 }}
-          />
-        </Box>
-
-        {/* RANGO DE MONTO */}
+        {/* BUSCADOR DE USUARIO */}
         <TextField
           size="small"
-          label="Monto desde"
-          type="number"
-          value={montoDesde}
-          onChange={(e) => { setMontoDesde(e.target.value); setPage(0); }}
+          label="Buscar Usuario"
+          type="text"
+          value={buscador}
+          onChange={(e) => { setBuscador(e.target.value); setPage(0); }}
+          placeholder="Nombre..."
           InputLabelProps={{ sx: { fontSize: '0.75rem' } }}
           sx={{ 
-            width: 90,
-            '& .MuiInputBase-input': { fontSize: '0.75rem', height: 32, padding: '4px 8px' },
-            ...sharedDateFieldSx
-          }}
-        />
-        <TextField
-          size="small"
-          label="Monto hasta"
-          type="number"
-          value={montoHasta}
-          onChange={(e) => { setMontoHasta(e.target.value); setPage(0); }}
-          InputLabelProps={{ sx: { fontSize: '0.75rem' } }}
-          sx={{ 
-            width: 90,
-            '& .MuiInputBase-input': { fontSize: '0.75rem', height: 32, padding: '4px 8px' },
-            ...sharedDateFieldSx
+            minWidth: 130,
+            '& .MuiInputBase-root': { height: 32 },
+            '& .MuiInputBase-input': { fontSize: '0.75rem' }
           }}
         />
 
-        {/* VISTA AGRUPADA */}
-        <FormControl size="small" sx={{ minWidth: 85 }}>
-          <InputLabel sx={{ ...sharedLabelSx, fontSize: '0.75rem' }}>Vista</InputLabel>
+        {/* ESTADO - Desplegable con selección múltiple */}
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel sx={{ fontSize: '0.75rem' }}>Estado</InputLabel>
           <Select
-            label="Vista"
-            value={vistaAgrupada}
-            onChange={(e) => { setVistaAgrupada(e.target.value); setPage(0); }}
+            label="Estado"
+            multiple
+            value={[
+              ...(showCorrectos ? ['ok'] : []),
+              ...(showDiferenciasMenores ? ['menor'] : []),
+              ...(showDiferenciasGraves ? ['grave'] : [])
+            ]}
+            onChange={(e) => {
+              const valores = e.target.value;
+              setShowCorrectos(valores.includes('ok'));
+              setShowDiferenciasMenores(valores.includes('menor'));
+              setShowDiferenciasGraves(valores.includes('grave'));
+              setPage(0);
+            }}
+            renderValue={(selected) => {
+              if (selected.length === 0) return 'Ninguno';
+              if (selected.length === 3) return 'Todos';
+              return selected.map(v => 
+                v === 'ok' ? 'OK' : v === 'menor' ? 'Menor' : 'Grave'
+              ).join(', ');
+            }}
             variant="outlined"
-            sx={{ ...sharedSelectSx, fontSize: '0.75rem', height: 32 }}
+            sx={{ fontSize: '0.75rem', height: 32 }}
           >
-            <MenuItem value="lista" sx={{ fontSize: '0.75rem' }}>Lista</MenuItem>
-            <MenuItem value="tienda" sx={{ fontSize: '0.75rem' }}>Por Tienda</MenuItem>
-            <MenuItem value="usuario" sx={{ fontSize: '0.75rem' }}>Por Usuario</MenuItem>
+            <MenuItem value="ok" sx={{ fontSize: '0.75rem' }}>
+              <Checkbox checked={showCorrectos} size="small" sx={{ color: theme.palette.success.main, '&.Mui-checked': { color: theme.palette.success.main } }} />
+              <Typography sx={{ fontSize: '0.75rem' }}>OK</Typography>
+            </MenuItem>
+            <MenuItem value="menor" sx={{ fontSize: '0.75rem' }}>
+              <Checkbox checked={showDiferenciasMenores} size="small" sx={{ color: theme.palette.warning.main, '&.Mui-checked': { color: theme.palette.warning.main } }} />
+              <Typography sx={{ fontSize: '0.75rem' }}>Menor</Typography>
+            </MenuItem>
+            <MenuItem value="grave" sx={{ fontSize: '0.75rem' }}>
+              <Checkbox checked={showDiferenciasGraves} size="small" sx={{ color: theme.palette.error.main, '&.Mui-checked': { color: theme.palette.error.main } }} />
+              <Typography sx={{ fontSize: '0.75rem' }}>Grave</Typography>
+            </MenuItem>
           </Select>
         </FormControl>
 
-        {/* Espaciador flexible */}
+        {/* DIVIDER VERTICAL */}
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        {/* BUSCADOR DE MONTO EXPANDIBLE */}
+        {!montoExpanded ? (
+          <Button
+            variant="outlined"
+            onClick={() => setMontoExpanded(true)}
+            startIcon={<SearchIcon sx={{ fontSize: 16 }} />}
+            size="small"
+            sx={{ 
+              minWidth: 120,
+              height: 32,
+              fontSize: '0.75rem',
+              color: theme.palette.text.primary,
+              borderColor: theme.palette.divider,
+              textTransform: 'none',
+              px: 1
+            }}
+          >
+            Buscar Monto
+          </Button>
+        ) : (
+          <Box sx={{ display: 'flex', gap: 0.5, alignItems: 'center' }}>
+            <TextField
+              size="small"
+              label="Monto Min"
+              type="number"
+              value={montoDesde}
+              onChange={(e) => { setMontoDesde(e.target.value); setPage(0); }}
+              InputLabelProps={{ sx: { fontSize: '0.75rem' } }}
+              sx={{ 
+                width: 100,
+                '& .MuiInputBase-root': { height: 32 },
+                '& .MuiInputBase-input': { fontSize: '0.75rem' }
+              }}
+            />
+            <TextField
+              size="small"
+              label="Monto Max"
+              type="number"
+              value={montoHasta}
+              onChange={(e) => { setMontoHasta(e.target.value); setPage(0); }}
+              InputLabelProps={{ sx: { fontSize: '0.75rem' } }}
+              sx={{ 
+                width: 100,
+                '& .MuiInputBase-root': { height: 32 },
+                '& .MuiInputBase-input': { fontSize: '0.75rem' }
+              }}
+            />
+            <IconButton 
+              size="small" 
+              onClick={() => {
+                setMontoExpanded(false);
+                setMontoDesde('');
+                setMontoHasta('');
+                setPage(0);
+              }}
+              sx={{ height: 32, width: 32 }}
+            >
+              <CloseIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Box>
+        )}
+
+        {/* DIVIDER VERTICAL */}
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+        {/* ESPACIADOR FLEXIBLE */}
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* BOTONES DE ACCIÓN - Compactos */}
+        {/* BOTONES DE ACCIÓN */}
         <Box sx={{ display: 'flex', gap: 0.5 }}>
           <Button
             variant="outlined"
             onClick={fetchData}
             disabled={loading}
             startIcon={loading ? <CircularProgress size={14} /> : <RefreshIcon sx={{ fontSize: 16 }} />}
-            size="small"
             sx={{ 
               minWidth: 'auto',
               px: 1,
-              fontSize: '0.7rem',
-              height: 28,
+              fontSize: '0.75rem',
+              height: 32,
               color: theme.palette.text.primary,
-              borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
-              '&:hover': { borderColor: theme.palette.primary.main }
+              borderColor: theme.palette.divider,
+              '&:hover': { borderColor: theme.palette.primary.main, bgcolor: 'action.hover' },
+              textTransform: 'none'
             }}
           >
             {loading ? 'Cargando...' : 'Actualizar'}
@@ -793,15 +874,15 @@ const HeaderControls = React.memo(function HeaderControls({
             variant="outlined"
             onClick={handleDownloadCSV}
             startIcon={<DownloadIcon sx={{ fontSize: 16 }} />}
-            size="small"
             sx={{ 
               minWidth: 'auto',
               px: 1,
-              fontSize: '0.7rem',
-              height: 28,
+              fontSize: '0.75rem',
+              height: 32,
               color: theme.palette.text.primary,
-              borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
-              '&:hover': { borderColor: theme.palette.primary.main }
+              borderColor: theme.palette.divider,
+              '&:hover': { borderColor: theme.palette.primary.main, bgcolor: 'action.hover' },
+              textTransform: 'none'
             }}
           >
             CSV
@@ -810,15 +891,15 @@ const HeaderControls = React.memo(function HeaderControls({
             variant="outlined"
             onClick={handleOpenColumnModal}
             startIcon={<TuneIcon sx={{ fontSize: 16 }} />}
-            size="small"
             sx={{ 
               minWidth: 'auto',
               px: 1,
-              fontSize: '0.7rem',
-              height: 28,
+              fontSize: '0.75rem',
+              height: 32,
               color: theme.palette.text.primary,
-              borderColor: theme.palette.custom?.tableBorder || theme.palette.divider,
-              '&:hover': { borderColor: theme.palette.primary.main }
+              borderColor: theme.palette.divider,
+              '&:hover': { borderColor: theme.palette.primary.main, bgcolor: 'action.hover' },
+              textTransform: 'none'
             }}
           >
             Columnas
@@ -829,15 +910,18 @@ const HeaderControls = React.memo(function HeaderControls({
               onClick={onDeleteSelected}
               disabled={!selectedId}
               startIcon={<DeleteIcon sx={{ fontSize: 16 }} />}
-              size="small"
               sx={{ 
                 minWidth: 'auto',
                 px: 1,
-                fontSize: '0.7rem',
-                height: 28,
+                fontSize: '0.75rem',
+                height: 32,
                 color: !selectedId ? theme.palette.text.disabled : theme.palette.error.main,
                 borderColor: !selectedId ? theme.palette.action.disabledBackground : theme.palette.error.main,
-                '&:hover': { borderColor: !selectedId ? theme.palette.action.disabledBackground : theme.palette.error.light }
+                '&:hover': { 
+                  borderColor: !selectedId ? theme.palette.action.disabledBackground : theme.palette.error.light,
+                  bgcolor: !selectedId ? 'transparent' : 'error.dark'
+                },
+                textTransform: 'none'
               }}
             >
               Eliminar
@@ -899,6 +983,7 @@ export default function Diferencias() {
   const [montoDesde, setMontoDesde] = useState('');
   const [montoHasta, setMontoHasta] = useState('');
   const [vistaAgrupada, setVistaAgrupada] = useState('lista'); // lista, tienda, usuario
+  const [montoExpanded, setMontoExpanded] = useState(false);
 
   const showSnackbar = useCallback((message, severity = 'info') => {
     setSnackbar({ open: true, message, severity });
@@ -1608,6 +1693,8 @@ export default function Diferencias() {
           setMontoHasta={setMontoHasta}
           vistaAgrupada={vistaAgrupada}
           setVistaAgrupada={setVistaAgrupada}
+          montoExpanded={montoExpanded}
+          setMontoExpanded={setMontoExpanded}
           userRole={userRole}
         />
 

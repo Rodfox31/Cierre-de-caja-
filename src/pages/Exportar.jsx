@@ -165,8 +165,13 @@ const processAjusteValue = (ajuste, monto_dif) => {
 };
 
 // NUEVO: función para mostrar estado de validación
+// validado = 0: Sin validar
+// validado = 1: Validado
+// validado = 2: Revisar Boutique
 function getValidacionInfo(cierre) {
-  if (cierre.validado) {
+  const estado = Number(cierre.validado) || 0;
+  
+  if (estado === 1) {
     return {
       label: 'Validado',
       icon: <CheckCircleIcon color="success" fontSize="small" />,
@@ -175,6 +180,17 @@ function getValidacionInfo(cierre) {
       fecha: cierre.fecha_validacion
     };
   }
+  
+  if (estado === 2) {
+    return {
+      label: 'Revisar Boutique',
+      icon: <WarningIcon color="warning" fontSize="small" />,
+      color: 'warning.main',
+      usuario: cierre.usuario_validacion,
+      fecha: cierre.fecha_validacion
+    };
+  }
+  
   return {
     label: 'Sin validar',
     icon: <ErrorIcon color="error" fontSize="small" />,
@@ -480,6 +496,14 @@ export default function ControlMensual() {
     }).format(amount);
   };
 
+  // Función helper para obtener el texto del estado de validación
+  const getValidacionTexto = (validado) => {
+    const estado = Number(validado) || 0;
+    if (estado === 1) return 'Validado';
+    if (estado === 2) return 'Revisar Boutique';
+    return 'Sin validar';
+  };
+
   const years = useMemo(() => {
     const currentYear = moment().year();
     return Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
@@ -507,7 +531,7 @@ export default function ControlMensual() {
         justificacion.orden || '',
         justificacion.motivo || '',
         processAjusteValue(justificacion.ajuste, justificacion.monto_dif),
-        justificacion.validado ? 'Sí' : 'No'
+        getValidacionTexto(justificacion.validado)
       ];
     });
     // Construir CSV
@@ -549,7 +573,7 @@ export default function ControlMensual() {
           Orden: justificacion.orden || '',
           Motivo: justificacion.motivo || '',
           'Ajuste ($)': processAjusteValue(justificacion.ajuste, justificacion.monto_dif),
-          Validado: justificacion.validado ? 'Sí' : 'No'
+          Validado: getValidacionTexto(justificacion.validado)
         };
       });
       
@@ -603,7 +627,7 @@ export default function ControlMensual() {
           orden: justificacion.orden || '',
           motivo: justificacion.motivo || '',
           ajuste: processAjusteValue(justificacion.ajuste, justificacion.monto_dif),
-          validado: justificacion.validado ? 'Sí' : 'No'
+          validado: getValidacionTexto(justificacion.validado)
         };
       });
       
@@ -924,16 +948,26 @@ export default function ControlMensual() {
                       {justificacion.medio_pago || 'N/A'}
                     </TableCell>
                     <TableCell sx={{ color: theme.palette.text.primary }}>
-                      <Chip
-                        label={justificacion.validado ? 'Validado' : 'Sin validar'}
-                        size="small"
-                        sx={{
-                          backgroundColor: justificacion.validado ? theme.palette.success.main : theme.palette.error.main,
-                          color: theme.palette.text.primary,
-                          fontSize: '0.7rem',
-                          height: 20,
-                        }}
-                      />
+                      {(() => {
+                        const estado = Number(justificacion.validado) || 0;
+                        const colorMap = {
+                          0: theme.palette.error.main,      // Sin validar - Rojo
+                          1: theme.palette.success.main,    // Validado - Verde
+                          2: theme.palette.warning.main     // Revisar Boutique - Naranja
+                        };
+                        return (
+                          <Chip
+                            label={getValidacionTexto(justificacion.validado)}
+                            size="small"
+                            sx={{
+                              backgroundColor: colorMap[estado] || theme.palette.error.main,
+                              color: theme.palette.text.primary,
+                              fontSize: '0.7rem',
+                              height: 20,
+                            }}
+                          />
+                        );
+                      })()}
                     </TableCell>
                   </TableRow>
                 ))}

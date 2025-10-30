@@ -33,7 +33,8 @@ import {
   CardContent,
   Stack,
   Tooltip,
-  Collapse
+  Collapse,
+  Menu
 } from '@mui/material';
 import {
   Store as StoreIcon,
@@ -56,7 +57,12 @@ import {
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
   ArrowUpward as ArrowUpwardIcon,
   ArrowDownward as ArrowDownwardIcon,
-  UnfoldMore as UnfoldMoreIcon
+  UnfoldMore as UnfoldMoreIcon,
+  Download as DownloadIcon,
+  Email as EmailIcon,
+  Description as DescriptionIcon,
+  MoreVert as MoreVertIcon,
+  CheckCircleOutline as CheckCircleOutlineIcon
 } from '@mui/icons-material';
 import moment from 'moment';
 import { fetchWithFallback, axiosWithFallback } from '../config';
@@ -94,19 +100,19 @@ const ExactValue = React.memo(function ExactValue({ value, currency = true }) {
 const ESTADOS_CIERRE = {
   CORRECTO: {
     label: 'Correcto',
-    icon: <CheckCircleIcon color="success" />,
+    icon: <CheckCircleIcon sx={{ color: '#2196f3' }} />,
     color: '#4caf50',
     bgColor: 'rgba(76, 175, 80, 0.1)',
   },
   DIFERENCIA_MENOR: {
     label: 'Diferencia menor',
-    icon: <WarningIcon color="warning" />,
+    icon: <WarningIcon sx={{ color: '#2196f3' }} />,
     color: '#ff9800',
     bgColor: 'rgba(255, 152, 0, 0.1)',
   },
   DIFERENCIA_GRAVE: {
     label: 'Diferencia grave',
-    icon: <ErrorIcon color="error" />,
+    icon: <ErrorIcon sx={{ color: '#2196f3' }} />,
     color: '#f44336',
     bgColor: 'rgba(244, 67, 54, 0.1)',
   },
@@ -132,8 +138,13 @@ const processNumericValue = (value) => {
 };
 
 // NUEVO: función para mostrar estado de validación
+// validado = 0: Sin validar
+// validado = 1: Validado
+// validado = 2: Revisar Boutique
 function getValidacionInfo(cierre) {
-  if (cierre.validado) {
+  const estado = Number(cierre.validado) || 0;
+  
+  if (estado === 1) {
     return {
       label: 'Validado',
       icon: <CheckCircleIcon color="success" fontSize="small" />,
@@ -142,10 +153,21 @@ function getValidacionInfo(cierre) {
       fecha: cierre.fecha_validacion
     };
   }
+  
+  if (estado === 2) {
+    return {
+      label: 'Revisar Boutique',
+      icon: <WarningIcon color="warning" fontSize="small" />,
+      color: '#ff9800',
+      usuario: cierre.usuario_validacion,
+      fecha: cierre.fecha_validacion
+    };
+  }
+  
   return {
     label: 'Sin validar',
-    icon: <ErrorIcon color="error" fontSize="small" />,
-    color: '#f44336',
+    icon: <RadioButtonUncheckedIcon fontSize="small" sx={{ color: '#9e9e9e' }} />,
+    color: '#9e9e9e',
     usuario: null,
     fecha: null
   };
@@ -163,8 +185,8 @@ const TiendaCard = React.memo(function TiendaCard({
 }) {
   const theme = useTheme();
   
-  // Solo considerar cierres no validados para el % de error
-  const cierresNoValidados = todosCierres?.filter(cierre => !cierre.validado) || [];
+  // Solo considerar cierres no validados para el % de error (validado = 0)
+  const cierresNoValidados = todosCierres?.filter(cierre => Number(cierre.validado) === 0) || [];
   const totalNoValidados = cierresNoValidados.length;
   const erroresNoValidados = cierresNoValidados.filter(cierre => {
     const estado = getEstado(cierre);
@@ -173,9 +195,9 @@ const TiendaCard = React.memo(function TiendaCard({
   const porcentajeErrores = totalNoValidados > 0 ? (erroresNoValidados / totalNoValidados) * 100 : 0;
   
   // Calcular estadísticas adicionales basadas en todosCierres
-  const cierresValidados = todosCierres?.filter(cierre => cierre.validado).length || 0;
+  const cierresValidados = todosCierres?.filter(cierre => Number(cierre.validado) === 1).length || 0;
   const cierresSinValidar = totalCierres - cierresValidados;
-  const diferenciaValidada = todosCierres?.filter(cierre => cierre.validado)
+  const diferenciaValidada = todosCierres?.filter(cierre => Number(cierre.validado) === 1)
     .reduce((sum, cierre) => sum + (Number(cierre.grand_difference_total) || 0), 0) || 0;
   const diferenciaSinValidar = totalDiferencia - diferenciaValidada;
   
@@ -221,8 +243,7 @@ const TiendaCard = React.memo(function TiendaCard({
         minHeight: isSelected ? '220px' : '180px',
         width: '100%',
         minWidth: '180px',
-        maxWidth: '220px',
-        flex: '1 1 180px',
+        flex: '1 1 auto',
         ...(isSelected && {
           boxShadow: `0 4px 16px ${getAccentColor()}30` ,
           transform: 'translateY(-1px)',
@@ -432,7 +453,7 @@ const TiendaCard = React.memo(function TiendaCard({
 });
 
 // Componente para renderizar cada fila de cierre con opción desplegable
-function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevisar, formatMoney, setModalDetalle }) {
+function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevisar, formatMoney, setModalDetalle, handleOpenActionMenu }) {
   const [open, setOpen] = useState(false);
   const theme = useTheme();
   const estado = getEstado(cierre);
@@ -558,9 +579,18 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
             <VisibilityIcon />
           </IconButton>
         </TableCell>
+        <TableCell align="center" sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
+          <IconButton 
+            size="small" 
+            onClick={(e) => handleOpenActionMenu(e, cierre)}
+            sx={{ color: theme.palette.text.secondary }}
+          >
+            <CheckCircleOutlineIcon fontSize="small" />
+          </IconButton>
+        </TableCell>
       </TableRow>
       <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={12}>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={13}>
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box sx={{ margin: 1, padding: 2, backgroundColor: alpha(theme.palette.background.paper, 0.6), borderRadius: 2 }}>
               <Typography variant="h6" gutterBottom component="div" sx={{ color: theme.palette.text.primary, fontSize: '1rem' }}>
@@ -797,6 +827,9 @@ export default function ControlMensual() {
   const [showValidados, setShowValidados] = useState(false);
   const [showTodos, setShowTodos] = useState(false);
   const [selectedCard, setSelectedCard] = useState(null);
+  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
+  const [actionMenuAnchor, setActionMenuAnchor] = useState(null);
+  const [selectedCierreForAction, setSelectedCierreForAction] = useState(null);
   // Estados para ordenamiento
   const [orderBy, setOrderBy] = useState('fecha'); // 'fecha', 'usuario', 'estado', 'validacion', 'diferencia'
   const [orderDirection, setOrderDirection] = useState('desc'); // 'asc' o 'desc'
@@ -932,6 +965,7 @@ export default function ControlMensual() {
           fecha: moment(fechaFormateada, 'DD/MM/YYYY'),
           medios_pago: mediosPago,
           justificaciones: cierre.justificaciones || [],
+          validado: Number(cierre.validado) || 0, // Asegurar que sea número (0, 1, o 2)
         };
       });
       
@@ -1023,20 +1057,24 @@ export default function ControlMensual() {
         });
       }
 
-      // Filtro por validación
+      // Filtro por validación (validado: 0=sin validar, 1=validado, 2=revisar boutique)
       if (validacionFilter !== 'todos') {
+        console.log('🔍 Filtrando por validación:', validacionFilter);
+        console.log('📊 Estados de validación en datos:', cierresFiltrados.map(c => ({ id: c.id, validado: c.validado, tipo: typeof c.validado })).slice(0, 5));
         cierresFiltrados = cierresFiltrados.filter(cierre => {
+          const estadoValidacion = Number(cierre.validado) || 0;
           switch (validacionFilter) {
             case 'validado':
-              return cierre.validado === true || cierre.validado === 1;
+              return estadoValidacion === 1;
             case 'sin_validar':
-              return !cierre.validado || cierre.validado === false || cierre.validado === 0;
+              return estadoValidacion === 0;
             case 'revisar':
-              return cierre.estado === 'revisar' || cierre.revisar === true || cierre.revisar === 1;
+              return estadoValidacion === 2;
             default:
               return true;
           }
         });
+        console.log('✅ Cierres después de filtrar:', cierresFiltrados.length);
       }
 
       setSelectedCierres(cierresFiltrados);
@@ -1070,16 +1108,17 @@ export default function ControlMensual() {
           console.log(`✅ Después de filtrar por estado "${estadoFilter}":`, cierresFiltrados.length);
         }
 
-        // Filtro por validación
+        // Filtro por validación (validado: 0=sin validar, 1=validado, 2=revisar boutique)
         if (validacionFilter !== 'todos') {
           cierresFiltrados = cierresFiltrados.filter(cierre => {
+            const estadoValidacion = Number(cierre.validado) || 0;
             switch (validacionFilter) {
               case 'validado':
-                return cierre.validado === true || cierre.validado === 1;
+                return estadoValidacion === 1;
               case 'sin_validar':
-                return !cierre.validado || cierre.validado === false || cierre.validado === 0;
+                return estadoValidacion === 0;
               case 'revisar':
-                return cierre.estado === 'revisar' || cierre.revisar === true || cierre.revisar === 1;
+                return estadoValidacion === 2;
               default:
                 return true;
             }
@@ -1297,6 +1336,74 @@ export default function ControlMensual() {
     } else {
       showSnackbar('No se pudo pasar a revisión ningún cierre.', 'error');
     }
+  };
+
+  // Funciones para manejar el menú de acciones individuales
+  const handleOpenActionMenu = (event, cierre) => {
+    setActionMenuAnchor(event.currentTarget);
+    setSelectedCierreForAction(cierre);
+  };
+
+  const handleCloseActionMenu = () => {
+    setActionMenuAnchor(null);
+    setSelectedCierreForAction(null);
+  };
+
+  const handleValidarCierre = async (cierreId) => {
+    try {
+      console.log('🔵 Validando cierre ID:', cierreId);
+      const res = await axiosWithFallback(`/api/cierres-completo/${cierreId}/validar`, {
+        method: 'PUT',
+        data: { usuario_validacion: 'admin' }
+      });
+      if (res.status === 200) {
+        console.log('✅ Cierre validado exitosamente');
+        showSnackbar('Cierre validado exitosamente.', 'success');
+        await fetchCierres();
+      }
+    } catch (err) {
+      console.error('❌ Error al validar:', err);
+      showSnackbar('Error al validar el cierre.', 'error');
+    }
+    handleCloseActionMenu();
+  };
+
+  const handleDesvalidarCierre = async (cierreId) => {
+    try {
+      console.log('🔵 Desvalidando cierre ID:', cierreId);
+      const res = await axiosWithFallback(`/api/cierres-completo/${cierreId}/desvalidar`, {
+        method: 'PUT',
+      });
+      if (res.status === 200) {
+        console.log('✅ Cierre desvalidado exitosamente');
+        showSnackbar('Cierre marcado como sin validar.', 'success');
+        await fetchCierres();
+      }
+    } catch (err) {
+      console.error('❌ Error al desvalidar:', err);
+      showSnackbar('Error al desvalidar el cierre.', 'error');
+    }
+    handleCloseActionMenu();
+  };
+
+  const handleRevisarCierre = async (cierreId) => {
+    try {
+      console.log('🟠 Marcando cierre para Revisar Boutique, ID:', cierreId);
+      const res = await axiosWithFallback(`/api/cierres-completo/${cierreId}/revisar`, {
+        method: 'PUT',
+        data: { usuario_validacion: 'admin' }
+      });
+      console.log('📡 Respuesta del servidor:', res);
+      if (res.status === 200) {
+        console.log('✅ Cierre marcado para revisión boutique exitosamente');
+        showSnackbar('Cierre marcado para revisión boutique.', 'success');
+        await fetchCierres();
+      }
+    } catch (err) {
+      console.error('❌ Error al marcar para revisión:', err);
+      showSnackbar('Error al marcar para revisión.', 'error');
+    }
+    handleCloseActionMenu();
   };
 
   const formatMoney = (amount) => {
@@ -1622,46 +1729,33 @@ export default function ControlMensual() {
 
             <Divider orientation="vertical" flexItem />
 
-            {/* Botón Actualizar */}
-            <Button
-              variant="contained"
-              size="small"
-              onClick={fetchCierres}
-              disabled={loading}
-              startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon />}
-              sx={{ textTransform: 'none', fontWeight: 600 }}
-            >
-              {loading ? 'Cargando...' : 'Actualizar'}
-            </Button>
-
-            {/* Espaciador */}
-            <Box sx={{ flexGrow: 1 }} />
-
-            {/* Acciones Rápidas */}
+            {/* Botones de Acción */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Button
                 variant="contained"
                 size="small"
-                color="success"
-                onClick={handleValidarDiferencias}
-                disabled={selectedCierresIds.size === 0}
-                startIcon={<CheckCircleIcon />}
+                onClick={fetchCierres}
+                disabled={loading}
+                startIcon={loading ? <CircularProgress size={16} color="inherit" /> : <RefreshIcon />}
                 sx={{ textTransform: 'none', fontWeight: 600 }}
               >
-                Validar ({selectedCierresIds.size})
+                {loading ? 'Cargando...' : 'Actualizar'}
               </Button>
+
+              {/* Botón de Descarga */}
               <Button
                 variant="outlined"
                 size="small"
-                color="error"
-                onClick={handlePasarRevision}
-                disabled={selectedCierresIds.size === 0}
-                startIcon={<WarningIcon />}
+                onClick={() => setDownloadModalOpen(true)}
+                startIcon={<DownloadIcon />}
                 sx={{ textTransform: 'none', fontWeight: 600 }}
               >
-                Revisar ({selectedCierresIds.size})
+                Descargar
               </Button>
             </Box>
+
+            {/* Espaciador */}
+            <Box sx={{ flexGrow: 1 }} />
           </Box>
 
           <Divider sx={{ mb: 2 }} />
@@ -1900,39 +1994,6 @@ export default function ControlMensual() {
               </Button>
             </Box>
           </Box>
-
-          {/* Indicador de resultados */}
-          {(selectedCierres.length > 0 || allCierres.length > 0) && (
-            <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${theme.palette.divider}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontWeight: 600 }}>
-                {selectedCierres.length > 0
-                  ? `📊 ${selectedCierres.length} cierres de ${selectedTienda || 'todas las tiendas'}`
-                  : `📊 ${allCierres.length} cierres totales en ${months[selectedMonth]} ${selectedYear}`
-                }
-                {selectedCierresIds.size > 0 && ` • ✓ ${selectedCierresIds.size} seleccionados`}
-              </Typography>
-
-              {/* Exportación */}
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleExportCSV}
-                  sx={{ textTransform: 'none', minWidth: 'auto', fontWeight: 600 }}
-                >
-                  CSV
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleExportPDF}
-                  sx={{ textTransform: 'none', minWidth: 'auto', fontWeight: 600 }}
-                >
-                  PDF
-                </Button>
-              </Box>
-            </Box>
-          )}
         </Paper>
 
         {/* Mostrar loading o contenido */}
@@ -1955,9 +2016,9 @@ export default function ControlMensual() {
           />
         ) : vistaAgrupada === 'tiendas' ? (
           // Vista agrupada por tiendas (original)
-          <Box sx={{ mb: 3, display: 'flex', flexDirection: 'row', gap: 2, flexWrap: 'nowrap', justifyContent: 'flex-start', alignItems: 'stretch', overflowX: 'auto', width: '100%' }}>
+          <Box sx={{ mb: 3, display: 'flex', flexDirection: 'row', gap: 2, flexWrap: 'wrap', justifyContent: 'flex-start', alignItems: 'stretch', width: '100%' }}>
             {tiendasAMostrar.map((stats) => (
-              <Box key={stats.tienda} sx={{ display: 'flex', alignItems: 'stretch', flex: '1 1 180px', minWidth: '180px', maxWidth: '220px' }}>
+              <Box key={stats.tienda} sx={{ display: 'flex', alignItems: 'stretch', flex: '1 1 180px', minWidth: '180px' }}>
                 <TiendaCard
                   tienda={stats.tienda}
                   totalCierres={stats.totalCierres}
@@ -2000,15 +2061,6 @@ export default function ControlMensual() {
                   : `Cierres de ${selectedTienda}`
                 }
               </Typography>
-              {selectedTienda && (
-                <Button
-                  variant="text"
-                  onClick={() => setSelectedTienda(null)}
-                  sx={{ color: theme.palette.text.secondary, minWidth: 'auto' }}
-                >
-                  <KeyboardArrowUpIcon />
-                </Button>
-              )}
             </Box>
             
 
@@ -2157,7 +2209,8 @@ export default function ControlMensual() {
                       </Tooltip>
                     </TableCell>
                     <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }} align="center">Justif.</TableCell>
-                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }} align="center">Acciones</TableCell>
+                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }} align="center">Ampliar Caja</TableCell>
+                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }} align="center">Estado</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -2170,6 +2223,7 @@ export default function ControlMensual() {
                       handleMarcarRevisar={handleMarcarRevisar}
                       formatMoney={formatMoney}
                       setModalDetalle={setModalDetalle}
+                      handleOpenActionMenu={handleOpenActionMenu}
                     />
                   ))}
                 </TableBody>
@@ -2195,6 +2249,144 @@ export default function ControlMensual() {
         onClose={() => { setModalDetalle(null); setTabValue(0); }}
         open={!!modalDetalle}
       />
+
+      {/* Menú de Acciones de Estado */}
+      <Menu
+        anchorEl={actionMenuAnchor}
+        open={Boolean(actionMenuAnchor)}
+        onClose={handleCloseActionMenu}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'right',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+      >
+        <MenuItem 
+          onClick={() => selectedCierreForAction && handleValidarCierre(selectedCierreForAction.id)}
+          disabled={selectedCierreForAction?.validado === true || selectedCierreForAction?.validado === 1}
+        >
+          <CheckCircleIcon fontSize="small" sx={{ mr: 1, color: theme.palette.success.main }} />
+          <Typography variant="body2">Validar</Typography>
+        </MenuItem>
+        <MenuItem 
+          onClick={() => selectedCierreForAction && handleDesvalidarCierre(selectedCierreForAction.id)}
+          disabled={selectedCierreForAction?.validado === false || selectedCierreForAction?.validado === 0}
+        >
+          <RadioButtonUncheckedIcon fontSize="small" sx={{ mr: 1, color: theme.palette.warning.main }} />
+          <Typography variant="body2">Sin Validar</Typography>
+        </MenuItem>
+        <MenuItem 
+          onClick={() => selectedCierreForAction && handleRevisarCierre(selectedCierreForAction.id)}
+        >
+          <AssignmentIcon fontSize="small" sx={{ mr: 1, color: theme.palette.info.main }} />
+          <Typography variant="body2">Revisar Boutique</Typography>
+        </MenuItem>
+      </Menu>
+
+      {/* Modal de Descarga */}
+      <Modal
+        open={downloadModalOpen}
+        onClose={() => setDownloadModalOpen(false)}
+        closeAfterTransition
+      >
+        <Fade in={downloadModalOpen}>
+          <Box sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 320,
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            boxShadow: 24,
+            p: 3,
+          }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, color: 'text.primary' }}>
+              Descargar Datos
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
+              Selecciona el formato de exportación:
+            </Typography>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+              <Button
+                variant="outlined"
+                startIcon={<DescriptionIcon />}
+                onClick={() => {
+                  handleExportCSV();
+                  setDownloadModalOpen(false);
+                }}
+                fullWidth
+                sx={{
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  py: 1.5,
+                  fontSize: '0.95rem',
+                  borderColor: theme.palette.divider,
+                  '&:hover': { borderColor: theme.palette.primary.main, bgcolor: 'action.hover' }
+                }}
+              >
+                Exportar a CSV
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<DescriptionIcon />}
+                onClick={() => {
+                  handleExportPDF();
+                  setDownloadModalOpen(false);
+                }}
+                fullWidth
+                sx={{
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  py: 1.5,
+                  fontSize: '0.95rem',
+                  borderColor: theme.palette.divider,
+                  '&:hover': { borderColor: theme.palette.primary.main, bgcolor: 'action.hover' }
+                }}
+              >
+                Exportar a PDF
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<EmailIcon />}
+                onClick={() => {
+                  setDownloadModalOpen(false);
+                  // TODO: Implementar función de envío por email
+                }}
+                fullWidth
+                disabled
+                sx={{
+                  justifyContent: 'flex-start',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  py: 1.5,
+                  fontSize: '0.95rem',
+                  borderColor: theme.palette.divider,
+                  '&:hover': { borderColor: theme.palette.primary.main, bgcolor: 'action.hover' }
+                }}
+              >
+                Enviar por Email (Próximamente)
+              </Button>
+            </Box>
+            <Button
+              onClick={() => setDownloadModalOpen(false)}
+              fullWidth
+              sx={{
+                mt: 2,
+                textTransform: 'none',
+                color: 'text.secondary'
+              }}
+            >
+              Cancelar
+            </Button>
+          </Box>
+        </Fade>
+      </Modal>
 
       {/* Snackbar */}
       <Snackbar
