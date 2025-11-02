@@ -21,6 +21,7 @@ import {
   Badge,
   Stack,
 } from '@mui/material';
+import { formatCurrency } from '../utils/numberFormat';
 import {
   Storefront,
   WarningAmber,
@@ -717,7 +718,7 @@ const HomePage = ({ allClosures, setAllClosures }) => {
           <Grid item xs={12} sm={6} lg={3}>
             <MetricCard
               title="Diferencia Total"
-              value={`$${stats.totalDiferencias.toFixed(0)}`}
+              value={formatCurrency(stats.totalDiferencias)}
               icon={<AttachMoney />}
               color={theme.palette.warning.main}
             />
@@ -725,7 +726,7 @@ const HomePage = ({ allClosures, setAllClosures }) => {
           <Grid item xs={12} sm={6} lg={3}>
             <MetricCard
               title="Promedio por Cierre"
-              value={`$${stats.promedioDiferencias.toFixed(0)}`}
+              value={formatCurrency(stats.promedioDiferencias)}
               icon={<TrendingUp />}
               color={theme.palette.primary.main}
             />

@@ -23,7 +23,7 @@ function Sidebar({ activePage, setActivePage }) {
     { name: "Cierre diario", icon: <AssessmentIcon fontSize="small" />, pageKey: "cierrediario" },
     { name: "Control de cajas", icon: <BalanceIcon fontSize="small" />, pageKey: "controlmensual" },
     { name: "Control de Boutiques", icon: <StoreIcon fontSize="small" />, pageKey: "diferencias" },
-    { name: "Exportar", icon: <FileDownloadIcon fontSize="small" />, pageKey: "exportar" },
+    { name: "Filtros y Reportes", icon: <FileDownloadIcon fontSize="small" />, pageKey: "exportar" },
     { name: "Ajustes", icon: <SettingsIcon fontSize="small" />, pageKey: "ajustes" },
   ];
 

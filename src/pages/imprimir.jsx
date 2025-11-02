@@ -36,6 +36,7 @@ import {
   Print,
 } from "@mui/icons-material";
 import moment from 'moment';
+import { normalizeNumber, formatCurrency } from '../utils/numberFormat';
 
 const SectionHeader = ({ icon, title, variant = "caption" }) => {
   return (
@@ -75,46 +76,16 @@ function Imprimir({ resumenData = {}, onClose, open }) {
     window.print();
   };
 
-  // Formatear valores monetarios
-  // Formatear valores monetarios robusto para formato chileno/europeo
-  const formatCurrency = (value) => {
-    if (value == null || value === '') return '$0';
-    if (typeof value === 'string') {
-      // Si ya tiene el símbolo peso, lo dejamos
-      if (value.includes('$')) return value;
-      // Limpiar espacios
-      let clean = value.trim();
-      // Si tiene punto como miles y coma como decimal (ej: "5.400,22")
-      if (/^\d{1,3}(\.\d{3})*(,\d+)?$/.test(clean)) {
-        clean = clean.replace(/\./g, ''); // quitar puntos
-        clean = clean.replace(/,/g, '.'); // cambiar coma por punto
-      }
-      // Si tiene solo coma decimal (ej: "5400,22")
-      else if (/^\d+(,\d+)?$/.test(clean)) {
-        clean = clean.replace(/,/g, '.');
-      }
-      // Si tiene solo punto decimal (ej: "5400.22")
-      // No hace falta modificar
-      const num = parseFloat(clean) || 0;
-      return `$${num.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-    // Si es número
-    const num = typeof value === 'number' ? value : parseFloat(value) || 0;
-    return `$${num.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
-
   // Usar los totales que vienen de CierreCaja
   const totalFacturado = resumenData.granTotalMedios || '';
   const totalCobrado = resumenData.granTotalMedios || '';
   const diferenciaMedios = resumenData.balanceSinJustificar || '';
-  const totalJustificaciones = resumenData.justificaciones?.reduce((sum, just) => sum + (parseFloat(just.ajuste) || 0), 0) || 0;
+  const totalJustificaciones = resumenData.justificaciones?.reduce((sum, just) => sum + normalizeNumber(just.ajuste), 0) || 0;
   let balanceFinal = '';
   if (diferenciaMedios !== '' && totalJustificaciones !== '') {
-    const dif = parseFloat(
-      typeof diferenciaMedios === 'string' ? diferenciaMedios.replace(/\./g, '').replace(/,/g, '.') : diferenciaMedios
-    ) || 0;
-    const just = typeof totalJustificaciones === 'string' ? parseFloat(totalJustificaciones.replace(/\./g, '').replace(/,/g, '.')) : totalJustificaciones;
-    balanceFinal = dif - (just || 0);
+    const dif = normalizeNumber(diferenciaMedios);
+    const just = normalizeNumber(totalJustificaciones);
+    balanceFinal = dif - just;
     if (isNaN(balanceFinal)) balanceFinal = 0;
   } else {
     balanceFinal = 0;
@@ -187,7 +158,7 @@ function Imprimir({ resumenData = {}, onClose, open }) {
         <CompactCard title="Información General" icon={<Store />}>
           <Grid container spacing={1}>
             <Grid item xs={4}>
-              <InfoRow label="Fecha" value={moment(resumenData.fecha, 'DD/MM/YYYY').format('DD/MM/YYYY') || 'N/A'} />
+              <InfoRow label="Fecha" value={moment(resumenData.fecha, 'YYYY-MM-DD').format('DD/MM/YYYY') || 'N/A'} />
             </Grid>
             <Grid item xs={4}>
               <InfoRow label="Tienda" value={resumenData.tienda || 'N/A'} />

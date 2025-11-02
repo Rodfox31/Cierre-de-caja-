@@ -486,20 +486,6 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
           />
         </TableCell>
         <TableCell sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
-          <IconButton
-            aria-label="expand row"
-            size="small"
-            onClick={() => setOpen(!open)}
-            disabled={numJustificaciones === 0}
-            sx={{ 
-              color: numJustificaciones > 0 ? theme.palette.success.main : theme.palette.text.disabled,
-              '&:disabled': { color: alpha(theme.palette.text.disabled, 0.3) }
-            }}
-          >
-            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-          </IconButton>
-        </TableCell>
-        <TableCell sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
             {cierre.id}
           </Typography>
@@ -574,6 +560,20 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
             )}
           </Box>
         </TableCell>
+        <TableCell sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
+          <IconButton
+            aria-label="expand row"
+            size="small"
+            onClick={() => setOpen(!open)}
+            disabled={numJustificaciones === 0}
+            sx={{ 
+              color: numJustificaciones > 0 ? theme.palette.success.main : theme.palette.text.disabled,
+              '&:disabled': { color: alpha(theme.palette.text.disabled, 0.3) }
+            }}
+          >
+            {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+          </IconButton>
+        </TableCell>
         <TableCell align="center" sx={{ borderBottom: `1px solid ${theme.palette.custom.tableBorder}` }}>
           <IconButton size="small" onClick={() => setModalDetalle(cierre)}>
             <VisibilityIcon />
@@ -590,7 +590,7 @@ function CierreRow({ cierre, isSelected, handleCheckboxChange, handleMarcarRevis
         </TableCell>
       </TableRow>
       <TableRow>
-        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={13}>
+        <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={14}>
           <Collapse in={open} timeout="auto" unmountOnExit>
             <Box sx={{ margin: 1, padding: 2, backgroundColor: alpha(theme.palette.background.paper, 0.6), borderRadius: 2 }}>
               <Typography variant="h6" gutterBottom component="div" sx={{ color: theme.palette.text.primary, fontSize: '1rem' }}>
@@ -1368,6 +1368,44 @@ export default function ControlMensual() {
     handleCloseActionMenu();
   };
 
+  const handleValidacionMultiple = async () => {
+    if (selectedCierresIds.size === 0) {
+      showSnackbar('No hay cierres seleccionados.', 'warning');
+      return;
+    }
+    
+    const idsArray = Array.from(selectedCierresIds);
+    let successCount = 0;
+    let errorCount = 0;
+    
+    console.log('🔵 Validando múltiples cierres:', idsArray);
+    
+    for (const cierreId of idsArray) {
+      try {
+        const res = await axiosWithFallback(`/api/cierres-completo/${cierreId}/validar`, {
+          method: 'PUT',
+          data: { usuario_validacion: 'admin' }
+        });
+        if (res.status === 200) {
+          successCount++;
+        }
+      } catch (err) {
+        console.error(`❌ Error al validar cierre ${cierreId}:`, err);
+        errorCount++;
+      }
+    }
+    
+    if (successCount > 0) {
+      showSnackbar(`Se validaron ${successCount} cierre(s) exitosamente.`, 'success');
+      await fetchCierres();
+      setSelectedCierresIds(new Set());
+    }
+    
+    if (errorCount > 0) {
+      showSnackbar(`No se pudieron validar ${errorCount} cierre(s).`, 'error');
+    }
+  };
+
   const handleDesvalidarCierre = async (cierreId) => {
     try {
       console.log('🔵 Desvalidando cierre ID:', cierreId);
@@ -2061,6 +2099,16 @@ export default function ControlMensual() {
                   : `Cierres de ${selectedTienda}`
                 }
               </Typography>
+              <Button
+                variant="contained"
+                color="primary"
+                size="small"
+                disabled={selectedCierresIds.size === 0}
+                onClick={handleValidacionMultiple}
+                sx={{ textTransform: 'none' }}
+              >
+                Validación Múltiple ({selectedCierresIds.size})
+              </Button>
             </Box>
             
 
@@ -2092,7 +2140,6 @@ export default function ControlMensual() {
                         onChange={(e) => handleSelectAll(e.target.checked)} 
                       />
                     </TableCell>
-                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary, width: 50 }}>Ver</TableCell>
                     <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }}>ID</TableCell>
                     <TableCell 
                       sx={{ 
@@ -2209,6 +2256,7 @@ export default function ControlMensual() {
                       </Tooltip>
                     </TableCell>
                     <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }} align="center">Justif.</TableCell>
+                    <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }} align="center">Ver</TableCell>
                     <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }} align="center">Ampliar Caja</TableCell>
                     <TableCell sx={{ bgcolor: theme.palette.custom.tableRowHover, color: theme.palette.text.primary }} align="center">Estado</TableCell>
                   </TableRow>

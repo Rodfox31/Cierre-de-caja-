@@ -117,3 +117,31 @@
 [2025-10-30 13:38:40] ✓ Respaldos automáticos programados:
 [2025-10-30 13:38:40]   - Respaldo diario: 2:00 AM
 [2025-10-30 13:38:40]   - Exportación CSV mensual: Día 1 a las 3:00 AM
+[2025-10-30 21:00:20] BackupManager inicializado correctamente
+[2025-10-30 21:00:20] ✓ Respaldos automáticos programados:
+[2025-10-30 21:00:20]   - Respaldo diario: 2:00 AM
+[2025-10-30 21:00:20]   - Exportación CSV mensual: Día 1 a las 3:00 AM
+[2025-10-31 10:04:19] BackupManager inicializado correctamente
+[2025-10-31 10:04:19] ✓ Respaldos automáticos programados:
+[2025-10-31 10:04:19]   - Respaldo diario: 2:00 AM
+[2025-10-31 10:04:19]   - Exportación CSV mensual: Día 1 a las 3:00 AM
+[2025-11-01 20:32:07] BackupManager inicializado correctamente
+[2025-11-01 20:32:07] ✓ Respaldos automáticos programados:
+[2025-11-01 20:32:07]   - Respaldo diario: 2:00 AM
+[2025-11-01 20:32:07]   - Exportación CSV mensual: Día 1 a las 3:00 AM
+[2025-11-02 00:29:07] BackupManager inicializado correctamente
+[2025-11-02 00:29:07] ✓ Respaldos automáticos programados:
+[2025-11-02 00:29:07]   - Respaldo diario: 2:00 AM
+[2025-11-02 00:29:07]   - Exportación CSV mensual: Día 1 a las 3:00 AM
+[2025-11-02 11:19:52] BackupManager inicializado correctamente
+[2025-11-02 11:19:53] ✓ Respaldos automáticos programados:
+[2025-11-02 11:19:53]   - Respaldo diario: 2:00 AM
+[2025-11-02 11:19:53]   - Exportación CSV mensual: Día 1 a las 3:00 AM
+[2025-11-02 11:42:26] BackupManager inicializado correctamente
+[2025-11-02 11:42:26] ✓ Respaldos automáticos programados:
+[2025-11-02 11:42:26]   - Respaldo diario: 2:00 AM
+[2025-11-02 11:42:26]   - Exportación CSV mensual: Día 1 a las 3:00 AM
+[2025-11-02 19:35:32] BackupManager inicializado correctamente
+[2025-11-02 19:35:32] ✓ Respaldos automáticos programados:
+[2025-11-02 19:35:32]   - Respaldo diario: 2:00 AM
+[2025-11-02 19:35:32]   - Exportación CSV mensual: Día 1 a las 3:00 AM

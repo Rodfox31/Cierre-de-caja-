@@ -31,6 +31,7 @@ import {
   TrendingUp,
 } from "@mui/icons-material";
 import moment from 'moment';
+import { formatCurrency as formatCurrencyGlobal, normalizeNumber as normalizeNumberGlobal } from '../utils/numberFormat';
 
 const SectionHeader = ({ icon, title, variant = "caption" }) => {
   return (
@@ -94,37 +95,19 @@ const CompactCard = ({ title, icon, children, noPadding = false }) => {
 };
 
 function DetallesCierre({ resumenData = {}, onClose, open }) {
-  // Formatear valores monetarios
-  const formatCurrency = (value) => {
-    if (value == null || value === '') return '$0';
-    if (typeof value === 'string') {
-      if (value.includes('$')) return value;
-      let clean = value.trim();
-      if (/^\d{1,3}(\.\d{3})*(,\d+)?$/.test(clean)) {
-        clean = clean.replace(/\./g, '');
-        clean = clean.replace(/,/g, '.');
-      } else if (/^\d+(,\d+)?$/.test(clean)) {
-        clean = clean.replace(/,/g, '.');
-      }
-      const num = parseFloat(clean) || 0;
-      return `$${num.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-    }
-    const num = typeof value === 'number' ? value : parseFloat(value) || 0;
-    return `$${num.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  // Formatear valores monetarios (unificado)
+  const formatCurrency = (value) => formatCurrencyGlobal(value);
 
   // Usar los totales que vienen de CierreCaja
   const totalFacturado = resumenData.granTotalMedios || '';
   const totalCobrado = resumenData.granTotalMedios || '';
   const diferenciaMedios = resumenData.balanceSinJustificar || '';
-  const totalJustificaciones = resumenData.justificaciones?.reduce((sum, just) => sum + (parseFloat(just.ajuste) || 0), 0) || 0;
+  const totalJustificaciones = resumenData.justificaciones?.reduce((sum, just) => sum + normalizeNumberGlobal(just.ajuste), 0) || 0;
   let balanceFinal = '';
   if (diferenciaMedios !== '' && totalJustificaciones !== '') {
-    const dif = parseFloat(
-      typeof diferenciaMedios === 'string' ? diferenciaMedios.replace(/\./g, '').replace(/,/g, '.') : diferenciaMedios
-    ) || 0;
-    const just = typeof totalJustificaciones === 'string' ? parseFloat(totalJustificaciones.replace(/\./g, '').replace(/,/g, '.')) : totalJustificaciones;
-    balanceFinal = dif - (just || 0);
+    const dif = normalizeNumberGlobal(diferenciaMedios);
+    const just = normalizeNumberGlobal(totalJustificaciones);
+    balanceFinal = dif - just;
     if (isNaN(balanceFinal)) balanceFinal = 0;
   } else {
     balanceFinal = 0;
@@ -224,7 +207,7 @@ function DetallesCierre({ resumenData = {}, onClose, open }) {
                   Fecha
                 </Typography>
                 <Typography variant="body2" sx={{ color: "#ffffff", fontSize: '0.85rem', fontWeight: 600 }}>
-                  {moment(resumenData.fecha, 'DD/MM/YYYY').format('DD/MM/YYYY') || 'N/A'}
+                  {moment(resumenData.fecha, 'YYYY-MM-DD').format('DD/MM/YYYY') || 'N/A'}
                 </Typography>
               </Box>
             </Box>

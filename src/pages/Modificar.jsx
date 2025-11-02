@@ -18,6 +18,7 @@ import {
   FormControlLabel,
 } from '@mui/material';
 import { useTheme, alpha } from '@mui/material/styles';
+import { normalizeNumber } from '../utils/numberFormat';
 import { Add as AddIcon, Delete as DeleteIcon, Save as SaveIcon } from '@mui/icons-material';
 import { axiosWithFallback } from '../config';
 import moment from 'moment';
@@ -48,23 +49,58 @@ export default function Modificar({ cierre, onClose, onSave }) {
     axiosWithFallback(`/api/cierres-completo/${cierre.id}`)
       .then(res => {
         const d = res.data;
+        console.log('🔍 DEBUG - Respuesta completa del API:', d);
+        console.log('🔍 DEBUG - medios_pago recibidos:', d.medios_pago);
+        console.log('🔍 DEBUG - tipo de medios_pago:', typeof d.medios_pago);
+        
         let medios = [];
         if (d.medios_pago) {
-          if (typeof d.medios_pago === 'string') medios = JSON.parse(d.medios_pago);
-          else if (Array.isArray(d.medios_pago)) medios = d.medios_pago;
-          else medios = Object.entries(d.medios_pago).map(([m, v]) => ({
-            medio: m,
-            facturado: v.facturado || 0,
-            cobrado: v.cobrado || 0,
-            differenceVal: v.differenceVal || 0,
-          }));
+          if (typeof d.medios_pago === 'string') {
+            console.log('📝 medios_pago es string, parseando...');
+            medios = JSON.parse(d.medios_pago);
+            console.log('📝 Resultado del parse:', medios);
+          } else if (Array.isArray(d.medios_pago)) {
+            console.log('📝 medios_pago es array');
+            medios = d.medios_pago;
+          } else {
+            console.log('📝 medios_pago es objeto, convirtiendo a array...');
+            medios = Object.entries(d.medios_pago).map(([m, v]) => {
+              console.log(`  - Medio: ${m}`, v);
+              return {
+                medio: m,
+                facturado: v.facturado || 0,
+                cobrado: v.cobrado || 0,
+                differenceVal: v.differenceVal || 0,
+              };
+            });
+          }
         }
-        medios = medios.map(mp => ({
-          ...mp,
-          facturado: +mp.facturado || 0,
-          cobrado: +mp.cobrado || 0,
-          differenceVal: +mp.differenceVal || 0,
-        }));
+        
+        console.log('🔍 DEBUG - medios antes de mapear:', medios);
+        
+        medios = medios.map(mp => {
+          const facturado = normalizeNumber(mp.facturado);
+          const cobrado = normalizeNumber(mp.cobrado);
+          const differenceVal = normalizeNumber(mp.differenceVal);
+          
+          const resultado = {
+            ...mp,
+            facturado,
+            cobrado,
+            differenceVal,
+          };
+          console.log(`  ✅ Medio procesado: ${mp.medio}`, {
+            facturadoOriginal: mp.facturado,
+            facturadoParsed: facturado,
+            cobradoOriginal: mp.cobrado,
+            cobradoParsed: cobrado,
+            differenceValOriginal: mp.differenceVal,
+            differenceValParsed: differenceVal
+          });
+          return resultado;
+        });
+        console.log('🔍 DEBUG - medios finales:', medios);
+        
         let fecha = d.fecha;
         if (/^\d{2}\/\d{2}\/\d{4}$/.test(fecha)) {
           fecha = moment(fecha, 'DD/MM/YYYY').format('YYYY-MM-DD');

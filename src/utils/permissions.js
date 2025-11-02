@@ -29,6 +29,7 @@ export const PERMISSIONS = {
   MODIFY_ANY_CIERRE: 'modify_any_cierre',
   MODIFY_JUSTIFICATIONS: 'modify_justifications',
   DELETE_CIERRES: 'delete_cierres',
+  EDIT_CIERRES_DIARIOS: 'editar_cierres_diarios', // NUEVO: Permiso para editar cierres diarios guardados
   
   // Reportes y exportación
   VIEW_DIFERENCIAS: 'view_diferencias',
@@ -47,6 +48,7 @@ export const ROLE_PERMISSIONS = {
     PERMISSIONS.VIEW_ASSIGNED_SUCURSALES,
     PERMISSIONS.VIEW_CIERRES,
     PERMISSIONS.MODIFY_JUSTIFICATIONS,
+    PERMISSIONS.EDIT_CIERRES_DIARIOS, // NUEVO: Supervisores pueden editar cierres diarios por defecto
     PERMISSIONS.VIEW_DIFERENCIAS,
     PERMISSIONS.VIEW_REPORTS,
     PERMISSIONS.EXPORT_OWN_DATA,

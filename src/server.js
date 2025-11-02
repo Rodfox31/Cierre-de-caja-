@@ -50,11 +50,10 @@ const createTableQuery = [
   '  balance_sin_justificar REAL,',
   '  responsable TEXT,',
   '  comentarios TEXT,',
-  '  fondo REAL,',
   '  validado INTEGER DEFAULT 0,',
   '  usuario_validacion TEXT,',
   '  fecha_validacion TEXT,',
-  '  revisar INTEGER DEFAULT 0', // <-- Asegura que la columna existe
+  '  revisar INTEGER DEFAULT 0',
   ')'
 ].join('\n');
 
@@ -242,6 +241,110 @@ db.run(createUsersTable, async (err) => {
   }
 });
 
+// ── NUEVO: Crear índices para optimización de consultas ──
+function createDatabaseIndexes() {
+  const indexes = [
+    // Índices para tabla cierres
+    {
+      name: 'idx_cierres_fecha',
+      table: 'cierres',
+      columns: 'fecha',
+      description: 'Optimiza búsquedas por fecha'
+    },
+    {
+      name: 'idx_cierres_tienda',
+      table: 'cierres',
+      columns: 'tienda',
+      description: 'Optimiza filtros por tienda/sucursal'
+    },
+    {
+      name: 'idx_cierres_usuario',
+      table: 'cierres',
+      columns: 'usuario',
+      description: 'Optimiza filtros por cajero/usuario'
+    },
+    {
+      name: 'idx_cierres_fecha_tienda',
+      table: 'cierres',
+      columns: 'fecha, tienda',
+      description: 'Optimiza búsquedas por fecha Y tienda (compuesto)'
+    },
+    
+    // Índices para tabla justificaciones
+    {
+      name: 'idx_justificaciones_cierre_id',
+      table: 'justificaciones',
+      columns: 'cierre_id',
+      description: 'Optimiza JOIN con cierres'
+    },
+    {
+      name: 'idx_justificaciones_fecha',
+      table: 'justificaciones',
+      columns: 'fecha',
+      description: 'Optimiza búsquedas por fecha'
+    },
+    
+    // Índices para tabla cierres_diarios
+    {
+      name: 'idx_cierres_diarios_fecha',
+      table: 'cierres_diarios',
+      columns: 'fecha',
+      description: 'Optimiza búsquedas por fecha'
+    },
+    {
+      name: 'idx_cierres_diarios_tienda',
+      table: 'cierres_diarios',
+      columns: 'tienda',
+      description: 'Optimiza filtros por tienda'
+    }
+  ];
+
+  let created = 0;
+  let skipped = 0;
+
+  indexes.forEach((index, i) => {
+    // Verificar si el índice ya existe
+    db.get(
+      `SELECT name FROM sqlite_master WHERE type='index' AND name=?`,
+      [index.name],
+      (err, row) => {
+        if (err) {
+          console.error(`Error verificando índice ${index.name}:`, err.message);
+          return;
+        }
+
+        if (row) {
+          skipped++;
+        } else {
+          // Crear el índice
+          const createIndexSQL = `CREATE INDEX ${index.name} ON ${index.table}(${index.columns})`;
+          db.run(createIndexSQL, (err) => {
+            if (err) {
+              console.error(`Error creando índice ${index.name}:`, err.message);
+            } else {
+              created++;
+              console.log(`✅ Índice creado: ${index.name} (${index.description})`);
+            }
+
+            // Si es el último índice, mostrar resumen
+            if (i === indexes.length - 1) {
+              setTimeout(() => {
+                console.log(`\n📊 Índices: ${created} creados, ${skipped} ya existían`);
+              }, 100);
+            }
+          });
+        }
+      }
+    );
+  });
+}
+
+// Ejecutar creación de índices después de crear las tablas
+setTimeout(() => {
+  console.log('\n🔍 Verificando índices de base de datos...');
+  createDatabaseIndexes();
+}, 500);
+
 // Ruta raíz para mostrar datos aleatorios
 app.get('/', (req, res) => {
   // Obtener un cierre aleatorio de la base de datos
@@ -341,7 +444,6 @@ app.get('/api/cierres-completo', (req, res) => {
       orden,
       cliente,
       medio_pago,
-      monto_dif,
       ajuste,
       motivo
     FROM justificaciones
@@ -415,7 +517,6 @@ app.get('/api/cierres-completo/:id', (req, res) => {
       fecha,
       tienda,
       usuario,
-      fondo,
       total_billetes,
       final_balance,
       brinks_total,
@@ -559,11 +660,10 @@ app.post('/api/cierres', (req, res) => {
             fecha,
             orden,
             cliente,
-            monto_dif,
             ajuste,
             motivo
           )
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?)
         `;
 
         // Preparamos el statement para insertar en 'justificaciones'
@@ -577,7 +677,6 @@ app.post('/api/cierres', (req, res) => {
               j.fecha || fecha,   // Si la justificación no trae fecha, se usa la del cierre
               j.orden,
               j.cliente,
-              j.monto_dif,
               j.ajuste,
               j.motivo
             ],
@@ -1213,7 +1312,6 @@ app.post('/api/justificaciones', (req, res) => {
     fecha,
     orden,
     cliente,
-    monto_dif,
     ajuste,
     motivo
   } = req.body;
@@ -1245,7 +1343,6 @@ app.post('/api/justificaciones', (req, res) => {
         fecha: fechaFormateada,
         orden,
         cliente,
-        monto_dif,
         ajuste,
         motivo
       });
@@ -1260,7 +1357,6 @@ app.put('/api/justificaciones/:id', (req, res) => {
     fecha,
     orden,
     cliente,
-    monto_dif,
     ajuste,
     motivo
   } = req.body;
@@ -1274,14 +1370,13 @@ app.put('/api/justificaciones/:id', (req, res) => {
       fecha = ?,
       orden = ?,
       cliente = ?,
-      monto_dif = ?,
       ajuste = ?,
       motivo = ?
     WHERE id = ?
   `;
 
   db.run(updateQuery, 
-    [fechaFormateada, orden, cliente, monto_dif, ajuste, motivo, justId],
+    [fechaFormateada, orden, cliente, ajuste, motivo, justId],
     function(err) {
       if (err) {
         console.error('Error actualizando justificación:', err.message);
@@ -2357,6 +2452,9 @@ app.post('/api/cierres-diarios', (req, res) => {
     });
   }
 
+  // La fecha ya viene en formato YYYY-MM-DD desde el frontend
+  const fechaFormateada = fecha;
+
   // Convertir medios_pago a JSON string si es un objeto/array
   const mediosPagoJSON = typeof medios_pago === 'string' 
     ? medios_pago 
@@ -2370,7 +2468,7 @@ app.post('/api/cierres-diarios', (req, res) => {
 
   db.run(
     query,
-    [fecha, usuario, tienda || null, mediosPagoJSON, comentarios || null],
+    [fechaFormateada, usuario, tienda || null, mediosPagoJSON, comentarios || null],
     function(err) {
       if (err) {
         console.error('Error al guardar cierre diario:', err.message);
@@ -2396,9 +2494,10 @@ app.get('/api/cierres-diarios', (req, res) => {
       return res.status(500).json({ error: 'Error al obtener cierres diarios' });
     }
 
-    // Parsear medios_pago de JSON string a objeto
+    // Parsear medios_pago y convertir fecha a DD/MM/YYYY
     const cierresConMediosParsed = rows.map(cierre => ({
       ...cierre,
+      fecha: moment(cierre.fecha, 'YYYY-MM-DD').format('DD/MM/YYYY'),
       medios_pago: typeof cierre.medios_pago === 'string' 
         ? JSON.parse(cierre.medios_pago)
         : cierre.medios_pago
@@ -2423,9 +2522,10 @@ app.get('/api/cierres-diarios/:id', (req, res) => {
       return res.status(404).json({ error: 'Cierre diario no encontrado' });
     }
 
-    // Parsear medios_pago
+    // Parsear medios_pago y convertir fecha a DD/MM/YYYY
     const cierreConMediosParsed = {
       ...row,
+      fecha: moment(row.fecha, 'YYYY-MM-DD').format('DD/MM/YYYY'),
       medios_pago: typeof row.medios_pago === 'string'
         ? JSON.parse(row.medios_pago)
         : row.medios_pago
@@ -2433,6 +2533,52 @@ app.get('/api/cierres-diarios/:id', (req, res) => {
 
     res.json(cierreConMediosParsed);
   });
+});
+
+// PUT - Actualizar un cierre diario
+app.put('/api/cierres-diarios/:id', (req, res) => {
+  const { id } = req.params;
+  const { fecha, usuario, tienda, medios_pago, comentarios } = req.body;
+
+  if (!fecha || !usuario || !medios_pago) {
+    return res.status(400).json({ 
+      error: 'Faltan campos requeridos: fecha, usuario, medios_pago' 
+    });
+  }
+
+  // La fecha ya viene en formato YYYY-MM-DD desde el frontend
+  const fechaFormateada = fecha;
+
+  // Convertir medios_pago a JSON string si es un objeto/array
+  const mediosPagoJSON = typeof medios_pago === 'string' 
+    ? medios_pago 
+    : JSON.stringify(medios_pago);
+
+  const query = `
+    UPDATE cierres_diarios 
+    SET fecha = ?, usuario = ?, tienda = ?, medios_pago = ?, comentarios = ?
+    WHERE id = ?
+  `;
+
+  db.run(
+    query,
+    [fechaFormateada, usuario, tienda || null, mediosPagoJSON, comentarios || null, id],
+    function(err) {
+      if (err) {
+        console.error('Error al actualizar cierre diario:', err.message);
+        return res.status(500).json({ error: 'Error al actualizar cierre diario' });
+      }
+
+      if (this.changes === 0) {
+        return res.status(404).json({ error: 'Cierre diario no encontrado' });
+      }
+
+      res.json({
+        success: true,
+        message: 'Cierre diario actualizado exitosamente'
+      });
+    }
+  );
 });
 
 // DELETE - Eliminar un cierre diario

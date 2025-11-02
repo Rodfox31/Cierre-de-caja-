@@ -44,6 +44,16 @@ function formatCurrency(value) {
   }).format(value || 0);
 }
 
+// Función para normalizar números en formato argentino
+function normalizeNumber(value) {
+  if (!value) return 0;
+  if (typeof value === 'number') return value;
+  const normalized = value.toString()
+    .replace(/\./g, '')
+    .replace(',', '.');
+  return parseFloat(normalized) || 0;
+}
+
 function CierreDiario() {
   const theme = useTheme();
   const { currentUser } = useAuth();
@@ -270,16 +280,17 @@ function CierreDiario() {
   };
 
   const handleCobradoChange = (medioNombre, value) => {
+    const cleanValue = value.replace(/[^\d.,]/g, '');
     setCobradoValues(prev => ({
       ...prev,
-      [medioNombre]: value
+      [medioNombre]: cleanValue
     }));
   };
 
   const calcularDiferencia = (medio) => {
-    const facturadoReal = parseFloat(cobradoValues[medio.medio]) || 0; // Lo que ingresa el usuario (REAL)
-    const cobradoSistema = parseFloat(facturadoValues[medio.medio]) || 0; // Lo que viene de la DB (Sistema)
-    return facturadoReal - cobradoSistema; // Diferencia = Real - Sistema
+    const facturadoReal = normalizeNumber(cobradoValues[medio.medio]);
+    const cobradoSistema = parseFloat(facturadoValues[medio.medio]) || 0;
+    return facturadoReal - cobradoSistema;
   };
 
   // Calcular totales
@@ -289,7 +300,7 @@ function CierreDiario() {
     let totalDiferencia = 0;
 
     mediosPagoData.forEach(medio => {
-      const facturado = parseFloat(cobradoValues[medio.medio]) || 0;
+      const facturado = normalizeNumber(cobradoValues[medio.medio]);
       const cobrado = parseFloat(facturadoValues[medio.medio]) || 0;
       const diferencia = facturado - cobrado;
 
@@ -405,7 +416,7 @@ function CierreDiario() {
                 <InputLabel>Año</InputLabel>
                 <Select 
                   value={selectedYear} 
-                  onChange={(e) => setSelectedYear(e.target.value)} 
+                  onChange={(e) => setSelectedYear(Number(e.target.value))} 
                   label="Año"
                   sx={{ height: 32, fontSize: '0.75rem' }}
                 >
@@ -423,7 +434,7 @@ function CierreDiario() {
                 <InputLabel>Mes</InputLabel>
                 <Select 
                   value={selectedMonth} 
-                  onChange={(e) => setSelectedMonth(e.target.value)} 
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))} 
                   label="Mes"
                   sx={{ height: 32, fontSize: '0.75rem' }}
                 >
@@ -439,7 +450,7 @@ function CierreDiario() {
               <InputLabel>Día</InputLabel>
               <Select 
                 value={selectedDay} 
-                onChange={(e) => setSelectedDay(e.target.value)} 
+                onChange={(e) => setSelectedDay(Number(e.target.value))} 
                 label="Día"
                 sx={{ height: 32, fontSize: '0.75rem' }}
               >
@@ -558,15 +569,15 @@ function CierreDiario() {
                             </TableCell>
                             <TableCell align="right" sx={{ py: 0.75 }}>
                               <TextField
-                                fullWidth
                                 size="small"
-                                placeholder="Ingrese monto real del cierre"
+                                placeholder="0,00"
                                 value={cobradoValues[medio.medio] || ''}
                                 onChange={(e) => handleCobradoChange(medio.medio, e.target.value)}
                                 InputProps={{
                                   sx: {
-                                    fontSize: '0.9rem',
-                                    height: 36,
+                                    fontSize: '0.85rem',
+                                    height: 32,
+                                    width: 140,
                                     backgroundColor: alpha(theme.palette.primary.main, 0.05),
                                     borderRadius: 1.5,
                                     transition: 'all 0.2s ease',
@@ -599,11 +610,13 @@ function CierreDiario() {
                             </TableCell>
                             <TableCell align="right" sx={{ py: 0.75 }}>
                               <Box sx={{
-                                px: 2,
+                                px: 1.5,
                                 py: 0.5,
                                 borderRadius: 1,
                                 bgcolor: alpha(theme.palette.info.main, 0.1),
-                                border: `1px solid ${theme.palette.divider}`
+                                border: `1px solid ${theme.palette.divider}`,
+                                display: 'inline-block',
+                                minWidth: 120
                               }}>
                                 <Typography sx={{ 
                                   fontFamily: 'monospace',
@@ -944,6 +957,208 @@ function CierreDiario() {
             </Paper>
           </Grid>
         </Grid>
+
+        {/* Resumen Detallado del Día - Tabla Comprimida */}
+        {!loading && cierres.length > 0 && (
+          <Box sx={{ mt: 3 }}>
+            <Paper 
+              elevation={3}
+              sx={{ 
+                p: 3,
+                border: `2px solid ${theme.palette.primary.main}`,
+                borderRadius: 2,
+                bgcolor: alpha(theme.palette.primary.main, 0.03)
+              }}
+            >
+              <Typography variant="h6" sx={{ 
+                mb: 2, 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 1,
+                color: theme.palette.primary.main,
+                fontWeight: 'bold'
+              }}>
+                📋 Resumen del Día {selectedDay}/{selectedMonth + 1}/{selectedYear}
+              </Typography>
+
+              <Grid container spacing={3}>
+                {/* Tabla de Cajas - Izquierda */}
+                <Grid item xs={12} md={7}>
+                  <TableContainer 
+                    component={Paper} 
+                    elevation={0}
+                    sx={{ 
+                      border: `1px solid ${theme.palette.divider}`,
+                      maxHeight: 600,
+                      overflow: 'auto'
+                    }}
+                  >
+                    <Table size="small" stickyHeader>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 'bold', bgcolor: alpha(theme.palette.primary.main, 0.1), width: '25%' }}>
+                            Usuario / Tienda
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: 'bold', bgcolor: alpha(theme.palette.primary.main, 0.1), width: '15%' }}>
+                            Hora
+                          </TableCell>
+                          <TableCell sx={{ fontWeight: 'bold', bgcolor: alpha(theme.palette.primary.main, 0.1), width: '60%' }}>
+                            Medios de Pago
+                          </TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {cierres.map((cierre, index) => {
+                          const medios = typeof cierre.medios_pago === 'string' 
+                            ? JSON.parse(cierre.medios_pago) 
+                            : cierre.medios_pago || [];
+                          
+                          // Filtrar solo medios con valores
+                          const mediosConValor = medios.filter(m => 
+                            (parseFloat(m.cobrado) || 0) !== 0 || (parseFloat(m.facturado) || 0) !== 0
+                          );
+                          
+                          return (
+                            <TableRow key={index} hover>
+                              <TableCell sx={{ verticalAlign: 'top', py: 1.5 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 0.3 }}>
+                                  {cierre.usuario}
+                                </Typography>
+                                <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                                  {cierre.tienda}
+                                </Typography>
+                              </TableCell>
+                              <TableCell sx={{ verticalAlign: 'top', py: 1.5 }}>
+                                <Typography variant="caption">
+                                  {cierre.hora || '-'}
+                                </Typography>
+                              </TableCell>
+                              <TableCell sx={{ py: 1.5 }}>
+                                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                                  {mediosConValor.map((medio, idx) => {
+                                    const cobrado = parseFloat(medio.cobrado) || 0;
+                                    const facturado = parseFloat(medio.facturado) || 0;
+                                    const diferencia = cobrado - facturado;
+                                    
+                                    return (
+                                      <Box 
+                                        key={idx}
+                                        sx={{ 
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: 0.5,
+                                          px: 1,
+                                          py: 0.3,
+                                          border: `1px solid ${theme.palette.divider}`,
+                                          borderRadius: 1,
+                                          bgcolor: alpha(theme.palette.info.main, 0.03),
+                                          fontSize: '0.75rem'
+                                        }}
+                                      >
+                                        <Typography variant="caption" sx={{ fontWeight: 'bold', fontSize: '0.7rem' }}>
+                                          {medio.medio}:
+                                        </Typography>
+                                        <Typography 
+                                          variant="caption" 
+                                          sx={{ 
+                                            fontFamily: 'monospace',
+                                            fontSize: '0.7rem',
+                                            color: diferencia === 0 ? theme.palette.text.primary :
+                                                   diferencia > 0 ? theme.palette.success.main :
+                                                   theme.palette.error.main,
+                                            fontWeight: 'bold'
+                                          }}
+                                        >
+                                          {diferencia >= 0 ? '+' : ''}{formatCurrency(diferencia).replace('$', '')}
+                                        </Typography>
+                                      </Box>
+                                    );
+                                  })}
+                                </Box>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Grid>
+
+                {/* Justificaciones - Derecha */}
+                <Grid item xs={12} md={5}>
+                  <Paper 
+                    elevation={0}
+                    sx={{ 
+                      p: 1.5,
+                      border: `1px solid ${theme.palette.divider}`,
+                      maxHeight: 600,
+                      overflow: 'auto'
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1.5, color: theme.palette.warning.main, fontSize: '0.875rem' }}>
+                      📝 Justificaciones
+                    </Typography>
+                    {cierres.some(c => c.justificaciones && c.justificaciones.length > 0) ? (
+                      <Box>
+                        {cierres.map((cierre, index) => {
+                          if (!cierre.justificaciones || cierre.justificaciones.length === 0) return null;
+                          
+                          return (
+                            <Box 
+                              key={index}
+                              sx={{ 
+                                mb: 1.5,
+                                pb: 1,
+                                borderBottom: index < cierres.length - 1 ? `1px solid ${alpha(theme.palette.divider, 0.5)}` : 'none'
+                              }}
+                            >
+                              <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', mb: 0.5, color: theme.palette.primary.main, fontSize: '0.7rem' }}>
+                                {cierre.usuario}
+                              </Typography>
+                              {cierre.justificaciones.map((just, jIdx) => (
+                                <Box 
+                                  key={jIdx}
+                                  sx={{ 
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'flex-start',
+                                    mb: 0.5,
+                                    p: 0.5,
+                                    bgcolor: alpha(theme.palette.warning.main, 0.03),
+                                    borderLeft: `2px solid ${theme.palette.warning.main}`,
+                                    borderRadius: 0.5
+                                  }}
+                                >
+                                  <Box sx={{ flex: 1, mr: 1 }}>
+                                    <Typography variant="caption" sx={{ display: 'block', fontSize: '0.7rem', lineHeight: 1.3 }}>
+                                      {just.descripcion}
+                                    </Typography>
+                                    {just.tipo && (
+                                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.6rem' }}>
+                                        {just.tipo}
+                                      </Typography>
+                                    )}
+                                  </Box>
+                                  <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 'bold', color: theme.palette.warning.dark, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
+                                    {formatCurrency(just.monto)}
+                                  </Typography>
+                                </Box>
+                              ))}
+                            </Box>
+                          );
+                        })}
+                      </Box>
+                    ) : (
+                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary, textAlign: 'center', py: 3, display: 'block', fontSize: '0.75rem' }}>
+                        Sin justificaciones
+                      </Typography>
+                    )}
+                  </Paper>
+                </Grid>
+              </Grid>
+            </Paper>
+          </Box>
+        )}
       </Paper>
 
       {/* Snackbar para notificaciones */}

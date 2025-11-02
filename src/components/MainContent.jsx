@@ -23,7 +23,7 @@ function MainContent({ activePage }) {
     'Cierre diario': 'cierrediario',
     'Control de cajas': 'controlmensual',
     'Control de Boutiques': 'diferencias',
-    'Exportar': 'exportar',
+    'Filtros y Reportes': 'exportar',
     'Ajustes': 'ajustes',
   };
   
@@ -64,8 +64,8 @@ function MainContent({ activePage }) {
       case 'Cerrar caja': return <CierreCaja />;
       case 'Cierre diario': return <CierreDiario />;
       case 'Control de cajas': return <Diferencias />;
-      case 'Control de Boutiques': return <ControlMensual />;
-      case 'Exportar': return <Exportar />;
+  case 'Control de Boutiques': return <ControlMensual />;
+  case 'Filtros y Reportes': return <Exportar />;
       case 'Ajustes': return <Ajustes />;
       default: return <Typography>Página no encontrada</Typography>;
     }

@@ -1,7 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { Calendar } from 'react-date-range';
+import { es as dfEs } from 'date-fns/locale';
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
 import Imprimir from "./imprimir"; // Asumo que este componente existe
 import { fetchWithFallback } from '../config';
 import moment from 'moment';
+import { normalizeNumber } from '../utils/numberFormat';
 
 // --- MUI Imports ---
 import {
@@ -20,6 +25,7 @@ import {
     IconButton,
     Container,
     Collapse,
+    Popover,
     Alert,
     AlertTitle,
     Chip,
@@ -57,24 +63,6 @@ import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
 function formatCurrency(value) {
     return "$ " + value.toLocaleString("es-CL", { minimumFractionDigits: 0 });
 }
-function parseCurrency(valueStr) {
-    if (typeof valueStr === "number") return valueStr;
-    try {
-        const str = String(valueStr).trim();
-        if (str === '' || str === '-') return 0; // Devolver 0 si está vacío o es solo un guion
-
-        const isNegative = str.startsWith('-');
-        // Limpiar el string: quitar el signo negativo para el procesamiento, remover espacios, y luego quitar los puntos de miles.
-        const cleanStr = str.replace(/^-/, '').replace(/\s+/g, '').replace(/\./g, '');
-        // Reemplazar la coma decimal por un punto para el parseo.
-        const normalized = cleanStr.replace(",", ".");
-        
-        const result = parseFloat(normalized) || 0;
-        return isNegative ? -result : result;
-    } catch {
-        return 0.0;
-    }
-}
 
 // Permite sumar expresiones tipo "1000+2000" en facturado
 function parseSumExpression(expr) {
@@ -83,7 +71,7 @@ function parseSumExpression(expr) {
   if (!/^[0-9+.,\s]+$/.test(expr)) return 0;
   return expr
     .split('+')
-    .map(s => parseCurrency(s.trim()))
+    .map(s => normalizeNumber(s.trim()))
     .reduce((a, b) => a + b, 0);
 }
 
@@ -108,6 +96,10 @@ function HeaderControls({
 }) {
     // Buscador de usuario compacto
     const theme = useTheme();
+    const dateInputRef = useRef(null);
+    const [calOpen, setCalOpen] = useState(false);
+    const [anchorEl, setAnchorEl] = useState(null);
+    const [anchorPos, setAnchorPos] = useState(null);
     const [userSearch, setUserSearch] = useState("");
     const filteredUsuarios = usuarios?.filter(u => u.toLowerCase().includes(userSearch.toLowerCase()));
     // Estados para colapso y botón
@@ -158,13 +150,14 @@ function HeaderControls({
                             </Box>
                             <TextField
                                 label="Fecha"
-                                type="date"
                                 size="small"
-                                value={fecha.toISOString().split("T")[0]}
-                                onChange={(e) => setFecha(new Date(e.target.value))}
+                                value={moment(fecha).format('DD/MM/YYYY')}
+                                onClick={(e) => { setAnchorEl(e.currentTarget); setAnchorPos(null); setCalOpen(true); }}
+                                inputRef={dateInputRef}
+                                InputProps={{ readOnly: true, sx: { cursor: 'pointer' } }}
                                 InputLabelProps={{ shrink: true }}
                                 sx={{
-                                    minWidth: 120,
+                                    minWidth: 130,
                                     mx: 1,
                                     '& .MuiOutlinedInput-root': {
                                         backgroundColor: alpha(theme.palette.background.default, 0.7),
@@ -173,7 +166,7 @@ function HeaderControls({
                                         '&:hover fieldset': { borderColor: theme.palette.primary.main },
                                         '&.Mui-focused fieldset': { borderColor: theme.palette.primary.main }
                                     },
-                                    '& .MuiInputBase-input': { color: theme.palette.text.primary },
+                                    '& .MuiInputBase-input': { color: theme.palette.text.primary, fontSize: '0.9rem' },
                                     '& .MuiInputLabel-root': { color: theme.palette.primary.main }
                                 }}
                             />
@@ -281,7 +274,21 @@ function HeaderControls({
                         borderRadius: 0,
                     }}>
                         <Stack direction="row" spacing={4} alignItems="center">
-                            <Stack direction="row" spacing={1.5} alignItems="center">
+                            <Stack 
+                                direction="row" 
+                                spacing={1.5} 
+                                alignItems="center"
+                                sx={{ cursor: 'pointer' }}
+                                onClick={(e) => {
+                                    // Abrir calendario directamente en modo colapsado
+                                    try {
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      setAnchorEl(null);
+                                      setAnchorPos({ top: Math.round(rect.bottom + window.scrollY), left: Math.round(rect.left + window.scrollX) });
+                                      setCalOpen(true);
+                                    } catch {}
+                                }}
+                            >
                                 <EventIcon fontSize="medium" sx={{ color: theme.palette.primary.main }} />
                                 <Typography variant="body1" sx={{ color: theme.palette.text.primary, fontWeight: 500 }}>{fecha.toLocaleDateString("es-CL")}</Typography>
                             </Stack>
@@ -297,6 +304,31 @@ function HeaderControls({
                     </Box>
                 </Collapse>
             </Paper>
+                        {/* Popover de Calendario compacto */}
+                        <Popover
+                            open={calOpen}
+                            onClose={() => setCalOpen(false)}
+                            anchorEl={anchorEl}
+                            anchorReference={anchorEl ? 'anchorEl' : 'anchorPosition'}
+                            anchorPosition={anchorPos || { top: 0, left: 0 }}
+                            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+                            transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+                            PaperProps={{
+                                sx: {
+                                    mt: 0.5,
+                                    boxShadow: 3,
+                                    p: 1,
+                                    backgroundColor: '#fff',
+                                }
+                            }}
+                     >
+                                            <Calendar
+                                date={fecha}
+                                                onChange={(d) => { setFecha(d); setCalOpen(false); }}
+                                                locale={dfEs}
+                                color={theme.palette.primary.main}
+                            />
+                        </Popover>
         </Box>
     );
 }
@@ -490,11 +522,25 @@ function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, d
     
     const updatePaymentRow = (index, field, value) => {
         const newEntries = [...paymentEntries];
-        newEntries[index][field] = value;
-        // Usar parseSumExpression en todas las filas
+        
+        // Validaciones específicas por campo
+        if (field === 'cobrado') {
+            // Cobrado (Real): permite números, operaciones (+, -), punto, coma
+            const sanitized = value.replace(/[^0-9.,+\-]/g, '');
+            newEntries[index][field] = sanitized;
+        } else if (field === 'facturado') {
+            // Facturado (Sieben): solo números, punto, coma, menos (sin +)
+            const sanitized = value.replace(/[^0-9.,\-]/g, '');
+            newEntries[index][field] = sanitized;
+        } else {
+            newEntries[index][field] = value;
+        }
+        
+        // Usar parseSumExpression en ambos campos (cobrado también puede tener sumas)
         const facturadoVal = parseSumExpression(newEntries[index].facturado || '0');
-        const cobradoVal = parseCurrency(newEntries[index].cobrado || '0');
-        const diff = facturadoVal - cobradoVal;
+        const cobradoVal = parseSumExpression(newEntries[index].cobrado || '0');
+        // Diferencia = Cobrado - Facturado (positivo si cobró de más, negativo si falta)
+        const diff = cobradoVal - facturadoVal;
         newEntries[index].differenceVal = diff;
         newEntries[index].difference = diff ? formatCurrency(diff) : "$  -";
         setPaymentEntries(newEntries);
@@ -504,18 +550,20 @@ function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, d
         if (paymentEntries.length > 0) {
             const cashTotal = billEntries.reduce((acc, bill) => acc + (bill.total || 0), 0);
             const brinksTotal = brinksEntries.reduce((acc, entry) => acc + (parseFloat(entry.monto) || 0), 0);
-            const facturadoTotal = cashTotal + brinksTotal;
-            const formattedFacturado = facturadoTotal.toLocaleString("es-CL", { minimumFractionDigits: 2 });
+            // Cobrado Real = Cash Total + Brinks (lo que realmente contó el cajero)
+            const cobradoTotal = cashTotal + brinksTotal;
+            const formattedCobrado = cobradoTotal.toLocaleString("es-CL", { minimumFractionDigits: 2 });
             const newEntries = [...paymentEntries];
-            newEntries[0].facturado = formattedFacturado;
-            // Format cobrado if present and is a number
-            if (newEntries[0].cobrado && !isNaN(parseCurrency(newEntries[0].cobrado))) {
-                const cobradoNum = parseCurrency(newEntries[0].cobrado);
-                newEntries[0].cobrado = cobradoNum.toLocaleString("es-CL", { minimumFractionDigits: 2 });
+            newEntries[0].cobrado = formattedCobrado;
+            // Format facturado if present and is a number
+            if (newEntries[0].facturado && !isNaN(normalizeNumber(newEntries[0].facturado))) {
+                const facturadoNum = normalizeNumber(newEntries[0].facturado);
+                newEntries[0].facturado = facturadoNum.toLocaleString("es-CL", { minimumFractionDigits: 2 });
             }
-            const facturadoVal = parseCurrency(newEntries[0].facturado || "0");
-            const cobradoVal = parseCurrency(newEntries[0].cobrado || "0");
-            const diff = facturadoVal - cobradoVal;
+            const facturadoVal = normalizeNumber(newEntries[0].facturado || "0");
+            const cobradoVal = normalizeNumber(newEntries[0].cobrado || "0");
+            // Diferencia = Cobrado - Facturado (positivo si cobró de más, negativo si falta)
+            const diff = cobradoVal - facturadoVal;
             newEntries[0].differenceVal = diff;
             newEntries[0].difference = diff ? formatCurrency(diff) : "$  -";
             setPaymentEntries(newEntries);
@@ -577,28 +625,34 @@ function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, d
                                             {entry.medio}
                                         </Typography>
                                     </Grid>
+                                    {/* COLUMNA 1: Cobrado (Real) - input manual del cajero (excepto primera fila) */}
                                     <Grid item xs={2.5}>
                                         <TextField
                                             fullWidth
                                             size="small"
-                                            placeholder="$"
-                                            value={entry.facturado}
-                                            onChange={(e) => updatePaymentRow(idx, "facturado", e.target.value)}
-                                            InputProps={{
+                                            placeholder={idx === 0 ? "Auto-calculado" : "Ej: 1000 o 500+500"}
+                                            value={entry.cobrado}
+                                            onChange={(e) => updatePaymentRow(idx, "cobrado", e.target.value)}
+                                            disabled={idx === 0}
+                                            InputProps={{ 
                                                 readOnly: idx === 0,
-                                                sx: {
-                                                    fontSize: '0.9rem',
+                                                sx: { 
+                                                    fontSize: '0.9rem', 
                                                     height: 36,
-                                                    backgroundColor: alpha(theme.palette.custom.tableRow, 0.5),
+                                                    backgroundColor: idx === 0 
+                                                        ? alpha(theme.palette.grey[500], 0.1)
+                                                        : alpha(theme.palette.custom.tableRow, 0.5),
                                                     borderRadius: 1.5,
                                                     transition: 'all 0.2s ease',
                                                     '& fieldset': { 
                                                         borderColor: theme.palette.custom.tableBorder,
-                                                        transition: 'all 0.2s ease' 
+                                                        transition: 'all 0.2s ease'
                                                     },
                                                     '&:hover': {
-                                                        backgroundColor: alpha(theme.palette.custom.tableRow, 0.8),
-                                                        '& fieldset': { borderColor: theme.palette.info.main }
+                                                        backgroundColor: idx === 0
+                                                            ? alpha(theme.palette.grey[500], 0.1)
+                                                            : alpha(theme.palette.custom.tableRow, 0.8),
+                                                        '& fieldset': { borderColor: idx === 0 ? theme.palette.custom.tableBorder : theme.palette.info.main }
                                                     },
                                                     '&.Mui-focused': {
                                                         backgroundColor: alpha(theme.palette.custom.tableRow, 0.9),
@@ -608,17 +662,22 @@ function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, d
                                                 }
                                             }}
                                             sx={{ 
-                                                '& .MuiInputBase-input': { color: theme.palette.text.primary, fontFamily: 'monospace' }
+                                                '& .MuiInputBase-input': { 
+                                                    color: theme.palette.text.primary, 
+                                                    fontFamily: 'monospace',
+                                                    cursor: idx === 0 ? 'not-allowed' : 'text'
+                                                }
                                             }}
                                         />
                                     </Grid>
+                                    {/* COLUMNA 2: Facturado (Sieben) - calculado del sistema */}
                                     <Grid item xs={2.5}>
                                         <TextField
                                             fullWidth
                                             size="small"
                                             placeholder="$"
-                                            value={entry.cobrado}
-                                            onChange={(e) => updatePaymentRow(idx, "cobrado", e.target.value)}
+                                            value={entry.facturado}
+                                            onChange={(e) => updatePaymentRow(idx, "facturado", e.target.value)}
                                             InputProps={{ 
                                                 sx: { 
                                                     fontSize: '0.9rem', 
@@ -644,7 +703,6 @@ function PaymentMethodsPanel({ medios_pago, paymentEntries, setPaymentEntries, d
                                             sx={{ 
                                                 '& .MuiInputBase-input': { color: theme.palette.text.primary, fontFamily: 'monospace' }
                                             }}
-                                            onInput={(e) => e.target.value = e.target.value.replace(/[^0-9.,]/g, "")}
                                         />
                                     </Grid>
                                     <Grid item xs={3} textAlign="right">
@@ -798,7 +856,7 @@ function JustificacionesPanel({ paymentEntries, ajustesMotivos, fecha, selectedU
 
     useEffect(() => {
         // Suma todos los ajustes
-        const sum = justificaciones.reduce((acc, j) => acc + (parseCurrency(j.ajuste) || 0), 0);
+        const sum = justificaciones.reduce((acc, j) => acc + (normalizeNumber(j.ajuste) || 0), 0);
         if (typeof onSumChange === 'function') onSumChange(sum);
         if (typeof onJustificacionesChange === 'function') onJustificacionesChange(justificaciones);
     }, [justificaciones, onSumChange, onJustificacionesChange]);
@@ -1479,16 +1537,22 @@ function CierreCaja() {
 
     const confirmCierre = async () => {
         const balanceSinJustificar = getGrandPaymentTotal() - sumJustificaciones;
-        // Convertir facturado a suma antes de exportar
+        // No permitir enviar el cierre si no está cuadrado (según la UI: "Cierre Cuadrado")
+        if (Math.abs(balanceSinJustificar) >= 0.01) {
+            alert('No se puede enviar el cierre: el balance no está cuadrado. Debe quedar "Cierre Cuadrado" antes de enviar.');
+            return;
+        }
+        // Convertir facturado y cobrado a suma antes de exportar
         const mediosPagoExport = paymentEntries.map(entry => ({
             ...entry,
-            facturado: parseSumExpression(entry.facturado || "0")
+            facturado: parseSumExpression(entry.facturado || "0"),
+            cobrado: parseSumExpression(entry.cobrado || "0") // Usar parseSumExpression para soportar sumas
         }));
         
         // Procesar justificaciones para convertir valores de ajuste a números
         const justificacionesProcessed = justificacionesData.map(justificacion => ({
             ...justificacion,
-            ajuste: parseCurrency(justificacion.ajuste || "0") // Convertir string a número
+            ajuste: normalizeNumber(justificacion.ajuste || "0") // Convertir string a número
         }));
         
         // Fecha en formato DD/MM/YYYY

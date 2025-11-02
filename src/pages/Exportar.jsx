@@ -57,16 +57,10 @@ import {
 import moment from 'moment';
 import axios from 'axios';
 import { fetchWithFallback, axiosWithFallback } from '../config';
+import { formatCurrency as formatCurrencyGlobal, normalizeNumber as normalizeNumberGlobal } from '../utils/numberFormat';
 
-// Función para formatear moneda
-function formatCurrency(value) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  }).format(value || 0);
-}
+// Función para formatear moneda (unificada)
+const formatCurrency = (value) => formatCurrencyGlobal(value);
 
 // Componente ExactValue
 const ExactValue = React.memo(function ExactValue({ value, currency = true }) {
@@ -117,15 +111,7 @@ function getEstado(cierre) {
 }
 
 // Función para procesar valores numéricos con comas (copiada de Diferencias.jsx)
-const processNumericValue = (value) => {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string') {
-    const cleaned = value.replace(/,/g, '.').trim();
-    const parsed = parseFloat(cleaned);
-    return isNaN(parsed) ? 0 : parsed;
-  }
-  return 0;
-};
+const processNumericValue = (value) => normalizeNumberGlobal(value);
 
 // Función específica para procesar valores de ajuste y monto_dif
 const processAjusteValue = (ajuste, monto_dif) => {

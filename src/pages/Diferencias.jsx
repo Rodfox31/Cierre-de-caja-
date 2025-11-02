@@ -69,6 +69,7 @@ import DialogContentText from '@mui/material/DialogContentText';
 import DialogActions from '@mui/material/DialogActions';
 import Modificar from './Modificar';
 import DetallesCierre from './DetallesCierre';
+import { formatCurrency as formatCurrencyGlobal, normalizeNumber as normalizeNumberGlobal } from '../utils/numberFormat';
 
 ////////////////////////////////////////////////////////////////////////
 // CONSTANTES Y FUNCIONES AUXILIARES
@@ -119,14 +120,7 @@ const ESTADOS_CIERRE = {
   },
 };
 
-function formatCurrency(value) {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency: 'ARS',
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  }).format(value || 0);
-}
+const formatCurrency = (value) => formatCurrencyGlobal(value);
 
 function getEstado(cierre) {
   const diffVal = Number(cierre.grand_difference_total) || 0;

@@ -17,7 +17,8 @@
     "NC: Refacturación Mayor/Menor",
     "BRINKS: Deposite de Más/Menos",
     "OTROS: Cambio de artículo en Promoción",
-    "Orden cubieta con contingencia"
+    "Orden cubieta con contingencia",
+    "Inversion de modo de pago"
   ],
   "medios_pago": [
     "Efectivo",
