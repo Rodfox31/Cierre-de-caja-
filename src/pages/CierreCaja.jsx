@@ -36,6 +36,11 @@ import {
     InputAdornment,
     useTheme,
     alpha,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    DialogContentText,
 } from '@mui/material';
 
 // --- MUI Icons ---
@@ -55,6 +60,9 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import InfoIcon from '@mui/icons-material/Info';
 
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -86,6 +94,126 @@ const initialBills = [
     { label: "$ 50", value: 50, cantidad: 0, total: 0 },
     { label: "$ 10", value: 10, cantidad: 0, total: 0 }
 ];
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Componente: CustomDialog - Diálogo personalizado con estilos de la app
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+function CustomDialog({ open, onClose, title, message, type = 'info', onConfirm, confirmText = 'Aceptar', showCancel = false }) {
+    const theme = useTheme();
+    
+    const getIconAndColor = () => {
+        switch (type) {
+            case 'success':
+                return { icon: <CheckCircleIcon sx={{ fontSize: 48 }} />, color: theme.palette.success.main };
+            case 'warning':
+                return { icon: <WarningAmberIcon sx={{ fontSize: 48 }} />, color: theme.palette.warning.main };
+            case 'error':
+                return { icon: <ErrorOutlineIcon sx={{ fontSize: 48 }} />, color: theme.palette.error.main };
+            default:
+                return { icon: <InfoIcon sx={{ fontSize: 48 }} />, color: theme.palette.info.main };
+        }
+    };
+
+    const { icon, color } = getIconAndColor();
+
+    return (
+        <Dialog 
+            open={open} 
+            onClose={onClose}
+            maxWidth="sm"
+            fullWidth
+            PaperProps={{
+                sx: {
+                    borderRadius: 3,
+                    background: `linear-gradient(135deg, ${theme.palette.background.paper} 0%, ${alpha(theme.palette.background.default, 0.95)} 100%)`,
+                    border: `1px solid ${alpha(theme.palette.custom.tableBorder, 0.3)}`,
+                    boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.2)}`,
+                }
+            }}
+        >
+            <DialogTitle sx={{ 
+                pb: 1,
+                pt: 3,
+                px: 3
+            }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Box sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 56,
+                        height: 56,
+                        borderRadius: '14px',
+                        background: `linear-gradient(135deg, ${alpha(color, 0.15)} 0%, ${alpha(color, 0.05)} 100%)`,
+                        border: `2px solid ${alpha(color, 0.3)}`,
+                        color: color
+                    }}>
+                        {icon}
+                    </Box>
+                    <Typography variant="h6" sx={{ 
+                        color: theme.palette.text.primary,
+                        fontWeight: 600,
+                        fontSize: '1.25rem'
+                    }}>
+                        {title}
+                    </Typography>
+                </Box>
+            </DialogTitle>
+            <DialogContent sx={{ px: 3, pb: 2 }}>
+                <DialogContentText sx={{ 
+                    color: theme.palette.text.secondary,
+                    fontSize: '1rem',
+                    lineHeight: 1.6,
+                    pl: 9
+                }}>
+                    {message}
+                </DialogContentText>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, pb: 3, pt: 1 }}>
+                {showCancel && (
+                    <Button 
+                        onClick={onClose}
+                        variant="outlined"
+                        sx={{
+                            borderColor: alpha(theme.palette.text.secondary, 0.3),
+                            color: theme.palette.text.secondary,
+                            fontWeight: 600,
+                            px: 3,
+                            borderRadius: 2,
+                            '&:hover': {
+                                borderColor: alpha(theme.palette.text.secondary, 0.5),
+                                background: alpha(theme.palette.text.secondary, 0.05)
+                            }
+                        }}
+                    >
+                        Cancelar
+                    </Button>
+                )}
+                <Button 
+                    onClick={() => {
+                        if (onConfirm) onConfirm();
+                        onClose();
+                    }}
+                    variant="contained"
+                    sx={{
+                        background: `linear-gradient(135deg, ${color} 0%, ${alpha(color, 0.8)} 100%)`,
+                        color: '#fff',
+                        fontWeight: 600,
+                        px: 3,
+                        borderRadius: 2,
+                        boxShadow: `0 4px 12px ${alpha(color, 0.3)}`,
+                        '&:hover': {
+                            background: `linear-gradient(135deg, ${alpha(color, 0.9)} 0%, ${alpha(color, 0.7)} 100%)`,
+                            boxShadow: `0 6px 16px ${alpha(color, 0.4)}`
+                        }
+                    }}
+                >
+                    {confirmText}
+                </Button>
+            </DialogActions>
+        </Dialog>
+    );
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Bloque 1: HeaderControls – Controles de Encabezado
@@ -1177,7 +1305,7 @@ function JustificacionesPanel({ paymentEntries, ajustesMotivos, fecha, selectedU
 ////////////////////////////////////////////////////////////////////////////////////////////////
 function FinalizationPanel({
     tarjetasTotal, sumJustificaciones, responsable, setResponsable,
-    comentarios, setComentarios, onEnviarCierre, onImprimir
+    comentarios, setComentarios, onEnviarCierre, onImprimir, isEnviando
 }) {
     const balanceSinJustificar = tarjetasTotal - sumJustificaciones;
     const isBalanced = Math.abs(balanceSinJustificar) < 0.01;
@@ -1312,6 +1440,7 @@ function FinalizationPanel({
                             variant="contained" 
                             startIcon={<SendIcon />} 
                             onClick={onEnviarCierre} 
+                            disabled={isEnviando}
                             size="large"
                             sx={{
                                 background: `linear-gradient(135deg, ${theme.palette.primary.main} 0%, ${theme.palette.primary.dark || alpha(theme.palette.primary.main, 0.85)} 100%)`,
@@ -1322,19 +1451,25 @@ function FinalizationPanel({
                                 borderRadius: 2,
                                 boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`,
                                 transition: 'all 0.2s ease',
-                                '&:hover': { 
+                                '&:hover:not(:disabled)': { 
                                     background: `linear-gradient(135deg, ${theme.palette.primary.dark || alpha(theme.palette.primary.main, 0.85)} 0%, ${alpha(theme.palette.primary.main, 0.7)} 100%)`,
                                     transform: 'translateY(-2px)',
                                     boxShadow: `0 6px 20px ${alpha(theme.palette.primary.main, 0.4)}`
+                                },
+                                '&:disabled': {
+                                    background: theme.palette.action.disabledBackground,
+                                    color: theme.palette.text.disabled,
+                                    boxShadow: 'none'
                                 }
                             }}
                         >
-                            Enviar Cierre
+                            {isEnviando ? 'Enviando...' : 'Enviar Cierre'}
                         </Button>
                         <Button 
                             variant="outlined" 
                             startIcon={<PrintIcon />} 
                             onClick={onImprimir} 
+                            disabled={isEnviando}
                             size="large"
                             sx={{
                                 borderColor: alpha(theme.palette.primary.main, 0.3),
@@ -1345,12 +1480,16 @@ function FinalizationPanel({
                                 py: 1.2,
                                 borderRadius: 2,
                                 transition: 'all 0.2s ease',
-                                '&:hover': { 
+                                '&:hover:not(:disabled)': { 
                                     borderColor: theme.palette.primary.main,
                                     borderWidth: '1.5px',
                                     background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.08)} 0%, ${alpha(theme.palette.primary.light, 0.04)} 100%)`,
                                     transform: 'translateY(-2px)',
                                     boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.2)}`
+                                },
+                                '&:disabled': {
+                                    borderColor: alpha(theme.palette.text.disabled, 0.3),
+                                    color: theme.palette.text.disabled
                                 }
                             }}
                         >
@@ -1384,34 +1523,7 @@ function formatFecha(fecha) {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // COMPONENTE PRINCIPAL: CierreCaja
-// 
-// ORDEN LÓGICO DE COMPONENTES (basado en mejores prácticas UX/UI):
-// 
-// 1. HEADER CONTROLS - Configuración inicial (fecha, tienda, usuario)
-//    ↓ (Flujo de datos primarios)
-// 2. BILLS PANEL - Entrada de efectivo físico (datos primarios)
-// 3. BRINKS PANEL - Entrada de depósitos (datos primarios)
-//    ↓ (Procesamiento y análisis)
-// 4. PAYMENT METHODS PANEL - Análisis de medios de pago y diferencias
-// 5. JUSTIFICACIONES PANEL - Gestión de diferencias y ajustes
-//    ↓ (Validación y cierre)
-// 6. FINALIZATION PANEL - Validación final y envío
-//
-// PRINCIPIOS UX/UI APLICADOS:
-// - Flujo de izquierda a derecha (datos primarios → procesamiento → validación)
-// - Agrupación lógica por columnas (entrada vs análisis)
-// - Progresión visual clara (primero datos, luego análisis, finalmente cierre)
-// - Jerarquía visual con comentarios explicativos
-// - Títulos de sección para guiar al usuario
-// - Separación visual entre etapas del proceso
-//
-// MEJORAS IMPLEMENTADAS:
-// ✓ Reordenamiento lógico de componentes
-// ✓ Agrupación visual por columnas
-// ✓ Títulos de sección descriptivos
-// ✓ Iconografía consistente
-// ✓ Comentarios explicativos del flujo
-// ✓ Guía visual del proceso
+
 ////////////////////////////////////////////////////////////////////////////////////////////////
 function CierreCaja() {
     const [fecha, setFecha] = useState(new Date());
@@ -1435,7 +1547,27 @@ function CierreCaja() {
     const [mostrarResumen, setMostrarResumen] = useState(false);
     const [resumenData, setResumenData] = useState(null);
     const [resetHeader, setResetHeader] = useState(false);
+    const [justificacionesKey, setJustificacionesKey] = useState(0); // Key para forzar reset del componente
+    const [isEnviando, setIsEnviando] = useState(false); // Controla el estado de envío
+    
+    // Estados para el diálogo personalizado
+    const [dialogOpen, setDialogOpen] = useState(false);
+    const [dialogConfig, setDialogConfig] = useState({
+        title: '',
+        message: '',
+        type: 'info',
+        onConfirm: null,
+        confirmText: 'Aceptar',
+        showCancel: false
+    });
+    
     const theme = useTheme();
+
+    // Función helper para mostrar diálogos
+    const showDialog = (title, message, type = 'info', onConfirm = null, confirmText = 'Aceptar', showCancel = false) => {
+        setDialogConfig({ title, message, type, onConfirm, confirmText, showCancel });
+        setDialogOpen(true);
+    };
 
     // Cargar usuarios desde la API
     useEffect(() => {
@@ -1503,6 +1635,15 @@ function CierreCaja() {
     };
 
     const togglePanelCierre = async () => {
+        // Si el panel está visible, resetear justificaciones antes de cerrarlo
+        if (panelVisible) {
+            setJustificacionesKey(prev => prev + 1);
+            setSumJustificaciones(0);
+            setJustificacionesData([]);
+            setPanelVisible(false);
+            return;
+        }
+        
         // Usar formato DD/MM/YYYY para la fecha en la consulta a la API
         const pad = (n) => n.toString().padStart(2, '0');
         const fechaStr = `${pad(fecha.getDate())}/${pad(fecha.getMonth() + 1)}/${fecha.getFullYear()}`;
@@ -1522,13 +1663,26 @@ function CierreCaja() {
                 }
             }
             if (result.existe) {
-                alert("Este cierre ya fue completado previamente.");
+                showDialog(
+                    'Cierre ya completado',
+                    'Este cierre ya fue completado previamente.',
+                    'warning'
+                );
                 return;
             }
-            setPanelVisible(!panelVisible);
+            
+            // Resetear justificaciones al abrir el panel
+            setJustificacionesKey(prev => prev + 1);
+            setSumJustificaciones(0);
+            setJustificacionesData([]);
+            setPanelVisible(true);
         } catch (error) {
             // Mostrar error en la interfaz
-            alert(error.message || 'Error al conectar con la base de datos para verificar el cierre');
+            showDialog(
+                'Error de Conexión',
+                error.message || 'Error al conectar con la base de datos para verificar el cierre',
+                'error'
+            );
         }
     };
 
@@ -1536,71 +1690,102 @@ function CierreCaja() {
     const dynamicEfectivo = finalTotal + brinksTotal;
 
     const confirmCierre = async () => {
+        // Prevenir múltiples envíos simultáneos
+        if (isEnviando) {
+            return;
+        }
+        
         const balanceSinJustificar = getGrandPaymentTotal() - sumJustificaciones;
         // No permitir enviar el cierre si no está cuadrado (según la UI: "Cierre Cuadrado")
         if (Math.abs(balanceSinJustificar) >= 0.01) {
-            alert('No se puede enviar el cierre: el balance no está cuadrado. Debe quedar "Cierre Cuadrado" antes de enviar.');
+            showDialog(
+                'Balance No Cuadrado',
+                'No se puede enviar el cierre: el balance no está cuadrado. Debe quedar "Cierre Cuadrado" antes de enviar.',
+                'warning'
+            );
             return;
         }
-        // Convertir facturado y cobrado a suma antes de exportar
-        const mediosPagoExport = paymentEntries.map(entry => ({
-            ...entry,
-            facturado: parseSumExpression(entry.facturado || "0"),
-            cobrado: parseSumExpression(entry.cobrado || "0") // Usar parseSumExpression para soportar sumas
-        }));
         
-        // Procesar justificaciones para convertir valores de ajuste a números
-        const justificacionesProcessed = justificacionesData.map(justificacion => ({
-            ...justificacion,
-            ajuste: normalizeNumber(justificacion.ajuste || "0") // Convertir string a número
-        }));
+        // Activar estado de envío
+        setIsEnviando(true);
         
-        // Fecha en formato DD/MM/YYYY
-        const pad = (n) => n.toString().padStart(2, '0');
-        const fechaStr = `${pad(fecha.getDate())}/${pad(fecha.getMonth() + 1)}/${fecha.getFullYear()}`;
-        const exportData = {
-            fecha: fechaStr,
-            tienda: selectedTienda,
-            usuario: selectedUsuario,
-            total_billetes: parseFloat(totalEfectivo.toFixed(2)),
-            final_balance: parseFloat(finalTotal.toFixed(2)),
-            brinks_total: parseFloat(brinksTotal.toFixed(2)),
-            medios_pago: JSON.stringify(mediosPagoExport),
-            justificaciones: justificacionesProcessed, // Usar las justificaciones procesadas
-            grand_difference_total: parseFloat(getGrandPaymentTotal().toFixed(2)),
-            balance_sin_justificar: parseFloat(balanceSinJustificar.toFixed(2)),
-            responsable: responsable,
-            comentarios: comentarios
-        };
         try {
+            // Convertir facturado y cobrado a suma antes de exportar
+            const mediosPagoExport = paymentEntries.map(entry => ({
+                ...entry,
+                facturado: parseSumExpression(entry.facturado || "0"),
+                cobrado: parseSumExpression(entry.cobrado || "0") // Usar parseSumExpression para soportar sumas
+            }));
+            
+            // Procesar justificaciones para convertir valores de ajuste a números
+            const justificacionesProcessed = justificacionesData.map(justificacion => ({
+                ...justificacion,
+                ajuste: normalizeNumber(justificacion.ajuste || "0") // Convertir string a número
+            }));
+            
+            // Fecha en formato DD/MM/YYYY
+            const pad = (n) => n.toString().padStart(2, '0');
+            const fechaStr = `${pad(fecha.getDate())}/${pad(fecha.getMonth() + 1)}/${fecha.getFullYear()}`;
+            const exportData = {
+                fecha: fechaStr,
+                tienda: selectedTienda,
+                usuario: selectedUsuario,
+                total_billetes: parseFloat(totalEfectivo.toFixed(2)),
+                final_balance: parseFloat(finalTotal.toFixed(2)),
+                brinks_total: parseFloat(brinksTotal.toFixed(2)),
+                medios_pago: JSON.stringify(mediosPagoExport),
+                justificaciones: justificacionesProcessed, // Usar las justificaciones procesadas
+                grand_difference_total: parseFloat(getGrandPaymentTotal().toFixed(2)),
+                balance_sin_justificar: parseFloat(balanceSinJustificar.toFixed(2)),
+                responsable: responsable,
+                comentarios: comentarios
+            };
+            
             const response = await fetchWithFallback('/api/cierres-completo', {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(exportData)
             });
+            
             if (!response.ok) throw new Error(`Error ${response.status}: ${await response.text()}`);
             await response.json();
-            alert("Información enviada a la DB correctamente.");
             
-            // Resetear todos los estados para permitir un nuevo cierre
-            setPanelVisible(false);
-            setBillEntries(JSON.parse(JSON.stringify(initialBills)));
-            setBrinksEntries([{ codigo: "", monto: 0 }]);
-            setPaymentEntries([]);
-            setResponsable("");
-            setComentarios("");
-            setSumJustificaciones(0);
-            setJustificacionesData([]);
-            
-            // Resetear la fecha a hoy para el próximo cierre
-            setFecha(new Date());
-            
-            // Activar el reset del header
-            setResetHeader(true);
-            setTimeout(() => setResetHeader(false), 100); // Reset después de un breve delay
+            showDialog(
+                'Cierre Exitoso',
+                'La información del cierre ha sido enviada correctamente a la base de datos.',
+                'success',
+                () => {
+                    // Resetear todos los estados para permitir un nuevo cierre
+                    setPanelVisible(false);
+                    setBillEntries(JSON.parse(JSON.stringify(initialBills)));
+                    setBrinksEntries([{ codigo: "", monto: 0 }]);
+                    setPaymentEntries([]);
+                    setResponsable("");
+                    setComentarios("");
+                    setSumJustificaciones(0);
+                    setJustificacionesData([]);
+                    
+                    // Forzar el reinicio completo del módulo de justificaciones
+                    setJustificacionesKey(prev => prev + 1);
+                    
+                    // Resetear la fecha a hoy para el próximo cierre
+                    setFecha(new Date());
+                    
+                    // Activar el reset del header
+                    setResetHeader(true);
+                    setTimeout(() => setResetHeader(false), 100); // Reset después de un breve delay
+                }
+            );
         } catch (err) {
             console.error("Error guardando el cierre:", err);
-            alert(`Error al enviar cierre: ${err.message}`);
+            showDialog(
+                'Error al Enviar',
+                `Error al enviar el cierre: ${err.message}`,
+                'error'
+            );
+        } finally {
+            // Siempre desactivar el estado de envío al finalizar (éxito o error)
+            setIsEnviando(false);
         }
     };
 
@@ -1707,6 +1892,7 @@ function CierreCaja() {
                             />
                             {/* 4. JUSTIFICACIONES PANEL - Gestión de diferencias */}
                             <JustificacionesPanel
+                                key={justificacionesKey}
                                 paymentEntries={paymentEntries}
                                 ajustesMotivos={dataAjustes.motivos_error_pago}
                                 fecha={fecha}
@@ -1724,6 +1910,7 @@ function CierreCaja() {
                                 setComentarios={setComentarios}
                                 onEnviarCierre={confirmCierre}
                                 onImprimir={handleImprimir}
+                                isEnviando={isEnviando}
                             />
                         </Stack>
                     </Grid>
@@ -1737,6 +1924,18 @@ function CierreCaja() {
                     onClose={() => setMostrarResumen(false)}
                 />
             )}
+            
+            {/* Diálogo personalizado */}
+            <CustomDialog
+                open={dialogOpen}
+                onClose={() => setDialogOpen(false)}
+                title={dialogConfig.title}
+                message={dialogConfig.message}
+                type={dialogConfig.type}
+                onConfirm={dialogConfig.onConfirm}
+                confirmText={dialogConfig.confirmText}
+                showCancel={dialogConfig.showCancel}
+            />
             </Container>
         </Box>
     );

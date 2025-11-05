@@ -297,22 +297,22 @@ function CierreDiario() {
   const calcularTotales = () => {
     let totalFacturado = 0;
     let totalCobrado = 0;
-    let totalDiferencia = 0;
+    let totalGeneral = 0;
 
     mediosPagoData.forEach(medio => {
       const facturado = normalizeNumber(cobradoValues[medio.medio]);
       const cobrado = parseFloat(facturadoValues[medio.medio]) || 0;
-      const diferencia = facturado - cobrado;
+      const total = facturado - cobrado; // Diferencia: Facturado - Cobrado
 
       totalFacturado += facturado;
       totalCobrado += cobrado;
-      totalDiferencia += diferencia;
+      totalGeneral += total;
     });
 
     return {
       totalFacturado,
       totalCobrado,
-      totalDiferencia
+      totalGeneral
     };
   };
 
@@ -532,7 +532,7 @@ function CierreDiario() {
                         color: theme.palette.text.primary,
                         borderBottom: `2px solid ${theme.palette.custom?.tableBorder || theme.palette.divider}`
                       }}>
-                        Diferencia
+                        Total
                       </TableCell>
                     </TableRow>
                   </TableHead>
@@ -547,7 +547,9 @@ function CierreDiario() {
                       </TableRow>
                     ) : (
                       mediosPagoData.map((medio, index) => {
-                        const diferencia = calcularDiferencia(medio);
+                        const facturadoReal = normalizeNumber(cobradoValues[medio.medio]);
+                        const cobradoSistema = parseFloat(facturadoValues[medio.medio]) || 0;
+                        const total = facturadoReal - cobradoSistema; // Diferencia: Facturado - Cobrado
                         return (
                           <TableRow 
                             key={index} 
@@ -634,13 +636,13 @@ function CierreDiario() {
                                 fontFamily: 'monospace',
                                 fontWeight: 'bold',
                                 fontSize: '0.95rem',
-                                color: diferencia === 0 ? theme.palette.text.primary : 
-                                       diferencia > 0 ? theme.palette.positive?.main || '#4caf50' : 
+                                color: total === 0 ? theme.palette.text.primary : 
+                                       total > 0 ? theme.palette.positive?.main || '#4caf50' : 
                                        theme.palette.negative?.main || '#f44336',
                                 py: 0.75
                               }}
                             >
-                              {formatCurrency(diferencia)}
+                              {formatCurrency(total)}
                             </TableCell>
                           </TableRow>
                         );
@@ -698,11 +700,11 @@ function CierreDiario() {
                               fontFamily: 'monospace',
                               fontWeight: 'bold',
                               fontSize: '1rem',
-                              color: totales.totalDiferencia === 0 ? theme.palette.text.primary : 
-                                     totales.totalDiferencia > 0 ? theme.palette.positive?.main || '#4caf50' : 
+                              color: totales.totalGeneral === 0 ? theme.palette.text.primary : 
+                                     totales.totalGeneral > 0 ? theme.palette.positive?.main || '#4caf50' : 
                                      theme.palette.negative?.main || '#f44336'
                             }}>
-                              {formatCurrency(totales.totalDiferencia)}
+                              {formatCurrency(totales.totalGeneral)}
                             </Typography>
                           </TableCell>
                         </TableRow>
@@ -1130,17 +1132,21 @@ function CierreDiario() {
                                   }}
                                 >
                                   <Box sx={{ flex: 1, mr: 1 }}>
-                                    <Typography variant="caption" sx={{ display: 'block', fontSize: '0.7rem', lineHeight: 1.3 }}>
-                                      {just.descripcion}
+                                    <Typography variant="caption" sx={{ display: 'block', fontSize: '0.7rem', lineHeight: 1.3, fontWeight: 600 }}>
+                                      {just.cliente && `Cliente: ${just.cliente}`}
+                                      {just.orden && ` | Orden: ${just.orden}`}
                                     </Typography>
-                                    {just.tipo && (
-                                      <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.6rem' }}>
-                                        {just.tipo}
+                                    <Typography variant="caption" sx={{ display: 'block', color: theme.palette.text.secondary, fontSize: '0.65rem', mt: 0.3 }}>
+                                      {just.medio_pago && `Medio: ${just.medio_pago}`}
+                                    </Typography>
+                                    {just.motivo && (
+                                      <Typography variant="caption" sx={{ display: 'block', color: theme.palette.warning.dark, fontSize: '0.65rem', fontStyle: 'italic', mt: 0.2 }}>
+                                        {just.motivo}
                                       </Typography>
                                     )}
                                   </Box>
                                   <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 'bold', color: theme.palette.warning.dark, fontSize: '0.7rem', whiteSpace: 'nowrap' }}>
-                                    {formatCurrency(just.monto)}
+                                    {formatCurrency(just.ajuste)}
                                   </Typography>
                                 </Box>
                               ))}
