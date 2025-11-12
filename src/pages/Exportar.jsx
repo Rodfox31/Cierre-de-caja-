@@ -52,7 +52,9 @@ import {
   Assignment as AssignmentIcon,
   TrendingUp as TrendingUpIcon,
   TrendingDown as TrendingDownIcon,
-  Info as InfoIcon
+  Info as InfoIcon,
+  FilterAltOff as FilterAltOffIcon,
+  CreditCard as CreditCardIcon
 } from '@mui/icons-material';
 import moment from 'moment';
 import axios from 'axios';
@@ -345,15 +347,22 @@ export default function ControlMensual() {
   const [selectedYear, setSelectedYear] = useState(moment().year());
   const [tiendas, setTiendas] = useState([]);
   const [motivos, setMotivos] = useState([]);
+  const [mediosPago, setMediosPago] = useState([]); // NUEVO: Lista de medios de pago
   const [allJustificaciones, setAllJustificaciones] = useState([]);
   const [filteredJustificaciones, setFilteredJustificaciones] = useState([]);
+  const [allCierres, setAllCierres] = useState([]); // NUEVO: Todos los cierres completos
+  const [filteredCierres, setFilteredCierres] = useState([]); // NUEVO: Cierres filtrados
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [selectedTienda, setSelectedTienda] = useState(null);
   const [selectedMotivo, setSelectedMotivo] = useState(null);
+  const [selectedMedioPago, setSelectedMedioPago] = useState(null); // NUEVO: Filtro por medio de pago
+  const [selectedUsuario, setSelectedUsuario] = useState(null); // NUEVO: Filtro por usuario
+  const [usuarios, setUsuarios] = useState([]); // NUEVO: Lista de usuarios
   const [modalDetalle, setModalDetalle] = useState(null);
-  const [tabValue, setTabValue] = useState(0);
+  const [tabValue, setTabValue] = useState(0); // 0: Justificaciones, 1: Cierres, 2: Medios de Pago, 3: Resúmenes
+  const [tipoExportacion, setTipoExportacion] = useState('justificaciones'); // NUEVO: Tipo de datos a exportar
 
   // Funciones auxiliares
   const showSnackbar = useCallback((message, severity = 'info') => {
@@ -401,6 +410,13 @@ export default function ControlMensual() {
       const response = await axiosWithFallback('/api/cierres-completo', { params });
       console.log('Respuesta cierres completos:', response);
       
+      // NUEVO: Guardar todos los cierres completos para exportación
+      const cierresCompletos = response.data.map(cierre => ({
+        ...cierre,
+        fechaMoment: moment(cierre.fecha, 'DD/MM/YYYY')
+      }));
+      setAllCierres(cierresCompletos);
+      
       // Extraer todas las justificaciones de los cierres
       const todasJustificaciones = [];
       response.data.forEach((cierre) => {
@@ -436,6 +452,14 @@ export default function ControlMensual() {
       const motivosUnicos = [...new Set(todasJustificaciones.map(j => j.motivo).filter(Boolean))];
       setMotivos(motivosUnicos);
       
+      // NUEVO: Extraer medios de pago únicos de las justificaciones
+      const mediosPagoUnicos = [...new Set(todasJustificaciones.map(j => j.medio_pago).filter(Boolean))].sort();
+      setMediosPago(mediosPagoUnicos);
+      
+      // NUEVO: Extraer usuarios únicos de las justificaciones
+      const usuariosUnicos = [...new Set(todasJustificaciones.map(j => j.usuario).filter(Boolean))].sort();
+      setUsuarios(usuariosUnicos);
+      
       showSnackbar('Datos cargados exitosamente.', 'success');
     } catch (err) {
       console.error('Error al cargar justificaciones:', err);
@@ -453,7 +477,7 @@ export default function ControlMensual() {
     }
   }, [selectedMonth, selectedYear, tiendas.length, fetchJustificaciones]);
 
-  // Filtrar justificaciones según la tienda y motivo seleccionados
+  // Filtrar justificaciones según los filtros seleccionados
   useEffect(() => {
     let filtered = allJustificaciones;
     
@@ -465,8 +489,34 @@ export default function ControlMensual() {
       filtered = filtered.filter(justificacion => justificacion.motivo === selectedMotivo);
     }
     
+    // NUEVO: Filtro por medio de pago
+    if (selectedMedioPago) {
+      filtered = filtered.filter(justificacion => justificacion.medio_pago === selectedMedioPago);
+    }
+    
+    // NUEVO: Filtro por usuario
+    if (selectedUsuario) {
+      filtered = filtered.filter(justificacion => justificacion.usuario === selectedUsuario);
+    }
+    
     setFilteredJustificaciones(filtered);
-  }, [selectedTienda, selectedMotivo, allJustificaciones]);
+  }, [selectedTienda, selectedMotivo, selectedMedioPago, selectedUsuario, allJustificaciones]);
+
+  // NUEVO: Filtrar cierres completos según los filtros seleccionados
+  useEffect(() => {
+    let filtered = allCierres;
+    
+    if (selectedTienda) {
+      filtered = filtered.filter(cierre => cierre.tienda === selectedTienda);
+    }
+    
+    if (selectedUsuario) {
+      filtered = filtered.filter(cierre => cierre.usuario === selectedUsuario);
+    }
+    
+    setFilteredCierres(filtered);
+  }, [selectedTienda, selectedUsuario, allCierres]);
+
   // Nombres de meses
   const months = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -494,6 +544,15 @@ export default function ControlMensual() {
     const currentYear = moment().year();
     return Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
   }, []);
+
+  // NUEVO: Función para limpiar todos los filtros
+  const handleLimpiarFiltros = useCallback(() => {
+    setSelectedTienda(null);
+    setSelectedMotivo(null);
+    setSelectedMedioPago(null);
+    setSelectedUsuario(null);
+    showSnackbar('Filtros limpiados', 'info');
+  }, [showSnackbar]);
 
   // Handlers para exportar datos
   // Utilidad para exportar CSV
@@ -651,6 +710,60 @@ export default function ControlMensual() {
           color: theme.palette.text.primary
         }}
       >
+        {/* Título y Tabs de tipo de exportación */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: theme.palette.text.primary, mb: 2 }}>
+            📊 Exportar Datos
+          </Typography>
+          <Tabs 
+            value={tabValue} 
+            onChange={(e, newValue) => {
+              setTabValue(newValue);
+              const tipos = ['justificaciones', 'cierres', 'medios-pago', 'resumenes'];
+              setTipoExportacion(tipos[newValue]);
+            }}
+            sx={{
+              borderBottom: 1,
+              borderColor: 'divider',
+              '& .MuiTab-root': {
+                color: theme.palette.text.secondary,
+                fontWeight: 500,
+                fontSize: '0.9rem',
+                minHeight: 48,
+                '&.Mui-selected': {
+                  color: theme.palette.primary.main,
+                  fontWeight: 700
+                }
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: theme.palette.primary.main,
+                height: 3
+              }
+            }}
+          >
+            <Tab 
+              icon={<ReceiptIcon />} 
+              iconPosition="start" 
+              label="Justificaciones" 
+            />
+            <Tab 
+              icon={<AssignmentIcon />} 
+              iconPosition="start" 
+              label="Cierres Completos" 
+            />
+            <Tab 
+              icon={<CreditCardIcon />} 
+              iconPosition="start" 
+              label="Medios de Pago" 
+            />
+            <Tab 
+              icon={<TrendingUpIcon />} 
+              iconPosition="start" 
+              label="Resúmenes" 
+            />
+          </Tabs>
+        </Box>
+
         {/* Filtros */}
         <Box sx={{ mb: 4 }}>
           <Grid container spacing={2} alignItems="center">
@@ -846,6 +959,121 @@ export default function ControlMensual() {
           </Grid>
         </Box>
 
+        {/* NUEVA BARRA DE FILTROS ADICIONALES */}
+        <Box sx={{ mb: 3, mt: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+            <CreditCardIcon sx={{ color: theme.palette.primary.main, mr: 1, fontSize: '1.2rem' }} />
+            <Typography variant="subtitle2" sx={{ color: theme.palette.text.primary, fontWeight: 600 }}>
+              Filtros Adicionales
+            </Typography>
+          </Box>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
+                <InputLabel sx={{ color: theme.palette.text.primary, fontSize: '0.9rem', top: '-4px' }}>
+                  Medio de Pago
+                </InputLabel>
+                <Select
+                  value={selectedMedioPago || ''}
+                  onChange={(e) => setSelectedMedioPago(e.target.value || null)}
+                  label="Medio de Pago"
+                  sx={{
+                    color: theme.palette.text.primary,
+                    '.MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.custom.tableBorder },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.text.secondary },
+                    '.MuiSvgIcon-root': { color: theme.palette.text.primary },
+                    borderRadius: 2,
+                    minHeight: 32,
+                    fontSize: '0.9rem',
+                    height: 36,
+                  }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.9rem', minHeight: 32 }}>
+                    Todos los medios
+                  </MenuItem>
+                  {mediosPago.map((medio) => (
+                    <MenuItem key={medio} value={medio} sx={{ fontSize: '0.9rem', minHeight: 32 }}>
+                      {medio}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small" sx={{ minHeight: 32 }}>
+                <InputLabel sx={{ color: theme.palette.text.primary, fontSize: '0.9rem', top: '-4px' }}>
+                  Usuario
+                </InputLabel>
+                <Select
+                  value={selectedUsuario || ''}
+                  onChange={(e) => setSelectedUsuario(e.target.value || null)}
+                  label="Usuario"
+                  sx={{
+                    color: theme.palette.text.primary,
+                    '.MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.custom.tableBorder },
+                    '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: theme.palette.text.secondary },
+                    '.MuiSvgIcon-root': { color: theme.palette.text.primary },
+                    borderRadius: 2,
+                    minHeight: 32,
+                    fontSize: '0.9rem',
+                    height: 36,
+                  }}
+                  MenuProps={{ PaperProps: { sx: { maxHeight: 200 } } }}
+                >
+                  <MenuItem value="" sx={{ fontSize: '0.9rem', minHeight: 32 }}>
+                    Todos los usuarios
+                  </MenuItem>
+                  {usuarios.map((usuario) => (
+                    <MenuItem key={usuario} value={usuario} sx={{ fontSize: '0.9rem', minHeight: 32 }}>
+                      {usuario}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <Button
+                variant="outlined"
+                onClick={handleLimpiarFiltros}
+                startIcon={<FilterAltOffIcon />}
+                sx={{
+                  color: theme.palette.warning.main,
+                  borderColor: theme.palette.warning.main,
+                  '&:hover': { 
+                    borderColor: theme.palette.warning.dark,
+                    bgcolor: alpha(theme.palette.warning.main, 0.1)
+                  },
+                  height: '36px',
+                  width: '100%',
+                  fontSize: '0.8rem',
+                  borderRadius: 2,
+                  px: 1,
+                }}
+              >
+                Limpiar Filtros
+              </Button>
+            </Grid>
+            <Grid item xs={12} sm={6} md={4}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'flex-end',
+                gap: 1,
+                bgcolor: alpha(theme.palette.info.main, 0.05),
+                p: 1,
+                borderRadius: 2,
+                border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`
+              }}>
+                <InfoIcon sx={{ color: theme.palette.info.main, fontSize: '1rem' }} />
+                <Typography variant="caption" sx={{ color: theme.palette.text.secondary, fontSize: '0.75rem' }}>
+                  Mostrando {filteredJustificaciones.length} de {allJustificaciones.length} registros
+                </Typography>
+              </Box>
+            </Grid>
+          </Grid>
+        </Box>
+
         <Divider sx={{ mb: 3, borderColor: theme.palette.custom.tableBorder }} />
 
         {/* Mensaje de error */}
@@ -855,13 +1083,16 @@ export default function ControlMensual() {
           </Alert>
         )}
 
-        {/* Tabla de justificaciones */}
+        {/* Contenido dinámico según el tab seleccionado */}
         <Box sx={{ mt: 4 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-            <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
-              Justificaciones {selectedTienda ? `de ${selectedTienda}` : 'de todas las tiendas'}
-            </Typography>
-          </Box>
+          {/* TAB 0: Justificaciones */}
+          {tabValue === 0 && (
+            <>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
+                  Justificaciones {selectedTienda ? `de ${selectedTienda}` : 'de todas las tiendas'}
+                </Typography>
+              </Box>
           
           <TableContainer component={Paper} sx={{ 
             bgcolor: theme.palette.background.paper, 
@@ -993,6 +1224,137 @@ export default function ControlMensual() {
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
                 No se encontraron justificaciones para el período seleccionado
+              </Typography>
+            </Box>
+          )}
+            </>
+          )}
+
+          {/* TAB 1: Cierres Completos */}
+          {tabValue === 1 && (
+            <>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Typography variant="h6" sx={{ color: theme.palette.text.primary }}>
+                  Cierres Completos {selectedTienda ? `de ${selectedTienda}` : 'de todas las tiendas'}
+                </Typography>
+              </Box>
+              
+              <TableContainer component={Paper} sx={{ 
+                bgcolor: theme.palette.background.paper, 
+                borderRadius: 3,
+                overflow: 'hidden',
+                border: `1px solid ${theme.palette.custom.tableBorder}`
+              }}>
+                <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow sx={{
+                      bgcolor: theme.palette.custom.tableRow,
+                      '& th': {
+                        fontWeight: 'bold',
+                        color: theme.palette.text.primary,
+                        borderBottom: `2px solid ${theme.palette.success.main}`
+                      }
+                    }}>
+                      <TableCell sx={{ bgcolor: theme.palette.custom.tableRow }}>ID</TableCell>
+                      <TableCell sx={{ bgcolor: theme.palette.custom.tableRow }}>Fecha</TableCell>
+                      <TableCell sx={{ bgcolor: theme.palette.custom.tableRow }}>Tienda</TableCell>
+                      <TableCell sx={{ bgcolor: theme.palette.custom.tableRow }}>Usuario</TableCell>
+                      <TableCell sx={{ bgcolor: theme.palette.custom.tableRow }}>Total Billetes</TableCell>
+                      <TableCell sx={{ bgcolor: theme.palette.custom.tableRow }}>Brinks</TableCell>
+                      <TableCell sx={{ bgcolor: theme.palette.custom.tableRow }}>Diferencia</TableCell>
+                      <TableCell sx={{ bgcolor: theme.palette.custom.tableRow }}>Responsable</TableCell>
+                      <TableCell sx={{ bgcolor: theme.palette.custom.tableRow }}>Validado</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {filteredCierres.map((cierre, index) => (
+                      <TableRow 
+                        key={cierre.id || index} 
+                        sx={{ 
+                          '&:hover': { bgcolor: theme.palette.custom.tableRowHover },
+                          bgcolor: theme.palette.background.paper
+                        }}
+                      >
+                        <TableCell sx={{ color: theme.palette.text.primary, fontFamily: 'monospace' }}>
+                          {cierre.id}
+                        </TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary }}>
+                          {cierre.fecha}
+                        </TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary }}>
+                          {cierre.tienda}
+                        </TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary }}>
+                          {cierre.usuario}
+                        </TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary, fontFamily: 'monospace' }}>
+                          {formatCurrency(cierre.total_billetes || 0)}
+                        </TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary, fontFamily: 'monospace' }}>
+                          {formatCurrency(cierre.brinks_total || 0)}
+                        </TableCell>
+                        <TableCell sx={{ 
+                          color: (cierre.grand_difference_total || 0) >= 0 ? theme.palette.success.main : theme.palette.error.main,
+                          fontFamily: 'monospace',
+                          fontWeight: 600
+                        }}>
+                          {formatCurrency(cierre.grand_difference_total || 0)}
+                        </TableCell>
+                        <TableCell sx={{ color: theme.palette.text.primary }}>
+                          {cierre.responsable || '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={getValidacionTexto(cierre.validado)}
+                            size="small"
+                            sx={{
+                              backgroundColor: cierre.validado === 1 ? theme.palette.success.main : 
+                                              cierre.validado === 2 ? theme.palette.warning.main : 
+                                              theme.palette.error.main,
+                              color: '#fff',
+                              fontSize: '0.7rem',
+                              height: 20,
+                            }}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              
+              {filteredCierres.length === 0 && (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body1" sx={{ color: theme.palette.text.secondary }}>
+                    No se encontraron cierres para el período seleccionado
+                  </Typography>
+                </Box>
+              )}
+            </>
+          )}
+
+          {/* TAB 2: Medios de Pago - Por implementar */}
+          {tabValue === 2 && (
+            <Box sx={{ textAlign: 'center', py: 8 }}>
+              <CreditCardIcon sx={{ fontSize: 64, color: theme.palette.text.disabled, mb: 2 }} />
+              <Typography variant="h6" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                Vista de Medios de Pago
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.text.disabled }}>
+                Próximamente: Resumen de transacciones por medio de pago
+              </Typography>
+            </Box>
+          )}
+
+          {/* TAB 3: Resúmenes - Por implementar */}
+          {tabValue === 3 && (
+            <Box sx={{ textAlign: 'center', py: 8 }}>
+              <TrendingUpIcon sx={{ fontSize: 64, color: theme.palette.text.disabled, mb: 2 }} />
+              <Typography variant="h6" sx={{ color: theme.palette.text.secondary, mb: 1 }}>
+                Resúmenes Estadísticos
+              </Typography>
+              <Typography variant="body2" sx={{ color: theme.palette.text.disabled }}>
+                Próximamente: Estadísticas por tienda, usuario y período
               </Typography>
             </Box>
           )}
