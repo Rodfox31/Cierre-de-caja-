@@ -1,0 +1,58 @@
+{
+  "tiendas": [
+    "Recoleta",
+    "Alto Palermo",
+    "Unicenter",
+    "Solar",
+    "Cordoba",
+    "Rosario"
+  ],
+  "motivos_error_pago": [
+    "Dif. por cambio chico - Monto menor a 1 CAPSULA ESPRESSO (solo efectivo)",
+    "Pago Mixto autorizado por SL-TL-BM",
+    "Error de cobro - Se cobró de menos / mas",
+    "NESSOFT: Anulación no impactada",
+    "NESSOFT: Venta no impactada",
+    "NC: Diferencia Generada por Anulación",
+    "NC: Refacturación Mayor/Menor",
+    "BRINKS: Deposite de Más/Menos",
+    "OTROS: Cambio de artículo en Promoción",
+    "Orden cubieta con contingencia",
+    "Inversion de modo de pago"
+  ],
+  "medios_pago": [
+    "Efectivo",
+    "MPoint",
+    "Mp - Qr",
+    "MPoint - Contingencia",
+    "Payway ",
+    "AppaGift"
+  ],
+  "config_font_size": 22,
+  "config_theme": "Claro",
+  "config_language": "Español",
+  "config_debug": false,
+  "config_logging": false,
+  "roles_config": {
+    "admin": [
+      "*"
+    ],
+    "supervisor": [
+      "view_assigned_sucursales",
+      "view_cierres",
+      "modify_justifications",
+      "view_diferencias",
+      "view_reports",
+      "export_own_data",
+      "view_analytics"
+    ],
+    "cajero": [
+      "create_cierre",
+      "view_own_cierres",
+      "view_own_sucursal",
+      "view_cierres",
+      "view_analytics",
+      "view_assigned_sucursales"
+    ]
+  }
+}
